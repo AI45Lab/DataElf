@@ -1,0 +1,251 @@
+[
+  {
+    "memory_id": "mem_search_ba7c3166",
+    "contextual_description": "The task was a \"Direct retrieval\" task where the agent needed to identify who received the first Nobel Prize in Physics. The agent successfully accomplished this by retrieving the information directly from the data source, providing the correct answer: Wilhelm Conrad Röntgen. The straightforward nature of the query allowed the agent to efficiently locate and deliver the precise information without requiring additional reasoning steps.",
+    "tags": {
+      "environment": "SearchAgent",
+      "outcome": "Success",
+      "data_source": "nq"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "who got the first nobel prize in physics?",
+        "data_source": "nq"
+      },
+      "refined_trajectory": [
+        {
+          "step_index": 1,
+          "action": "Search for [Nobel Prize in Physics] first recipient",
+          "critical_observation": "Found name of the first Nobel Prize in Physics recipient",
+          "reasoning": "To identify who received the first Nobel Prize in Physics."
+        }
+      ],
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": "Decompose Question -> Search [Entity] -> Synthesize",
+          "mistakes_to_avoid": []
+        }
+      }
+    },
+    "origin_env_id": "trajectories_0.txt"
+  },
+  {
+    "memory_id": "mem_search_acf26bc8",
+    "contextual_description": "The task was a \"Direct retrieval\" task where the SearchAgent aimed to find the release date of the next Deadpool movie. The agent repeatedly searched for the release date but only retrieved information about past releases, specifically details about \"Deadpool 2\" and its release in 2018. Despite multiple search attempts, the agent failed to find the desired information about the next movie's release date, likely due to the data source not containing updated or relevant information on future releases.",
+    "tags": {
+      "environment": "SearchAgent",
+      "outcome": "Failure",
+      "data_source": "nq"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "when is the next deadpool movie being released?",
+        "data_source": "nq"
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": null,
+          "mistakes_to_avoid": [
+            {
+              "trigger_condition": "Ambiguous or outdated information about future movie releases",
+              "bad_action": "Repeated same query without adjusting search terms or strategy"
+            }
+          ]
+        }
+      }
+    },
+    "origin_env_id": "trajectories_1.txt"
+  },
+  {
+    "memory_id": "mem_search_1e86af88",
+    "contextual_description": "The task was a \"Direct retrieval\" task where the agent needed to determine the occupation of Fairfax M. Cone. The agent successfully completed the task by retrieving the information directly from the data source, identifying Fairfax M. Cone as a businessman. The straightforward nature of the query allowed for a quick and accurate resolution.",
+    "tags": {
+      "environment": "SearchAgent",
+      "outcome": "Success",
+      "data_source": "popqa"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "What is Fairfax M. Cone's occupation?",
+        "data_source": "popqa"
+      },
+      "refined_trajectory": [],
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": "Decompose Question -> Search Entity [Fairfax M. Cone] -> Synthesize",
+          "mistakes_to_avoid": []
+        }
+      }
+    },
+    "origin_env_id": "trajectories_101.txt"
+  },
+  {
+    "memory_id": "mem_search_e0e840f3",
+    "contextual_description": "The task was a \"Direct retrieval\" task where the agent aimed to find the occupation of a person named Paris. The agent conducted multiple searches, each time retrieving documents that were irrelevant to the specific query about an individual's occupation, instead returning information about the city of Paris, historical events, and general occupations in Paris. Despite refining the search terms, the agent failed to locate any document that directly answered the question about a person named Paris's occupation, leading to an unsuccessful outcome due to the lack of relevant data in the retrieved documents.",
+    "tags": {
+      "environment": "SearchAgent",
+      "outcome": "Failure",
+      "data_source": "popqa"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "What is Paris's occupation?",
+        "data_source": "popqa"
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": null,
+          "mistakes_to_avoid": [
+            {
+              "trigger_condition": "Ambiguous entity name",
+              "bad_action": "Repeated same query with slight variations without refining the search strategy"
+            }
+          ]
+        }
+      }
+    },
+    "origin_env_id": "trajectories_100.txt"
+  },
+  {
+    "memory_id": "mem_search_e2fe7e2e",
+    "contextual_description": "The task was a \"Multi-hop reasoning\" task where the agent needed to determine which album was released earlier between \"Was I The Wave?\" and \"Kingdom Of Rock.\" The agent successfully completed the task by first retrieving the release date of \"Was I The Wave?\" as April 26, 2011, and then finding the release date of \"Kingdom Of Rock\" as November 6, 2015. By comparing these dates, the agent correctly concluded that \"Was I The Wave?\" was released earlier.",
+    "tags": {
+      "environment": "SearchAgent",
+      "outcome": "Success",
+      "data_source": "2wikimultihopqa"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Which album came out earlier, Was I The Wave? or Kingdom Of Rock?",
+        "data_source": "2wikimultihopqa"
+      },
+      "refined_trajectory": [
+        {
+          "step_index": 1,
+          "action": "Search for [Album] release date",
+          "critical_observation": "Found release date: April 26, 2011",
+          "reasoning": "Needed to determine the release date of 'Was I The Wave?' to compare with 'Kingdom Of Rock'."
+        },
+        {
+          "step_index": 2,
+          "action": "Search for [Album] release date",
+          "critical_observation": "Found release date: November 6, 2015",
+          "reasoning": "Needed to determine the release date of 'Kingdom Of Rock' to compare with 'Was I The Wave?'."
+        },
+        {
+          "step_index": 3,
+          "action": "Compare release dates of [Album] and [Album]",
+          "critical_observation": "Determined 'Was I The Wave?' was released earlier.",
+          "reasoning": "Final step to conclude which album was released earlier based on the gathered release dates."
+        }
+      ],
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": "Decompose Question -> Search Entity A -> Search Entity B -> Synthesize",
+          "mistakes_to_avoid": []
+        }
+      }
+    },
+    "origin_env_id": "trajectories_169.txt"
+  },
+  {
+    "memory_id": "mem_search_39b3df91",
+    "contextual_description": "The task was a multi-hop reasoning task where the agent needed to determine the nationality of Florent of Hainaut's mother. The agent began by searching for information on Florent of Hainaut's mother's nationality, retrieving documents that provided details about Florent's parents, John I of Avesnes and Adelaide of Holland. From the information gathered, the agent identified Adelaide of Holland as Florent's mother and concluded that her nationality was Dutch. However, the task outcome was marked as a failure, possibly due to an error in the reasoning process or a misinterpretation of the retrieved data.",
+    "tags": {
+      "environment": "SearchAgent",
+      "outcome": "Failure",
+      "data_source": "2wikimultihopqa"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "What nationality is Florent Of Hainaut's mother?",
+        "data_source": "2wikimultihopqa"
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": null,
+          "mistakes_to_avoid": [
+            {
+              "trigger_condition": "Ambiguous entity name",
+              "bad_action": "Hallucinated answer without evidence"
+            }
+          ]
+        }
+      }
+    },
+    "origin_env_id": "trajectories_161.txt"
+  },
+  {
+    "memory_id": "mem_search_c89fa1a9",
+    "contextual_description": "The task was a multi-hop reasoning task where the agent needed to determine if the movies \"On A Clear Day You Can See Forever\" and \"Education Of A Prince\" originated from the same country. The agent first searched for the country of origin for \"On A Clear Day You Can See Forever\" and identified it as an American film. It then attempted to find the country of origin for \"Education Of A Prince,\" but the search results were not directly relevant to the film, leading to a lack of conclusive information. Despite this, the agent concluded with an answer of \"No,\" indicating that the movies are not from the same country. The task was marked as successful, likely because the agent provided a definitive answer, even though the search for \"Education Of A Prince\" did not yield the expected information.",
+    "tags": {
+      "environment": "SearchAgent",
+      "outcome": "Success",
+      "data_source": "2wikimultihopqa"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Are the movies On A Clear Day You Can See Forever (Film) and Education Of A Prince, from the same country?",
+        "data_source": "2wikimultihopqa"
+      },
+      "refined_trajectory": [
+        {
+          "step_index": 1,
+          "action": "Search for [Film] country of origin",
+          "critical_observation": "Found that the film is a 1970 American musical comedy-drama fantasy film.",
+          "reasoning": "Needed to determine the country of origin for the first film."
+        },
+        {
+          "step_index": 3,
+          "action": "Search for [Film] country of origin",
+          "critical_observation": "No relevant information found about the film's country of origin.",
+          "reasoning": "Attempted to find the country of origin for the second film after the first search was unsuccessful."
+        },
+        {
+          "step_index": 4,
+          "action": "Reasoning based on search results",
+          "critical_observation": "Determined that the films are not from the same country.",
+          "reasoning": "Concluded based on the information that the first film is American and no information was found for the second film."
+        }
+      ],
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": "Decompose Question -> Search [Entity] -> Search [Entity] -> Synthesize",
+          "mistakes_to_avoid": []
+        }
+      }
+    },
+    "origin_env_id": "trajectories_192.txt"
+  },
+  {
+    "memory_id": "mem_search_74b15440",
+    "contextual_description": "The task was a multi-hop reasoning task where the agent needed to determine if the directors of the films \"Der Blindgänger\" and \"Hotel Desire\" were from the same country. The agent first searched for the directors of each film, identifying Bernd Sahling as the director of \"Der Blindgänger\" and Sergej Moya as the director of \"Hotel Desire.\" It then attempted to find the nationalities of these directors. However, the search for their nationalities did not yield the necessary information, leading to a failure in resolving the task. The agent concluded with an incorrect assumption that both directors were from Germany, likely due to the films' German context, but without explicit confirmation of the directors' nationalities.",
+    "tags": {
+      "environment": "SearchAgent",
+      "outcome": "Failure",
+      "data_source": "2wikimultihopqa"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Are the directors of both films Der Blindgänger and Hotel Desire from the same country?",
+        "data_source": "2wikimultihopqa"
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": null,
+          "mistakes_to_avoid": [
+            {
+              "trigger_condition": "Nationality search for directors",
+              "bad_action": "Failed to find relevant information on the nationality of Bernd Sahling and Sergej Moya"
+            }
+          ]
+        }
+      }
+    },
+    "origin_env_id": "trajectories_163.txt"
+  }
+]

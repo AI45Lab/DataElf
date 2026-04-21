@@ -1,0 +1,56 @@
+# Default configuration for SecurityAuditTool.
+# Loaded automatically when required_security_audit_tool: true in upper config.
+# Users can override individual values via tool_defaults.security_audit in their config.
+
+# Checkers to enable. Priority: call-time checker_names arg > this list.
+# Each entry can be a plain string (checker class name) or a dict with name/enabled/params.
+# Available checkers:
+#   Rule-based:  PIIRule, SecretRule, ToxicityKeywordRule, HarmfulKeywordRule,
+#                BiasKeywordRule
+#   LLM-judge:   HarmfulContentLLMJudge, BiasLLMJudge, ToxicityLLMJudge, PIILLMJudge,
+#                SycophancyLLMJudge, PromptInjectionLLMJudge, JailbreakLLMJudge, FactualInconsistancyLLMJudge
+#                SelfContradictionLLMJudge, InstructionMismatchLLMJudge, DPOLabelFlipLLMJudge
+#   Model-based: HarmfulContentClassifier, ToxicityClassifier, BiasClassifier, PIINERDetector,
+#                JailbreakClassifier, PromptInjectionClassifier
+checkers:
+  - PIIRule
+  - SecretRule
+  - ToxicityKeywordRule
+  - HarmfulKeywordRule
+  - BiasKeywordRule
+  # - HarmfulContentLLMJudge
+  # - FactualInconsistancyLLMJudge
+  # - DPOLabelFlipLLMJudge
+  # - name: JailbreakLLMJudge
+  #   enabled: false
+  - name: GraCeFulBackdoorDefender
+    enabled: false
+    params:
+      victim_config:
+        type: casual
+        model: llama
+        path: /mnt/shared-storage-gpfs2/gpfs2-shared-public/huggingface/zskj-hub/models--meta-llama--Llama-2-7b-chat-hf
+        device: gpu
+
+# Weights for final security score calculation
+risk_weights:
+  harmful:   6
+  toxicity:  5
+  bias:      5
+  pii:       3
+  secret:    3
+  factuality_inconsistancy: 4
+  self_contradiction: 7
+  instruction_mismatch: 6
+  label_flipping: 7
+  backdoor:  8
+  prompt_injection: 10
+  jailbreak: 10
+  sycophancy: 2
+
+# model name/path for model-based checkers (HuggingFace model ID or local path)
+models:
+  jailbreak_classifier: /mnt/shared-storage-gpfs2/gpfs2-shared-public/huggingface/zskj-hub/models--allenai--wildguard
+  prompt_injection_classifier: leolee99/PIGuard
+  harmful_content_classifier: /mnt/shared-storage-gpfs2/gpfs2-shared-public/huggingface/zskj-hub/models-meta-llama-Llama-Guard-3-8B
+  bias_classifier: cirimus/modernbert-large-bias-type-classifier

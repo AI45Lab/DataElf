@@ -1,0 +1,124 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "DataElf"
+version = "0.1.0"
+description = "DataElf intelligent data task execution framework"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "DataElf Team"}
+]
+keywords = ["ai", "data-analysis", "agent", "pipeline", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    "click>=8.1.0",
+    "pyyaml>=6.0",
+    "biopython>=1.83",
+    "requests>=2.28.0",
+    "pandas>=2.0.0",
+    "pyarrow>=12.0.0",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+scitools = [
+    "biopython>=1.83",
+]
+scoring = [
+    "torch>=2.0.0",
+    "transformers>=4.30.0",
+    "accelerate>=0.20.0",
+    "sentencepiece>=0.1.99",
+    "protobuf>=3.20.0",
+    "fasttext-wheel>=0.9.2",
+    "scikit-learn>=1.2.0",
+    "openai>=1.0.0",
+    "tqdm>=4.27",
+    "omegaconf>=2.3.0",
+]
+
+security_audit = [
+    "torch>=2.0.0",
+    "transformers>=4.30.0",
+    "accelerate>=0.20.0",
+    "sentencepiece>=0.1.99",
+    "protobuf>=3.20.0",
+    "fasttext-wheel>=0.9.2",
+    "scikit-learn>=1.2.0",
+    "openai>=1.0.0",
+    "tqdm>=4.27",
+    "presidio-analyzer>=2.2.362",
+    "presidio-anonymizer>=2.2.362",
+    "spacy>=3.8.14",
+    "detoxify>=0.5.2",
+]
+
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "mypy>=1.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+elf = "ai_data_pilot.cli:cli"
+pilot = "ai_data_pilot.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/your-org/DataElf"
+Repository = "https://github.com/your-org/DataElf"
+Documentation = "https://github.com/your-org/DataElf/docs"
+
+[tool.setuptools.packages.find]
+include = [
+    "ai_data_pilot",
+    "cli",
+    "agent",
+    "agentic",
+    "runtime",
+    "tools",
+    "database",
+    "config",
+    "pilog",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+select = ["E", "F", "W", "I", "N", "B", "C4"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+pythonpath = ["."]
+python_files = ["*_test.py", "test_*.py"]
+addopts = "-s"
+markers = [
+    "integration: marks tests that call external services or require integration setup",
+    "slow: 需要较长时间运行的测试（如 BLAST）",
+    "network: 需要网络连接的测试",
+]

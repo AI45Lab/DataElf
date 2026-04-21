@@ -1,0 +1,1265 @@
+# English harmful-content wordlist
+# Source: HurtLex (https://github.com/valeriobasile/hurtlex)
+# Format: one term per line, # for comments, blank lines ignored
+# Covers: crime, sexually explicit content, prostitution-related terms
+# Categories: re, asm, asf, pr
+
+
+# ── Crime / Illegal activity ────────────────────────────────────────────
+maffias
+yeargh
+slanderous
+knave
+calumniators
+criminates
+ass-rape
+libel per quod
+slanderer
+m o f f i a
+theif
+armed-robbery
+torture
+denigration
+crucify
+sex offenses
+exaction
+sexual assults
+falsely accused
+filches
+molesting
+swindler
+infantacide
+terraist
+severe
+filched
+abactor
+crucifixion
+professional interrogation techniques
+defamer
+murderer
+special circumstances
+falsely accuse
+plagarize
+maligner
+calumniation
+murders
+rascal
+stealer
+scallywag
+stolen property
+rogue
+larceny
+outwrest
+torturous death
+delict
+pirates
+torturing
+ravishment
+calumniator
+accuse falsely
+cosanostra
+larceny-theft
+abusers
+unfounded accusations
+plagerism
+defames
+slandering
+moiders
+sexual offences
+theives
+rambunctious
+mafiosi
+sicilian mobsters
+theft
+putting to death
+mugging
+ne'er-do-wells
+extortion
+r@pe
+slanderers
+pilfer
+criminals
+terrifies
+cosa nostra
+bunco
+offence
+libeler
+terrists
+criminate
+roguery
+swipe
+picaroon
+libellers
+defame
+larcency
+thefts
+accusing falsely
+loot
+plagiarise
+bedevil
+libelers
+libelists
+violator
+sexually assaulted
+delinquent
+burglar
+libelous
+force
+indictable-only offences
+ravisher
+abductor
+assrape
+pinch
+varlet
+monkey
+mafias
+murdur
+plagiarized
+rape
+vilifications
+heavies
+maffia
+calumny
+moidering
+maltreatments
+abduction
+kidnap
+sea pirate
+unfounded allegations
+sexual molestation
+the m. a. f. f. i. a.
+badda bing
+act of terror
+outlawed
+assault
+sexual victimization
+moffia
+homocide
+romeo and juliet law
+accuses falsely
+infanticide
+scalawag
+terroism
+pirate ships
+booty
+aspersion
+criminal
+hatchet job
+buccaneer-americans
+gop-stop
+'ndrangheta
+accused falsely
+kidnaps
+mofia
+outwresting
+malversation
+purloin
+chiseler
+molestor
+killing
+violent
+groundless allegations
+stealing
+robber
+incriminate
+murder
+lawbreaking
+slandered
+rumbustious
+goldbrick
+snatch
+libelist
+cattle-raid
+thievery
+captor
+murderers
+plagiarize
+forced sex
+con
+m.o.f.i.a.
+corruption of a minor
+racketeer
+infanticidal
+blackmailed
+plagio
+wildness
+abusive
+sex offendor
+mofias
+thiefing
+pirate captain
+laws on sex
+m a f f i a
+plagiary
+unfounded allegation
+sex and the law
+carnal knowledge of a minor
+tearing
+robbery
+rustler
+rack
+baddoer
+ta'liq
+incriminators
+criminous
+terrorising
+sexually violate
+sex without consent
+violation
+vilifier
+kidnabbed
+felony
+frauenraub
+miscreants
+plagiarised
+nobble
+libel law
+calumnies
+libellous
+breaking laws
+torturer
+piracy
+abused
+extort
+felonly
+maritime hijacking
+raging
+excruciation
+kill
+criminating
+terrorize
+m. o. f. f. i. a.
+villainesses
+rapes
+unauthorised
+terroriᶘm
+rapists
+extorts
+tortures
+felonious
+non-accidental trauma
+pillage
+famosus
+terrorisme
+maltreatment
+boisterous
+traducer
+lawlessly
+crimination
+libels
+extorting
+terrist
+assraped
+outwrests
+groundless allegation
+larseny
+prize
+libellist
+abusing
+sneak
+%e2%80%99ndrangheta
+frauder
+corporate bullying
+exactresses
+outlawing
+romeo and juliet laws
+plagiarism
+filch
+incriminatory
+criminal-reform
+theivery
+furious
+neonaticide
+extorted
+scoundrel
+cernō
+slaying
+exacts
+kidnaping
+baddoing
+incriminator
+rakshasa vivaha
+mistreat
+gouger
+extortionists
+criminalities
+swindle
+fierceness
+criminator
+swag
+incrimination
+plagiarization
+fury
+groundless accusations
+mafiosa
+blackmailing
+terrorists
+libellists
+agony
+rag
+exact
+coersive sex
+misuse
+terrorism
+m. o. f. i. a.
+capturer
+criminis
+rapscallion
+despoilment
+slander
+traducement
+wretch
+hook
+snarf
+robbers
+calunnia
+falsely accuses
+mafioso
+molest
+raped
+evildoer
+survivor
+t word
+evil-speaking
+villan
+defamatory
+uswam
+asportation
+molestations
+unauthorized
+torment
+defamations
+heist
+kidnaper
+felons
+moffias
+abuse
+molested
+tempestuous
+abstract
+exactor
+conspiracy to libel
+m o f i a
+slayer
+piratical
+obloquy
+exactress
+plagiarizing
+killer
+criminations
+ass-raped
+slayar
+angry
+camorra
+la costa nostra
+slanders
+ferocity
+m. a. f. i. a.
+steal
+sex laws
+outlaw
+tonya kach
+exactable
+badguy
+unlawfulness
+piratry
+date-rape
+filching
+crimson
+vilifies
+unruly
+hot
+murked
+bag
+extortionate
+villain
+exacted
+mafiosos
+m.o.f.f.i.a.
+sexual mistreatment
+villainies
+solemn cases
+incriminating
+frustrate
+operation sundevil
+unfounded accusation
+sex offences
+m a f i a
+kidnappings
+falsely accusing
+trafficker
+sex & the law
+holdup
+blackmail
+thief
+abigeus
+filcher
+ordeal
+lift
+blackmails
+liquidator
+mobster
+laws regarding sex for consenting adults
+execution
+homicides
+filchers
+vilifiers
+criminally
+dun
+crook
+on indictment
+furiousness
+mafia
+incriminated
+third-degree methods
+kidnabbing
+m.a.f.i.a.
+the m.a.f.f.i.a.
+nonconsensual sex
+terrorist
+castellammarse war
+stickup
+manslayer
+scammer
+snatcher
+sexual offenses
+groundless accusation
+short-change
+gangsters
+hard
+sexual assult
+tanya cash
+red
+delicts
+violently
+imp
+murther
+vehemence
+ckoam
+standover
+scamp
+ndrangheta
+ill-usage
+pocket
+homicide
+defamation
+moidered
+tortured
+banditti
+criminators
+backbiter
+incriminations
+forcible confinement
+r.f.s.s.
+thieves
+vilified
+robberies
+excruciate
+livestock rustling
+raptio
+libel suit
+derogatory
+kidnabber
+kidnab
+larsony
+murderess
+mugged
+crimanal
+exacter
+ill-treatment
+french privateers
+sex and law
+sexual assaults
+gyp
+defaming
+incriminates
+stick up
+kidnapping
+villainous
+crime
+kidnappers
+famacide
+mugger
+pirateering
+debaucher
+movie villains
+genitorture
+outwrested
+stealers
+crimes
+trade libel
+self-plagiarism
+rapere
+bilking
+outlawry
+wrongdoer
+plunder
+muggings
+villians
+extortioners
+criminately
+exacting
+coam
+violence
+robbed
+plagiarisation
+felon
+stoled
+exacters
+defamed
+criminated
+chiseller
+extortions
+knockout
+offense
+gangster
+grifter
+criminousness
+sex violations
+roac
+cattle-rustling
+vilify
+rapine
+sexual assualt
+cabbage
+priate
+violance
+breaking the law
+exactors
+raper
+defrauder
+forced information gathering
+r v lawrence and pomroy
+plagiarists
+legal irresponsibility
+villian
+kidnappin
+abaction
+malefactor
+plagarism
+ntrangata
+kidnapper
+vilifying
+plagirism
+comorra
+robustious
+thieving
+villainess
+law-breaking
+murdering
+abuser
+plaguarism
+non-consensual sex
+raping
+libeller
+abuses
+felonies
+sexual law
+tonya cash
+wild
+rapist
+fraudster
+
+# ── Sexually explicit (male) ────────────────────────────────────────────
+putz
+wankiest
+half-wit
+mark
+barrack
+soft touch
+schlong
+bollock
+piener
+flouter
+orangeish blacks
+dark-brown
+ballock
+simpleton
+know
+patsy
+foreskins
+unintelligence
+dick
+fatuously
+ass
+handjob
+effers
+testes
+brown
+fool
+process
+roll in the hay
+orange blacks
+prepuce
+imbecile
+fucknut
+blackishorange
+peanis
+v faba
+phallos
+teste
+fbomb
+avialian
+avian dinosaur
+brownish
+idiotes
+birds
+chump
+have sex
+fall guy
+stupidety
+v. faba
+last man
+changeling
+orangish-black
+effing
+shag
+cullibility
+pecker
+petit pois
+fucc
+nadgers
+orangeish-black
+fuque
+hand job
+egg
+bolox
+falix symbol
+faba vulgaris
+pinhead
+blackoranges
+wedding tackle
+history of the word "fuck"
+f%e2%80%93%e2%80%93%e2%80%93
+protocercal
+jerking off
+orchitic
+dummy
+fuck-up
+wankily
+outgrowth
+orange-black
+nincompoop
+orangeblack
+galoot
+handball
+dismissal
+stiffy
+orangeishblack
+pisum sativus
+avialan
+ornis
+penides
+shtup
+phallic
+scam
+moron
+nookie
+prick
+muggins
+orchis
+faba sativa
+fokken
+præputium
+love
+phallus
+bollox
+bessara
+blackish orange
+deplasmolysis
+shaft
+pickle
+twirp
+ballocks
+dunderheaded
+effingly
+fava
+modern dinosaurs
+bollocking
+chanticleer
+hump
+bollocks.
+hornswoggle
+wtf
+nitwit
+broad beans
+scoff
+orangishblacks
+cullible
+teasing
+living sauropods
+brownly
+wankier
+stupidities
+stupidity
+hard-on
+moronism
+stupidly
+orangeishblacks
+🐥
+gull
+tomfool
+victimize
+dumbbell
+folly
+dafuq
+gliding mechanism
+eejit
+cretin
+fuckier
+have it away
+imbecility
+make out
+living dinosaurs in africa
+fuck!
+orangish-blacks
+penis
+diddle
+fuking
+gip
+p. sativum
+twit
+fat fin
+lower intelligence
+phallicism
+gullible
+blackish-orange
+black-orange
+testis
+fuck
+brownishness
+effed
+gullability
+peñis
+🐣
+rook
+caution
+fuckin
+coffee
+effer
+effs
+testicals
+fatuousness
+have intercourse
+e-rection
+fukka
+cooyon
+sleep with
+screw
+moronic
+bang
+living dinosaurs in south america
+orangeblacks
+gullable
+wankers
+ditzy
+gullibility
+score
+ninny
+be intimate
+orange-blacks
+mocker
+orangeish-blacks
+mulct
+dunder heads
+erection
+testical
+storky
+tool
+cock
+brownest
+fatuous
+nestlings
+f word
+insensibility
+apendage
+defraud
+blackishoranges
+orangish blacks
+betise
+faba beans
+foul
+membrum virile
+sleep together
+ray
+flout
+gobshite
+wanky
+pterygiophore:
+balls
+phalli
+bonk
+testicles
+idiots
+avafauna
+f-bomb
+vicia faba
+phalic
+bonerfied
+gliding action
+black-oranges
+testicle
+ovum
+blackish oranges
+peascods
+maroon
+gibe
+jerk-off
+nooky
+oaf
+coo yon
+dolt
+erections
+stupidest
+penile
+stupidness
+peter
+peas
+unintelligent
+gnathopod
+faba bona
+fucked
+stupes
+avian reproduction
+fababean
+fin spine
+pea-sized
+appendage
+fuckiest
+what the fuck?
+dong
+jazz
+do
+bollocks
+stupider
+fucking
+avifauna
+idiotism
+ball
+🐦
+penus
+🐤
+etymology of the word "fuck"
+have it off
+blackish-oranges
+ithyphallic
+chupa peak
+pea
+get it on
+birdness
+aviala
+phalloi
+brownness
+poop
+living dinosaurs in oceania
+broad-bean
+mock
+fooled
+forskin
+maxilliped
+fish
+bollacks
+roosting
+class aves
+dim-witted
+homocercal
+peniss
+penes
+vaffanculo
+phuck
+riddlestick
+credulousness
+scoffer
+avian proteins
+erector clitoris
+ornithes
+nut
+cockerel
+pole
+gnathopods
+peenis
+surgation
+fuckers
+blackorange
+f-hyphen-hyphen-hyphen
+screwing
+boner
+twerp
+surviving dinosaurs
+penii
+fish, anatomy of
+orangishblack
+avians
+fatuity
+fuckin'
+chocolate-brown
+fukk
+penises
+fukkit
+bed
+frig
+jeer
+eff
+foreskin
+shlong
+living dinosaurs in australasia
+jacking off
+rooster
+avialians
+fuck-head
+avialae
+appendages
+fuckingly
+member
+misconduct
+bollix
+jeerer
+pterygiophore
+dogso
+phalus
+the "f" bomb
+brownishly
+history of the word 'fuck'
+fuckwad
+testicular
+wank
+maxillipeds
+fwck
+f bomb
+man reaction
+get laid
+tosser
+wanker
+todger
+penial sheath
+prepucium
+ballix
+
+# ── Prostitution-related ────────────────────────────────────────────────
+rentboy
+courtisanerie
+beyotch
+sluttish
+society figure
+female sex workers
+prostitude
+whoremongers
+loose woman
+street girl
+hetairism
+doxy
+sex client
+moth
+kerb-crawler
+mannii
+kerb crawling
+mole
+lampyris bellieri
+moo-cow
+kerbcrawling
+w-h-word
+cantharis noctiluca
+john
+rent-boy
+courtisane
+paid sex
+sluttishly
+cow's size
+bawd
+sonuvabitch
+persons involved in the sex trade
+trollop
+woman of the street
+prostitutes
+grande horizontale
+slovenly woman
+paramour
+crack ho
+bos primigenius taurus
+hooking
+comare
+hetaerism
+heterai
+slutteries
+heteara
+prostitute
+🐄
+lampyris obscurella
+kumpangs
+street walkers
+rats
+oldest profession
+jade
+bitch
+cunt
+strumpets
+bitch-slap
+whore-mongering
+concubinage
+floozy
+hierodulai
+floosie
+sons of bitches
+whored
+mongering
+meretricious
+hetairai
+rat
+comaré
+bos taurus
+whores
+lampyris thoracica
+slutpuppy
+whoredom
+concubin
+quean
+hustler
+lampyris carreti
+tart
+whoremongering
+rent boys
+empalo
+punter
+slattern
+sluttishness
+meretriciously
+society hostess
+kerb crawlers
+sluttiness
+hussy
+streetwalking
+streetwalker
+prositution
+mistress
+concubines
+prostitution
+beeves
+strumpet
+cows
+sex clients
+slutiness
+bawds
+hookers
+cow
+🐮
+man-whore
+hoe
+comàre
+bitchiness
+hooker
+kine
+glow-worm
+harlots
+hetaera
+kerbcrawl
+fornicatress
+concubinial
+whoring
+🐀
+whoor
+courtier
+harlot
+slutte
+stenomys
+guff
+slag
+slatternliness
+cattle
+horcwenan
+adulteress
+rot
+cortisan
+commercial sex
+lampyris noctiluca
+palga isha
+sonamabitch
+courtesans
+lampyris submucronata
+floozie
+queans
+r. norvegicus
+crackwhore
+courtisan
+moths
+ratus
+street walker
+meretrices
+slutty
+glowworm
+hetairas
+working girl
+turning tricks
+jigolo
+moll
+concubitancy
+slutting
+ringie
+meretrix
+male escort
+socialite
+hellcat
+fancy woman
+hogwash
+hetaira
+minor wife
+vixen
+gende
+man-whores
+heteaerae
+sluttishnesses
+ten o'clock girl
+cumbag
+socialites
+alley cat
+whore-monger
+cyprian
+courtiers
+tender parnel
+no money no honey
+sexual services
+lampyris parvicollis
+whore-mongers
+slutz
+oxen
+whore
+w word
+loitering with intent
+goomar
+moo unit
+slut
+manwhore
+odalisque
+sluttery
+hetaerae
+biston
+lampyris minor
+slatterns
+concubine
+lampyris sibirica
+rent boy
+kept woman
+courtesan
+slatternly
+a betularia
+rattus norvegicus
+sonofabitch
+b. taurus
+harlotry
+bunkum
+buncombe
+rattus rattus domesticus
+cocotte
+cockmonger
+bunk
+lampyris longipennis
+sluts
+harpy
+gunmoll
+gigalo
+floosy
+
+# ── Sexually explicit (female) ──────────────────────────────────────────
+folderol
+coo-yon
+stupidhead
+muff
+trumpery
+puss
+dope
+idiot
+idiocy
+vagina
+papa chester
+كس
+shaven haven
+mug
+fuckhead
+sucker
+simple
+saphead
+cunts
+muttonhead
+triviality
+pudendal hair
+idiocies
+skirt
+vaginae
+foolishness
+codswallop
+rubbish
+crotch hair
+dunder headed
+doofus
+cunt-splice
+vadge
+doll
+pubes
+idiocity
+blockhead
+numskull
+changelings
+dunderheads
+vaginas
+slit
+loggerhead
+bird
+applesauce
+booby
+curlies
+vayjayjay
+pube
+c word
+bush
+pubic triangle
+sap
+idiotic
+bonehead
+retard
+vegina
+neden
+shithead
+baby
+lout
+knucklehead
+c-bomb
+dumbass
+pussies
+c-word
+pubic topiary
+pubic hair
+chick
+netherhair
+see you, auntie
+th. metzger
+va-jay-jay
+per vaginam
+vajayjay
+female's sex organ
+dunce
+idoit
+tripe
+cunny
+va jay jay
+twat
+trash
+pussy
+dimwit
+the t-word
+idioticness
+pubic hairstyle
+babe
+wench
+c bomb
+dunderhead
+cave of mystery
+boob
+quim
+technicality
+dame
+paracolpium
+trifle
+hammerhead
+vaginal
+lunkhead
+twats
+wish-wash

@@ -1,0 +1,40 @@
+database:
+  type: local_file  # Options: local_file, mock
+  path: ./test_data
+
+execution:
+  enable_log: true
+  log_level: INFO  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+runtime:
+  save_result: true
+  timeout_seconds: 300
+
+tools:
+  - security_audit # Just register the tools you needed. Some tools may need to install related libs.
+  # - enzyme_acquire
+  # - protein_analyzer
+  # - data_scoring
+  # - data_select
+  # - skillrl_skill_extraction
+
+agent:
+  type: opencode
+  model: ${DATAELF_AGENT_MODEL}
+  api_key: ${OPENAI_API_KEY}
+  base_url: ${OPENAI_BASE_URL}
+  max_retries: 3
+  retry_delay: 1.0
+  include_tool_readmes: false
+  tool_readmes_max_length: 2000
+
+tool_llm:
+  model: ${DATAELF_TOOL_LLM_MODEL}
+  api_key: ${OPENAI_API_KEY}
+  base_url: ${OPENAI_BASE_URL}
+  max_retries: 3
+  retry_delay: 1.0
+
+required_scoring_tool: false
+required_select_tool: false
+required_security_audit_tool: false

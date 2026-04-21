@@ -1,0 +1,21 @@
+# Default configuration for DataSelectTool.
+# Loaded automatically when required_select_tool: true in upper config.
+# Users can override individual values via tool_defaults.data_select in their config.
+
+budget: 20
+n_clusters: 10
+strategy: proportional
+
+embeddings_dir: outputs/embeddings
+embedding_model: /mnt/shared-storage-gpfs2/gpfs2-shared-public/huggingface/hub/models--meta-llama--Llama-3.1-8B-Instruct/snapshots/0e9e39f249a16976918f6564b8830bc894c89659
+embedding_batch_size: 64
+embedding_max_length: 1024
+embedding_device: cuda
+embedding_dtype: bfloat16
+
+kmeans:
+  backend: sklearn
+  batch_size: 10000
+  max_iter: 100
+  n_init: 3
+  verbose: 1

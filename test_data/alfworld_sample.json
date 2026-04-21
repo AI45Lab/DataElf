@@ -1,0 +1,540 @@
+[
+  {
+    "memory_id": "mem_alfworld_8605f189",
+    "contextual_description": "AlfWorld task classified as 'pick_and_place' to put some dishsponge on cart. Solved by navigating to the shelf, picking up the dishsponge, moving to the cart, and placing it there.",
+    "tags": {
+      "environment": "Alfworld",
+      "outcome": "Success"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "put some dishsponge on cart."
+      },
+      "refined_trajectory": {
+        "refined_trajectory": [
+          {
+            "step_index": -1,
+            "action": "observe room layout and available furniture",
+            "critical_observation": "The room contains a cart and multiple shelves along with other fixtures.",
+            "reasoning": "Identify the presence and location of a cart as the required destination container for the target object."
+          },
+          {
+            "step_index": 0,
+            "action": "go to shelf",
+            "critical_observation": "The shelf contains a dishsponge and another unrelated object.",
+            "reasoning": "Search nearby storage furniture to locate a dishsponge that can be manipulated."
+          },
+          {
+            "step_index": 1,
+            "action": "take dishsponge from shelf",
+            "critical_observation": "The dishsponge is now in the agent's possession and no longer on the shelf.",
+            "reasoning": "Acquire the dishsponge so it can be transported to the cart."
+          },
+          {
+            "step_index": 2,
+            "action": "go to cart",
+            "critical_observation": "The agent is now next to the cart, which already holds another object.",
+            "reasoning": "Move into interaction range of the cart to enable placing the dishsponge on it."
+          },
+          {
+            "step_index": 3,
+            "action": "move dishsponge to cart",
+            "critical_observation": "The dishsponge is now located on the cart.",
+            "reasoning": "Place the acquired dishsponge onto the cart to satisfy the task goal."
+          }
+        ]
+      },
+      "strategic_guidelines": {
+        "planning_pattern": "Search [Location] where possibly having [Object_1] -> Acquire [Object_1] -> Navigate to [Target_Location] -> Place [Object_1]",
+        "mistakes_to_avoid": []
+      }
+    },
+    "origin_env_id": "env001"
+  },
+  {
+    "memory_id": "mem_alfworld_e20f2733",
+    "contextual_description": "AlfWorld task classified as 'pick_two_obj_and_place' to put two cd in garbagecan. Unsolved due to failing to locate a second cd and never placing the found cd into the garbagecan.",
+    "tags": {
+      "environment": "Alfworld",
+      "outcome": "Failure"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "put two cd in garbagecan."
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "planning_pattern": null,
+        "mistakes_to_avoid": [
+          {
+            "trigger_condition": "The goal requires collecting multiple instances of [Target_Object], and only one instance has been found so far while the episode is still ongoing.",
+            "bad_action": "Stop systematic search and wander between already-checked [Location]s without inspecting new [Location]s or containers that could hold another [Target_Object]."
+          },
+          {
+            "trigger_condition": "A [Target_Object] has been acquired and the final [Target_Location] is already known and reachable.",
+            "bad_action": "Fail to navigate to the known [Target_Location] and fail to place the acquired [Target_Object] there, instead continuing to move between unrelated [Location]s."
+          },
+          {
+            "trigger_condition": "There exist multiple unopened or unexamined [Container]s or surfaces in the current room that could logically contain the required [Target_Object].",
+            "bad_action": "Revisit and re-examine the same already-opened or already-examined [Container]s and surfaces instead of opening or examining new candidate [Container]s."
+          },
+          {
+            "trigger_condition": "The task objective is to manipulate specific [Target_Object]s, and other visible [Object]s are not relevant to the goal.",
+            "bad_action": "Spend actions picking up or moving irrelevant [Object]s that do not contribute to satisfying the goal conditions."
+          }
+        ]
+      }
+    },
+    "origin_env_id": "env000"
+  },
+  {
+    "memory_id": "mem_alfworld_2aa50d60",
+    "contextual_description": "AlfWorld task classified as 'look_at_obj_in_light' to look at alarmclock under the desklamp. Solved by navigating to the desk, turning on the lamp, and interacting with the alarm clock.",
+    "tags": {
+      "environment": "Alfworld",
+      "outcome": "Success"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "look at alarmclock under the desklamp."
+      },
+      "refined_trajectory": {
+        "refined_trajectory": [
+          {
+            "step_index": -1,
+            "action": "start_episode",
+            "critical_observation": "Agent is in a bedroom with several pieces of furniture including a bed, a desk, multiple drawers, a dresser, and a garbagecan; the goal is to look at an alarmclock under a desklamp.",
+            "reasoning": "Understand the overall environment layout and the goal to decide which object to search near."
+          },
+          {
+            "step_index": 0,
+            "action": "go to desk",
+            "critical_observation": "Agent moves to the desk and now observes multiple objects on it including alarmclocks and a desklamp.",
+            "reasoning": "Move to the furniture most likely to contain both the alarmclock and the desklamp needed for the goal."
+          },
+          {
+            "step_index": 1,
+            "action": "use desklamp",
+            "critical_observation": "The desklamp is now turned on, changing the state of the light source on the desk.",
+            "reasoning": "Activate the desklamp so that the area around and under it is in the correct state for interacting with the alarmclock."
+          },
+          {
+            "step_index": 6,
+            "action": "take alarmclock from desk",
+            "critical_observation": "Agent picks up the alarmclock from the desk, successfully interacting with the target object associated with the desklamp.",
+            "reasoning": "Directly manipulate the alarmclock located at the desk to fulfill the task requirement involving it and the desklamp."
+          }
+        ]
+      },
+      "strategic_guidelines": {
+        "planning_pattern": "Search [Location] where possibly having [Object_1, Object_2, Object_3, Object_4, Object_5, Object_6, Object_7] -> Use [Object_3] -> Acquire [Object_1]",
+        "mistakes_to_avoid": []
+      }
+    },
+    "origin_env_id": "env003"
+  },
+  {
+    "memory_id": "mem_alfworld_8b567c6e",
+    "contextual_description": "AlfWorld task classified as 'look_at_obj_in_light' to look at newspaper under the desklamp. Unsolved due to failing to search under the lit area to find and examine the newspaper.",
+    "tags": {
+      "environment": "Alfworld",
+      "outcome": "Failure"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "look at newspaper under the desklamp."
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "planning_pattern": null,
+        "mistakes_to_avoid": [
+          {
+            "trigger_condition": "The instruction requires interacting with an item that is described as being under another object, and the agent has already navigated to the supporting object.",
+            "bad_action": "Repeatedly toggling or examining the supporting object instead of searching beneath or around it for the [Target_Object]."
+          },
+          {
+            "trigger_condition": "The agent is at a [Location] that plausibly contains the [Target_Object] and has already confirmed the presence of a related tool or fixture there.",
+            "bad_action": "Leaving the relevant [Location] to explore unrelated [Location]s without first performing a thorough search (e.g., looking under, inside, or around) for the [Target_Object]."
+          },
+          {
+            "trigger_condition": "The environment feedback shows no change or new information after repeating the same interaction with a [Tool_Object] or [Container].",
+            "bad_action": "Continuing to repeat the same ineffective action instead of switching to a different interaction that could reveal or access the [Target_Object]."
+          }
+        ]
+      }
+    },
+    "origin_env_id": "env024"
+  },
+  {
+    "memory_id": "mem_alfworld_ed78ca10",
+    "contextual_description": "AlfWorld task classified as 'pick_clean_then_place_in_recep' to clean some kettle and put it in cabinet. Solved by picking the kettle, cleaning it in the sink, opening the cabinet, and placing it inside.",
+    "tags": {
+      "environment": "Alfworld",
+      "outcome": "Success"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "clean some kettle and put it in cabinet."
+      },
+      "refined_trajectory": {
+        "refined_trajectory": [
+          {
+            "step_index": 0,
+            "action": "go to countertop",
+            "critical_observation": "Agent reaches the countertop where multiple objects, including a kettle, are present.",
+            "reasoning": "Move to a surface likely to contain a kettle needed for the task."
+          },
+          {
+            "step_index": 2,
+            "action": "take kettle from countertop",
+            "critical_observation": "Kettle is now in the agent's possession and no longer on the countertop.",
+            "reasoning": "Acquire the kettle so it can be cleaned and relocated."
+          },
+          {
+            "step_index": 3,
+            "action": "go to sinkbasin",
+            "critical_observation": "Agent arrives at the sinkbasin, which can be used to clean objects.",
+            "reasoning": "Reach a location that enables cleaning the kettle."
+          },
+          {
+            "step_index": 4,
+            "action": "clean kettle with sinkbasin",
+            "critical_observation": "The kettle becomes clean after being washed in the sinkbasin.",
+            "reasoning": "Satisfy the cleanliness requirement for the kettle before storing it."
+          },
+          {
+            "step_index": 5,
+            "action": "go to cabinet",
+            "critical_observation": "Agent arrives at a closed cabinet that can store objects.",
+            "reasoning": "Reach a storage location where the cleaned kettle must be placed."
+          },
+          {
+            "step_index": 6,
+            "action": "open cabinet",
+            "critical_observation": "The cabinet changes from closed to open, revealing interior space and contents.",
+            "reasoning": "Make the cabinet accessible so the kettle can be placed inside."
+          },
+          {
+            "step_index": 7,
+            "action": "move kettle to cabinet",
+            "critical_observation": "The cleaned kettle is now located inside the cabinet, completing the task.",
+            "reasoning": "Place the cleaned kettle into the cabinet to fulfill the goal conditions."
+          }
+        ]
+      },
+      "strategic_guidelines": {
+        "planning_pattern": "Search [Location] where possibly having [Object_1] -> Acquire [Object_1] -> Search [Location] where possibly having [Cleaning_Tool_or_Appliance] -> Clean [Object_1] -> Search [Location] where possibly having [Target_Location] -> Open [Target_Location] -> Place [Object_1] at [Target_Location]",
+        "mistakes_to_avoid": []
+      }
+    },
+    "origin_env_id": "env064"
+  },
+  {
+    "memory_id": "mem_alfworld_a52b1b03",
+    "contextual_description": "AlfWorld task classified as 'pick_clean_then_place_in_recep' to put a clean knife in drawer. Unsolved due to failing to locate, clean, and place the required knife before termination.",
+    "tags": {
+      "environment": "Alfworld",
+      "outcome": "Failure"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "put a clean knife in drawer."
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "planning_pattern": null,
+        "mistakes_to_avoid": [
+          {
+            "trigger_condition": "The goal requires finding a specific [Target_Object], but the agent repeatedly revisits already-inspected [Location] instances that are known not to contain the [Target_Object].",
+            "bad_action": "Looping between previously-checked [Location]s (examining or navigating) instead of systematically exploring new unopened or uninspected [Location]s."
+          },
+          {
+            "trigger_condition": "The agent observes a [Similar_Object] that is related to the goal category but not the exact required [Target_Object].",
+            "bad_action": "Ignoring the [Similar_Object] as a strong contextual cue and failing to expand the search to nearby or associated [Location]s where the [Target_Object] is likely to be found."
+          },
+          {
+            "trigger_condition": "The environment contains many candidate [Location]s (e.g., multiple storage units), and only a subset has been opened or examined.",
+            "bad_action": "Stopping the search or continuing to interact with already-opened empty [Location]s instead of ensuring that all plausible unopened [Location]s have been checked for the [Target_Object]."
+          },
+          {
+            "trigger_condition": "The task requires a cleaned [Target_Object], but the [Target_Object] has not yet been located.",
+            "bad_action": "Spending actions on non-goal-related [Object]s or [Location]s without first establishing a plan to locate the [Target_Object] and then route it through the necessary cleaning and placement steps."
+          }
+        ]
+      }
+    },
+    "origin_env_id": "env006"
+  },
+  {
+    "memory_id": "mem_alfworld_e1575e09",
+    "contextual_description": "AlfWorld task classified as 'pick_heat_then_place_in_recep' to heat some potato and put it in countertop. Solved by sourcing from the fridge, heating at the microwave, and placing on the countertop.",
+    "tags": {
+      "environment": "Alfworld",
+      "outcome": "Success"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "heat some potato and put it in countertop."
+      },
+      "refined_trajectory": {
+        "refined_trajectory": [
+          {
+            "step_index": 2,
+            "action": "open fridge",
+            "critical_observation": "fridge becomes open and reveals a bowl, a cup, and a potato inside.",
+            "reasoning": "The agent exposes the contents of the closed storage to discover and access the needed food item."
+          },
+          {
+            "step_index": 3,
+            "action": "take potato from fridge",
+            "critical_observation": "potato is transferred from inside the fridge into the agent's inventory.",
+            "reasoning": "The agent acquires the target food item so it can be manipulated and processed later."
+          },
+          {
+            "step_index": 4,
+            "action": "go to microwave",
+            "critical_observation": "agent relocates to the area containing the heating appliance.",
+            "reasoning": "The agent moves to the location of the appliance required to perform the heating operation."
+          },
+          {
+            "step_index": 5,
+            "action": "heat potato with microwave",
+            "critical_observation": "potato changes state from unheated to heated using the microwave.",
+            "reasoning": "The agent uses the appliance to change the temperature state of the food item as required by the task."
+          },
+          {
+            "step_index": 6,
+            "action": "go to countertop",
+            "critical_observation": "agent relocates to the area containing the target surface.",
+            "reasoning": "The agent moves to the destination surface where the heated item must ultimately be placed."
+          },
+          {
+            "step_index": 7,
+            "action": "move potato to countertop",
+            "critical_observation": "heated potato is placed onto the countertop surface.",
+            "reasoning": "The agent positions the processed item on the specified surface to complete the task goal."
+          }
+        ]
+      },
+      "strategic_guidelines": {
+        "planning_pattern": "Search [Location] where possibly having [Object_1] -> Acquire [Object_1] -> Navigate to [Target_Location] -> Use [Object_2] on [Object_1] to modify its state -> Navigate to [Target_Location] -> Place [Object_1] at [Target_Location]",
+        "mistakes_to_avoid": []
+      }
+    },
+    "origin_env_id": "env031"
+  },
+  {
+    "memory_id": "mem_alfworld_9dd1f076",
+    "contextual_description": "AlfWorld task classified as 'pick_heat_then_place_in_recep' to heat some cup and put it in diningtable. Unsolved due to environment judging the final state as incorrect despite heating the mug in the microwave and placing it on the dining table.",
+    "tags": {
+      "environment": "Alfworld",
+      "outcome": "Failure"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "heat some cup and put it in diningtable."
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "planning_pattern": null,
+        "mistakes_to_avoid": [
+          {
+            "trigger_condition": "The instruction specifies interacting with a [Target_Object] of a particular type (e.g., \"cup\") while the environment contains a different but related object type (e.g., [Similar_Object] like \"mug\") that has not been confirmed as acceptable for the goal.",
+            "bad_action": "Selecting and using [Similar_Object] instead of searching for or confirming the presence/acceptability of the exact required [Target_Object]."
+          },
+          {
+            "trigger_condition": "The agent has already visually identified a candidate [Target_Object] (or [Similar_Object]) on a [Location] but continues to navigate among other [Location]s without progressing the main task.",
+            "bad_action": "Wasting steps repeatedly revisiting and examining multiple [Location]s instead of acquiring the already-seen [Target_Object] and executing the required transformation and placement actions."
+          }
+        ]
+      }
+    },
+    "origin_env_id": "env005"
+  },
+  {
+    "memory_id": "mem_alfworld_b1f11f31",
+    "contextual_description": "AlfWorld task classified as 'pick_cool_then_place_in_recep' to cool some mug and put it in coffeemachine. Solved by locating the mug, cooling it in the fridge, and preparing for placement in the coffeemachine.",
+    "tags": {
+      "environment": "Alfworld",
+      "outcome": "Success"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "cool some mug and put it in coffeemachine."
+      },
+      "refined_trajectory": {
+        "refined_trajectory": [
+          {
+            "step_index": -1,
+            "action": "start in room with multiple containers, appliances, and surfaces",
+            "critical_observation": "The room contains several cabinets, a coffeemachine, a countertop, a fridge, and other kitchen objects; the mug location is initially unknown.",
+            "reasoning": "Begin with awareness that the target object and cooling appliance must be discovered in the environment."
+          },
+          {
+            "step_index": 6,
+            "action": "go to countertop",
+            "critical_observation": "The countertop is found to hold a mug among various other items.",
+            "reasoning": "Search surfaces likely to contain the mug needed for the task."
+          },
+          {
+            "step_index": 7,
+            "action": "take mug from countertop",
+            "critical_observation": "The mug is now in the agent's inventory and no longer on the countertop.",
+            "reasoning": "Acquire the mug so it can be moved to and used with a cooling appliance."
+          },
+          {
+            "step_index": 10,
+            "action": "go to fridge",
+            "critical_observation": "The agent is now at the fridge, which is currently closed.",
+            "reasoning": "Move to a likely cooling appliance that can change the mug’s temperature."
+          },
+          {
+            "step_index": 11,
+            "action": "open fridge",
+            "critical_observation": "The fridge changes from closed to open, revealing its contents.",
+            "reasoning": "Enable interaction with the fridge so it can be used to cool the mug."
+          },
+          {
+            "step_index": 12,
+            "action": "cool mug with fridge",
+            "critical_observation": "The mug’s state is changed to cooled using the open fridge.",
+            "reasoning": "Use the cooling appliance to achieve the required cooled state of the mug."
+          }
+        ]
+      },
+      "strategic_guidelines": {
+        "planning_pattern": "Search [Location] where possibly having [Object_1] -> Acquire [Object_1] -> Search [Location] where possibly having [Object_2] -> Acquire or Open [Object_2] -> Use [Object_2] to Cool [Object_1] -> Navigate to [Target_Location] -> Place [Object_1] in [Target_Location]",
+        "mistakes_to_avoid": []
+      }
+    },
+    "origin_env_id": "env039"
+  },
+  {
+    "memory_id": "mem_alfworld_8806791b",
+    "contextual_description": "AlfWorld task classified as 'pick_cool_then_place_in_recep' to put a cool egg in sidetable. Unsolved due to never finding or cooling the correct object and never placing it in the target receptacle.",
+    "tags": {
+      "environment": "Alfworld",
+      "outcome": "Failure"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "put a cool egg in sidetable."
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "planning_pattern": null,
+        "mistakes_to_avoid": [
+          {
+            "trigger_condition": "The goal requires finding a specific [Target_Object] that has not yet been observed in any inspected [Location], and only a few nearby [Locations] have been checked.",
+            "bad_action": "Loop repeatedly between the same limited set of [Locations] without opening or examining new [Containers] that could plausibly contain the unseen [Target_Object]."
+          },
+          {
+            "trigger_condition": "The agent is holding a [Similar_Object] that is not mentioned in the goal, while the required [Target_Object] has not been found.",
+            "bad_action": "Continue navigating and examining [Locations] without first deciding whether to drop or ignore the irrelevant [Similar_Object] and refocus on searching for the [Target_Object]."
+          },
+          {
+            "trigger_condition": "A [Container] is known to be closed and has not yet been searched, while the [Target_Object] is still missing.",
+            "bad_action": "Examine or move around the closed [Container] without opening it to inspect its contents, thereby failing to expand the search space."
+          },
+          {
+            "trigger_condition": "The task requires a [Target_Object] with a specific state (e.g., cooled, heated), and no candidate [Target_Object] has been located yet.",
+            "bad_action": "Spend actions interacting with state-changing [Appliances] or moving between them before acquiring any candidate [Target_Object] to transform."
+          },
+          {
+            "trigger_condition": "The agent has already examined a [Location] or [Container] and confirmed it does not contain the [Target_Object].",
+            "bad_action": "Revisit and re-examine the same [Location] or [Container] multiple times without any new information suggesting that its contents have changed."
+          }
+        ]
+      }
+    },
+    "origin_env_id": "env002"
+  },
+  {
+    "memory_id": "mem_alfworld_3d6d42ff",
+    "contextual_description": "AlfWorld task classified as 'look_at_obj_in_light' to examine the newspaper with the desklamp. Solved by navigating to the table, picking up the target object, moving to the light source, and using the lamp.",
+    "tags": {
+      "environment": "Alfworld",
+      "outcome": "Success"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "examine the newspaper with the desklamp."
+      },
+      "refined_trajectory": {
+        "refined_trajectory": [
+          {
+            "step_index": -1,
+            "action": "observe room layout and visible furniture",
+            "critical_observation": "The room contains multiple surfaces including a diningtable and several sidetables, and the task is to examine a newspaper with a desklamp.",
+            "reasoning": "Identify available surfaces and objects as potential locations for the required newspaper and desklamp."
+          },
+          {
+            "step_index": 0,
+            "action": "go to diningtable",
+            "critical_observation": "The diningtable is reachable and holds several objects including a newspaper.",
+            "reasoning": "Move to a nearby surface that may contain the required newspaper for the task."
+          },
+          {
+            "step_index": 1,
+            "action": "take newspaper from diningtable",
+            "critical_observation": "The newspaper is now in the agent's inventory and no longer on the diningtable.",
+            "reasoning": "Acquire the newspaper so it can later be examined with the desklamp."
+          },
+          {
+            "step_index": 4,
+            "action": "go to sidetable",
+            "critical_observation": "The sidetable is reachable and holds several objects including a desklamp.",
+            "reasoning": "Search another surface to locate the desklamp needed to complete the task with the newspaper."
+          },
+          {
+            "step_index": 5,
+            "action": "use desklamp",
+            "critical_observation": "The desklamp is turned on, enabling examination of the newspaper with it and completing the task.",
+            "reasoning": "Activate the desklamp while having the newspaper so the examination condition is satisfied."
+          }
+        ]
+      },
+      "strategic_guidelines": {
+        "planning_pattern": "Search [Location] where possibly having [Object_1] -> Acquire [Object_1] -> Search [Location] where possibly having [Object_2] -> Use [Object_2]",
+        "mistakes_to_avoid": []
+      }
+    },
+    "origin_env_id": "env1008"
+  },
+  {
+    "memory_id": "mem_alfworld_ba0f491d",
+    "contextual_description": "AlfWorld task classified as 'pick_two_obj_and_place' to find two soapbottle and put them in cart. Unsolved due to never picking up the soapbottle or placing them in the cart despite repeatedly navigating between shelves and fixtures.",
+    "tags": {
+      "environment": "Alfworld",
+      "outcome": "Failure"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "find two soapbottle and put them in cart."
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "planning_pattern": null,
+        "mistakes_to_avoid": [
+          {
+            "trigger_condition": "The goal requires finding a specific type of [Target_Object], but observations only reveal a different, similar [Similar_Object] that does not match the required type.",
+            "bad_action": "Keep revisiting the same [Location]s and re-examining the same [Similar_Object] instead of concluding that the required [Target_Object] is absent and exploring new [Location]s or containers."
+          },
+          {
+            "trigger_condition": "After visiting all visible [Location]s in a room and repeatedly observing no matching [Target_Object]s for the goal.",
+            "bad_action": "Loop between the same subset of [Location]s without changing strategy, such as not checking other object types, not opening possible [Container]s, and not considering that the task may be unsatisfiable in the current environment."
+          },
+          {
+            "trigger_condition": "A [Similar_Object] that is related in function or name to the [Target_Object] is observed (e.g., same general category) but is not exactly the required type.",
+            "bad_action": "Treat the [Similar_Object] as if it were the required [Target_Object] and focus search behavior around it, instead of explicitly verifying type requirements and broadening the search space."
+          },
+          {
+            "trigger_condition": "The agent has already confirmed multiple times that a given [Location] contains nothing or only irrelevant objects.",
+            "bad_action": "Continue to navigate back to and examine that same [Location] expecting a different result, instead of prioritizing unexplored [Location]s or different interaction types (e.g., opening, looking inside, or behind [Container]s)."
+          }
+        ]
+      }
+    },
+    "origin_env_id": "env010"
+  }
+]

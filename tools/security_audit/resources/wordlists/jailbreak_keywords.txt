@@ -1,0 +1,63 @@
+# 越狱固定关键词表
+# 格式：每行一个词/短语，# 开头为注释，空行忽略
+# 用途：匹配已知越狱角色名、模式标记，使用词边界匹配（大小写不敏感）
+
+# ── 经典越狱角色名（DAN 家族）────────────────────────────────────────────────
+DAN
+DUDE
+AIM
+STAN
+KEVIN
+ALEX
+JAILBREAK
+ANTI-DAN
+BetterDAN
+BasedGPT
+FreedGPT
+EvilGPT
+ChaosGPT
+DevMode
+UCAR
+BISH
+NRAF
+DeltaGPT
+Mango
+
+# ── 模式标记词 ────────────────────────────────────────────────────────────────
+jailbreak mode
+developer mode
+god mode
+unrestricted mode
+maintenance mode
+debug mode
+uncensored mode
+raw mode
+no-filter mode
+override mode
+admin mode
+superuser mode
+privileged mode
+
+# ── 固定标签（方括号形式）──────────────────────────────────────────────────────
+[JAILBREAK]
+[DAN]
+[STAN]
+[AIM]
+[KEVIN]
+[DUDE]
+[ALEX]
+[SYSTEM OVERRIDE]
+[ADMIN]
+[DEV]
+[UNRESTRICTED]
+[UNFILTERED]
+[SUDO]
+[ROOT]
+
+# ── 中文越狱角色名 ────────────────────────────────────────────────────────────
+无限制模式
+开发者模式
+上帝模式
+超级用户模式
+管理员模式
+越狱模式

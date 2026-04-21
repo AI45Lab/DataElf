@@ -1,0 +1,18 @@
+# English toxicity wordlist
+# Format: one term per line, # for comments, blank lines ignored
+# Covers: insults, hate speech, slurs, violent language
+# Replace with a vetted production wordlist before deployment
+
+# ── Insults / Abuse ───────────────────────────────────────────────────────────
+idiot
+moron
+scum
+loser
+worthless
+disgusting
+
+# ── Violent language ──────────────────────────────────────────────────────────
+kill yourself
+go die
+i will kill you
+beat you to death

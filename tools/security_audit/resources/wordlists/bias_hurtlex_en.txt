@@ -1,0 +1,1424 @@
+# English bias-and-discrimination wordlist
+# Source: HurtLex (https://github.com/valeriobasile/hurtlex)
+# Format: one term per line, # for comments, blank lines ignored
+# Covers: ethnic slurs, disability slurs, profession/orientation stereotypes
+# Categories: ps, rci, pa, ddf, ddp, om, is
+
+
+# ── Socioeconomic disadvantage ──────────────────────────────────────────
+mendicant
+impoverished
+wretch
+paraiah
+parayars
+meagerly
+pathetic
+ragamuffin
+segregated
+unseasonable
+villians
+parochial
+indigent
+tatterdemalion
+scrooge
+pauper
+miserable
+tightwaddery
+penny pincher
+castaway
+poverty
+destitute
+insular
+paraiyars
+badguy
+implore
+beggar
+meagre
+outcast
+sad
+closefistedness
+paraiya
+niggardliness
+penurious
+scrimpy
+villainous
+ultra-poverty
+parsimony
+unfortunate
+set-apart
+modest means
+niggard
+ill-timed
+stingy
+tightwad
+ishmael
+misfortunate
+miscreants
+poor
+supplicate
+parsimonious
+dropout
+pover
+villan
+dolorous
+pitiable
+paraiyar
+scoundrel
+poorness
+poverties
+wrong
+poorly
+misers
+skinflint
+villainesses
+pitiful
+pariah
+poverty-stricken
+low-income
+impoverish
+hapless
+paupers
+povertystricken
+villain
+isolated
+villainies
+villian
+paraya
+parayan
+untimely
+piteous
+poorest
+miser
+costiveness
+penuries
+comfortless
+cheapskate
+miserliness
+beg
+paraiyan
+movie villains
+unhappy
+poorer
+mean
+separated
+impoverishment
+have-not
+pray
+unintegrated
+villainess
+detached
+meager
+penuriousness
+narrow-minded
+stinginess
+ungenerous
+heavies
+pariahs
+penniless
+narrow
+doleful
+meanness
+impoverishing
+ultrapoverty
+parayar
+
+# ── Sexual orientation slurs ────────────────────────────────────────────
+buttfucker
+assplay
+retrolateral
+homophobic slurs
+anatomical term of location
+tooshie
+tail
+anatomic position
+posteriorly
+pederastry
+buttcheeks
+homoeroticism
+anterial
+bottom
+ab axis
+derierre
+homophilia
+homosexual
+crossdressing
+fag
+gentlelady
+assfuck
+gaymen
+male sexuality
+proximodistally
+caudal
+transvestites
+sodomise
+anteriorly
+female illusionist
+homophilic
+homosexulity
+mid-clavicular line
+underparts
+ghey
+inferiorly
+sex anal
+can
+hindquarters
+queerio
+peeress
+rostralward
+faggy
+anal stimulation
+medial
+dorsal
+sexo-æsthetic inversion
+cross-dressed
+unnatural
+drag queens
+rectal sex
+poof
+saunf
+paederastic
+hiney
+buggering
+frontal
+buns
+posteriorily
+buttsecks
+ventrolateral
+midclavicular line
+cross-dresser
+anal insertive
+queerness
+finocchio
+abnormal
+homosexuality
+terms for zootomical location
+buttsex
+knobbly stick
+fudgepacking
+gentle-woman
+butt
+chicken
+anial sex
+faggotry
+marmango
+female impersonator
+queer-identified
+upperparts
+homosexualité
+league for civil education
+fayg
+homo
+proximally
+sexuality of the human male
+gaynal
+arse
+in vase indebito
+sodomizing
+tush
+faggot
+pars medialis
+dame
+homophile
+anterior axillary line
+namby-pamby
+pederast
+queer
+pansy
+oblique plane
+buttfuck
+bundaist
+hindquarter
+anteversion
+a b axis
+homosexuals
+poofster
+analsecks
+anatomy directions
+terms of anatomical location
+mammary line
+bumsex
+gluteal region
+fagot
+planes of motion
+paederasty
+drag artist
+stern
+pederastic
+sodomist
+same-gender attraction
+midpupillary line
+derrière
+proximo-distally
+gynosodomy
+peccatum contra naturam
+bumsecks
+anteverted
+superior
+cross-dressing
+subcaudal
+ipsilateral
+paiderastia
+sodomised
+gayness
+ho yay
+transvestism
+ass-fucking
+gays
+homoërotic
+buttocks
+crossdresses
+anteroposterior
+papillary axis
+ass-sex
+ma'am
+faggoty
+keister
+twinkie
+deviant
+tuffier's line
+buttucks
+plantar
+radial deviation
+proximodistal
+dairy air
+postero-anterior
+mid-inguinal point
+noblewoman
+female impersonators
+society for individual rights
+anatomical directions
+pedarsty
+dorsoventral
+mme
+deviate
+pidor
+posterior
+gentlewoman
+anal seks
+cranially
+gayest
+anatomical terms of location
+gender disguise
+rump
+coronal view
+nates
+crossdresser
+penile-anal sex
+buttock
+donkey
+longitudinal plane
+subplantar
+asscheeks
+anal receptive
+pedication
+different
+dionism
+poofy
+bumfuck
+frau
+antero-posterior
+poofter
+fairy
+inferior
+pedarast
+anal secks
+madam
+having anal
+dorsolateral
+same-sex
+crossdressers
+bumseks
+buttcheek
+prolateral
+mme.
+shirtlifter
+colon sex
+tuches
+badonkadonk
+homoeroticist
+assfucking
+fagala
+distad
+distally
+cross-dressers
+pederasty
+shman
+twink
+homosexualist
+eonism
+caudally
+transvestite
+hind end
+fudgepacker
+pedicare
+gynemimetophile
+seat
+terms for anatomical location
+pouf
+foeniculum vulgare
+lady
+butsecks
+pedarasty
+zootomical terms for location
+anal intercourse
+uphill gardener
+midventral line
+assfucked
+cross-dresses
+nance
+anomalous
+anatomic directions
+gay
+hoyay
+sodomises
+sodomite
+buttfucking
+foeniculi fructus
+anal penetration
+sod
+sagitally
+queers
+sodomized
+buttsachs
+radioulnar
+queen
+anal-sex
+beanqueen
+faggedy
+bugger
+aboral
+proximal
+drag artiste
+ventral
+fourth point of contact
+buttox
+buggery
+rear
+buttseks
+poofta
+sodomization
+antero-posteriorly
+transvestitism
+dragqueen
+contralateral
+transvestic
+sexo-aesthetic inversion
+paederast
+drag show
+cross-dress
+female masking
+homosexality
+homoerotica
+homoerotically
+female impersonation
+that's gay.
+behind
+ladies
+volar pads
+prat
+same sex
+transfestites
+sagittal view
+fennel
+atypical
+fudgepack
+derriere
+keaster
+woofter
+somdomite
+anal sex
+anatomical terms for location
+pederasts
+backside
+dairy aire
+tuch
+pars lateralis
+mid-pupillary line
+fanny
+apical
+basal
+bumming
+posteroanterior
+f. vulgare
+homosexualism
+body axis
+distare
+sagittally
+volar surface
+poove
+child molester
+proximo-distal
+drag peformance
+homosexualite
+lateral
+zootomical terms of location
+homoerotic
+crossdressed
+unprotected anal
+sodomy
+distal
+sodomize
+crossdress
+anal virginity
+fundament
+sodomists
+tranvestite
+ass
+
+# ── Cognitive disability slurs ──────────────────────────────────────────
+incapable
+brutish
+montambanco
+rabble
+chatterbox
+stultify
+coo yon
+savage
+anamalia
+mutha fucka
+twaddler
+half-wit
+ashole
+muthafucker
+asshat
+non-sensical
+stupidness
+non-sense
+dimwit
+unlearned
+dunderheads
+galoot
+folly
+microcephalous
+incompetent
+headless
+stupid
+loggerhead
+retarded
+lower intelligence
+childish
+prattler
+gossipmonger
+barbarians
+quackeries
+ferociousness
+ninny
+unable
+imbecile
+folderol
+mental deficiency
+unwiseness
+stronzo
+unlettered
+beastly
+puerile
+illiterate
+dumb
+moron
+bozo
+muggins
+simpleton
+rubbish
+dunderheaded
+dope
+foolishness
+katerfelts
+animals
+subnormal
+stupidity
+bonehead
+blockhead
+mother-fucker
+nonsensal
+tree of life animalia
+dumbass
+federal inmate
+churl
+th. metzger
+idiocity
+lubber
+stupe
+trash
+tattler
+jejune
+idiot
+chatterer
+the "r" word
+gullible
+moronism
+arse-hole
+microcephalic
+idioticness
+slow
+nonsensically
+arsehole
+animalia 101
+cryptofauna
+bungler
+eejit
+a'hole
+meaninglessness
+talebearer
+nonsense
+dunderhead
+lout
+slowness
+asspit
+botcher
+tike
+barbarism
+fool
+muttonhead
+nanocephalic
+mentally challenged
+stupes
+stupidities
+charlantry
+quack
+dunder headed
+oaf
+mf'er
+coo-yon
+twit
+silly
+besot
+quakery
+dunder heads
+infaunal
+credulous
+tripe
+fleeceable
+wish-wash
+lump
+savagery
+viciousness
+barbarically
+cocksucker
+fatuity
+poppycock
+motherfucking
+jackass
+microencephaly
+animalia kingdom
+macrofauna
+shysters
+stultified
+stultifiedly
+ignorant
+fuckhead
+foolish
+stultifies
+mountebank
+chump
+uncultured
+fauna
+saphead
+gossiper
+pudden-head
+insane
+artless
+rumormonger
+microcephaly
+stumblebum
+assmunch
+asshattery
+fumbler
+brain damage
+codswallop
+fatuousness
+microcephelia
+squealer
+uncultivated
+retard
+mothafucka
+mf word
+victim
+mammafucker
+betise
+unintelligent
+stultiloquence
+wildcat
+curmudgeon
+micrencephaly
+faunas
+butcher
+simple
+brute
+stupidhead
+quacksalvers
+a word
+babbler
+ignoramus
+knucklehead
+arschloch
+charlatanry
+brain damage, chronic
+george ruggle
+shit
+assholes
+dim-witted
+bestiality
+tommyrot
+rat
+motherfuck
+guest of his majesty
+backwardness
+embecile
+idiotism
+congenital iodine-deficiency syndrome
+gawk
+stultifier
+fatuously
+hokum
+dim
+brainless
+retardation
+fuckup
+stupidety
+dunce
+brutality
+ignorance
+animate being
+soft touch
+metazoic
+what an asshole!
+empiricism
+brain shrinkage
+informer
+nincompoop
+clod
+asstard
+nanocephaly
+tomfool
+microcephalia
+juvenile
+numskull
+pinhead
+asshole-ery
+charlatan
+imbeciles
+idiots
+innocent
+insensibility
+anumal
+cretinous
+motherfucka
+poop
+epifaunal
+newsmonger
+adolescent
+prisoner
+hammerhead
+epifauna
+brutal
+blunderer
+blabbermouth
+cretinism
+brain damaged
+nanocephalous
+rumourmonger
+spouter
+mentally-challenged
+nescient
+demetrius savelio
+nonreader
+dullard
+kingdom animalia
+faunae
+amentia
+craziness
+patsy
+muthafucka
+unwise
+obtuse
+motherfuckers
+charlatane
+beast
+gossip
+moronic
+mob
+metazoans
+lunkhead
+nanomalous
+goose
+nonsenses
+fooled
+unacquainted
+charlatanism
+applesauce
+twat
+mutterficker
+trumpery
+green
+microcephalics
+unintelligence
+kolotripa
+analphabetic
+plonker
+idiocies
+bumbler
+witless
+idoit
+whoreson
+mesofauna
+sap
+goofball
+kingdomanimalia
+stultifications
+bestial
+bunk
+imbecility
+retards
+stuff
+voodoo medicine
+zooerasty
+creature
+captive
+cretins
+magpie
+telltale
+ahole
+prisoners
+riffraff
+mazafaka
+mother fucka
+ragtag
+macrocephalic
+hooey
+betrayer
+nonsents
+twerp
+dickhead
+tattletale
+stultifyingly
+the r word
+quacks
+asshole
+pillock
+taleteller
+pseudo-medicine
+nonsensical
+nonsence
+mother fucker
+metazoan evolution
+stupider
+stupefy
+sob
+pseudomedicine
+infauna
+brain-damage
+zooerastia
+brain-damaged
+stultifiers
+dense
+cretinisim
+prater
+twirp
+uneducated person
+shit-for-brains
+boob
+subnormality
+shithead
+quacksalver
+stupidest
+prince adam
+cuckoo
+macrocephalous
+nonesense
+metazoon
+blabber
+dupe
+ditzy
+infantile
+mentally deficient
+medicaster
+zany
+tasteless
+stumbler
+goof
+doofus
+dull
+guest of her majesty
+analphabet
+fathead
+microcephalus
+barbarity
+bastard
+quackery
+motherfucker
+charlitain
+assmole
+the "mf" word
+animal
+mongool
+prick
+wolf
+stupidly
+madness
+nonsensicality
+moronity
+bunghole
+motherfather
+doltish
+assclown
+fatuous
+ass-hole
+
+# ── Ethnic slurs / Negative stereotypes ─────────────────────────────────
+changeling
+interfertility
+lummox
+nigga
+cross-breed
+dumbbell
+african-negros
+mongolchuud
+niggar
+juddaism
+goon
+judaist
+mongolids
+bendouin
+bum
+undoer
+latino
+crossbred
+mongloids
+zigan
+bedouin
+jewish
+Çingene
+negro
+ostrogoths
+pest resistance
+Черножопый
+metic
+hybridisation event
+putz
+blackeness
+jerry
+ruiner
+judaity
+african-negroes
+cross-breeding
+szgany
+groid
+cross
+uprooter
+juadaism
+romanis
+cretin
+waster
+barbarousness
+jigaboo
+booby
+african american
+gull
+judaic
+métèques
+beduin
+hybridization event
+quarter-caste
+mongoloids
+romany
+negroids
+crop selection
+hispanic
+mestizo
+nitwit
+bohemian
+crossbreed
+chernozhopyi
+calé
+boor
+sucker
+bulgarian
+kike
+negrid
+livid
+romani
+penalty card
+roma
+white
+yahood
+plant crossing
+plant biotechnology
+juive
+negrœ
+mongolid
+asian
+judasim
+meteques
+ostragoths
+barbarous
+crossings
+genetic crossing
+race
+judaisam
+mixed origin
+mosaic faith
+black
+blackamoor
+mongolic peoples
+idiotic
+negroe
+sheeny
+boche
+vandalii
+rroma
+krauthead
+darkey
+ostrogoth
+mug
+mestiso
+derelict
+hnrrep
+mongoloid
+floater
+inkiness
+zulu-kaffirs
+pikey
+negress
+mark
+japanese-mestizo
+juives
+africanus niger
+jewes
+blackishly
+crop enhancement
+jewess
+judaisem
+fall guy
+hybridism
+niggiz
+hebrew
+vandali
+eastern goths
+tzigan
+other races
+niga
+judeo
+yehudim
+nigra
+judaical
+ethnicity
+half-breed
+niggers
+the synagogue
+ni66a
+ostgoths
+half-cast
+judaism
+bedouinism
+rhaus
+(0, 0, 0)
+israelite
+african negros
+half cast
+half-breeds
+jewry
+blackishness
+bedu
+juadism
+inter-breeding
+vagabond
+mammal hybrids
+mestizaje
+idiocy
+zulus
+crosses
+judaistic
+dolt
+vandal
+plant improvement
+half-caste
+ostrogothic
+dummy
+american indian
+juden
+rom
+vandili
+nikker
+vandals
+romanies
+tramp
+mongols
+jews
+judiasm
+niggas
+intraspecific hybrids
+judaically
+cingene
+ostrogothi
+african-negro
+idiotes
+hybridizers
+valagothi
+crossbreeds
+tzyhany
+Ñegro
+halfbreed
+krauts
+inauspicious
+the n word
+ostrogotes
+métèque
+half breeds
+mesticos
+crossed
+yid
+niggish
+jew
+nigger-lover
+bedouins
+black-africans
+changelings
+gleaming goths
+fascist
+intra-specific hybrids
+cooyon
+mongloid
+jewism
+vagrant
+half breed
+ladino
+american indians
+breeding
+romastan
+negro-africans
+southern mongolians
+bulgarians
+plant breeders
+halfcast
+interspecific hybrids
+hybrid
+gascon
+penalty cards
+negrids
+jewishm
+amazulu
+n word
+rommany
+judismo
+gipsy
+blackness
+congoid
+rgb(0, 0, 0)
+nigger
+jews'
+black-african
+hybridiser
+mestizos
+chinese
+ultimately dark
+iberian kale
+hybridizer
+judaists
+buljasi
+Монголчууд
+pacific islander
+asiaticus luridus
+halfbreeds
+mongol
+african blacks
+native american
+niggaz
+hun
+gypsy
+metics
+xenikon telos
+negroid
+mestico
+sub-saharan africans
+africoid
+niggah
+niggre
+romane
+african-american
+sinoid
+rrom
+darkie
+pikie
+jewesses
+interspecies reproduction
+darky
+coon
+juifs
+blackly
+african descent
+hebraism
+judism
+jewdaism
+ostragoth
+cross-bred
+inter-species mating
+vndal
+destroyer
+drifter
+spade
+negroes
+mongolian
+kalé
+prostates
+hymie
+kraut
+negro-african
+blackest
+plant breeder
+jewity
+blk ppl
+interfertile
+the n-word
+Българи
+
+# ── Profession stereotypes ──────────────────────────────────────────────
+academical
+chair
+professoriate
+professorships
+prof.
+accountancy qualifications and regulation
+waggoner
+funeral services
+legal practitioners
+public accounting
+legal profession
+caporal
+barbarian
+faculty
+professor
+corporal
+banker
+shepherded
+cordwainer
+akateemikko
+suitor
+catedratico
+full members
+uncouthness
+attorney
+fishwife
+theoretical
+lance-duffardar
+academic
+jesuit
+office workers
+comptroller
+goth
+barberian
+second secretary
+shepherds
+academia
+legal practitioner
+third secretary
+bellboy
+teaching staff
+boorishness
+pyronia tythonus
+politician
+clerk
+special representative
+corviser
+shepherd
+gatekeeper
+white-collar
+jesuitical
+porter
+barrister
+the karls
+bellhops
+legal professions
+counselor
+funeral directors
+professora
+academian
+lawyers
+attorneys in south africa
+academe
+ceorle
+special envoy
+sheepherding
+pedantic
+prosecuting attourney
+corresponding members
+donnish
+office worker
+doorman
+controller
+accounant
+auditor-general
+employee
+door guard
+advocator
+sheepman
+sheperd
+proponent
+political
+commissionaire
+exponent
+prof
+3rd secretary
+counsel
+fishmonger
+morticians
+cpl.
+piccolo
+minister
+advocat
+academicism
+accountancy expert
+2nd secretary
+accountancy practitioner
+bellhop
+samuel c. t. dodd
+doorkeeper
+accademic
+lawyer
+bell-hop
+chlen-korrespondent
+academically
+accountancy experts
+corporal's guard
+counselor-at-law
+accountants
+shepherdess
+fishwife's tongue
+jesuitic
+wooer
+sheepherder
+academism
+counsellor
+pleader
+diplomatic rank
+auditor general
+mortician
+comptrollers
+shoemaker
+advocate
+bellman
+general auditor
+diplomat
+sheperds
+bell hops
+adjunct professorship
+lance-dafadar
+accountantship
+minister-counsellor
+defense attourney
+lance-duffadar
+fishmongers
+bell-boy
+advocates
+catedrático
+1st secretary
+undertakers
+scholarly
+corporal(rank)
+sheepherders
+diplomatic title
+shepherdesses
+accountancy practitioners
+suer
+laywer
+wagoner
+ostiary
+Член-корреспондент
+professorial
+minister-counselor
+cobbler
+accountant
+pyronia tithonus
+academicians
+distinguished professorship
+professoriat
+bossiness
+undertaker
+scholasticism
+lawyeress
+academy
+theoretic
+academics
+professional attorneys association
+bell hop
+sole practitioner
+bookkeeper
+professors
+comptroller-general
+sheepherd
+fishwoman
+academician
+
+# ── Locations & demonyms ────────────────────────────────────────────────
+barbaric
+birin
+barbarously
+peasant
+tyke
+churls
+terrone
+genoese
+genoan
+genovese
+
+# ── Physical disability slurs ───────────────────────────────────────────
+dissatisfactory
+disablement
+slimy
+differently-abled
+handycapped
+physical incapacity
+unworthy
+malformed
+disabled
+crippled
+differently abled
+wretched
+halting
+monocular
+nanus
+crookback
+blind
+humpback
+ugliness
+unsightly
+shrimp
+physical disablities
+disappointing
+ill-shapen
+physically challenged
+distorted
+flea-ridden
+disable
+able-bodied
+dwarf
+handicap
+deformed
+invalidity
+impaired
+ugly
+handicapable
+misshapen
+unsighted
+runt
+vile
+game
+peewee
+halt
+hunchback
+disibility
+disabilities
+disabling
+cripple
+half-pint
+midget
+gimpy
+lame
+despicable
+worthless
+unsatisfying
+disability
+one-eyed
+bad
+impairment
+handicapped
+disabilites

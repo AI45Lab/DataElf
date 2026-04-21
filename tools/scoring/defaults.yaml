@@ -1,0 +1,54 @@
+# Default configuration for DataScoringTool.
+# Loaded automatically when required_scoring_tool: true in upper config.
+# Users can override individual values via tool_defaults.data_scoring in their config.
+
+scorer: dataelf
+
+dataelf:
+  alpha: 0.5
+  ifd_model: /mnt/shared-storage-user/liwenjie1/evobox-share/data-assessor/scorers/models--openai-community--gpt2
+  ifd_batch_size: 256
+  deita_q_model: /mnt/shared-storage-user/liwenjie1/evobox-share/data-assessor/scorers/models--hkust-nlp--deita-quality-scorer
+  deita_q_batch_size: 256
+  max_length: 512
+
+ask_llm:
+  model: /mnt/shared-storage-gpfs2/gpfs2-shared-public/huggingface/hub/models--deepseek-ai--DeepSeek-R1-Distill-Qwen-7B/snapshots/14dd1130311655b43c3ce41dd505f70f6ca89845
+  batch_size: 128
+  prompt: "Is the following data high quality? Please answer yes or no.\n\n"
+  yes_token: "yes"
+  max_length: 512
+
+ppl:
+  model: /mnt/shared-storage-gpfs2/gpfs2-shared-public/huggingface/hub/models--deepseek-ai--DeepSeek-R1-Distill-Qwen-7B/snapshots/14dd1130311655b43c3ce41dd505f70f6ca89845
+  batch_size: 128
+  max_length: 512
+
+# ifd and deita_q: model and batch_size are configured in dataelf section above.
+# When run standalone, they read from dataelf config.
+ifd:
+  max_length: 512
+
+norm_loss:
+  model: /mnt/shared-storage-gpfs2/gpfs2-shared-public/huggingface/hub/models--meta-llama--Llama-3.1-8B/snapshots/d04e592bb4f6aa9cfee91e2e20afa771667e1d4b
+  batch_size: 128
+  max_length: 512
+
+deita_q:
+  max_length: 512
+
+deita_c:
+  model: /mnt/shared-storage-user/liwenjie1/evobox-share/data-assessor/scorers/models--hkust-nlp--deita-complexity-scorer
+  batch_size: 128
+  max_length: 512
+
+deberta:
+  model: /mnt/shared-storage-user/liwenjie1/evobox-share/data-assessor/scorers/models--nvidia--quality-classifier-deberta
+  batch_size: 128
+  max_length: 512
+
+fineweb_edu:
+  model: /mnt/shared-storage-user/liwenjie1/evobox-share/data-assessor/scorers/models--HuggingFaceFW--fineweb-edu-classifier
+  batch_size: 128
+  max_length: 512
+

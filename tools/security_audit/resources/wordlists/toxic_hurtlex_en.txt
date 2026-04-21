@@ -1,0 +1,4160 @@
+# English toxic-content wordlist
+# Source: HurtLex (https://github.com/valeriobasile/hurtlex)
+# Format: one term per line, # for comments, blank lines ignored
+# Covers: insults, derogatory terms, moral attacks, negative connotations
+# Categories: cds, dmc, qas, an, or, svp
+
+
+# ── Negative connotations ───────────────────────────────────────────────
+gag reel
+sir osthara
+conform
+kitschy
+bungler
+birin
+farmist
+trading
+behavioral signals of lying
+barbarians
+agriculturalists
+angling weight
+dealer
+untruth
+taba'een
+middle-class
+mishandle
+mogul
+bollocks
+housepainters
+painter
+rag
+rhetorician
+businessperson
+conformists
+barbarousness
+bolox
+cull
+fuddle
+peasants
+delirious
+clutter
+grandiosity
+feudal
+market keeper
+culls
+gallimaufry
+starlet
+bargainer
+embourgeoisement
+middle income
+sciolist
+tramp
+granger
+testicles
+conformism
+farm-settler
+ectoparasitic infestations
+barbaric
+housekeeping
+testicals
+conformation
+rhetor
+dun
+butcher
+bloomer
+municipal compost
+ruralist
+casteism
+ectoparasites
+materialistic
+baron
+gentleman-farmer
+tabaeen
+sleuthhound
+parasitize
+scrapped
+growers
+businessmen
+bind
+circus
+mingle-mangle
+rhetoric
+power
+father
+habitual
+junk
+prevaricating
+business man
+botcher
+parasite
+taradiddle
+fieldhand
+leech
+reject
+whopper
+ordinary
+bollacks
+common
+pickle
+townfolk
+bollox
+endoparasitism
+business magnet
+agriculturer
+shot belt
+rouge
+parasitic
+tabi%e2%80%98un
+peasent
+majority influence
+henchman
+compliance
+parsitism
+bedevil
+professional class
+amature
+pitiable
+sponger
+puddle
+amatuer
+bankroll
+shack
+shopkeep
+traders
+unrestrained
+tenant farm
+barbarous
+fib
+barberian
+tabi%e2%80%98in
+conformist
+businesswomen
+hole
+the karls
+conforming
+dissemblers
+painting
+mooch
+phrenetic
+retorics
+dog-kennel
+ragbag
+castes
+prevarications
+linguistic skills
+borgeois
+spoil
+amateurishness
+bourgeoisie
+muck up
+mare's nest
+frustrate
+parishioner
+bumble
+nectotrophic
+bollix
+capitalist class
+parasit
+diver weighting system
+baronesse
+rhetoricians
+bathetic
+patchwork
+merchant class
+hut
+dilettanteish
+refuse
+tycoons
+dabbler
+bourgeois
+falsehood
+ecclesiastical district
+farm tenant
+drippy
+satellite
+hokey
+confederate
+tenant farming
+ideology
+desk job
+king
+sodbuster
+insane
+baronin
+sentimental
+mixture
+amateurs
+pitiful
+story
+conservative
+farm worker
+middle classes
+business czar
+parasitized
+ideologist
+hanger-on
+liars
+welter
+farmers
+orchis
+boo-boo
+scrap
+melodramatic
+middleclass
+muddle
+botch
+tale
+monger
+tabi'i
+trader
+gothic
+mischief-maker
+tycoon
+shanty
+ornateness
+tagalong
+mushy
+don
+make up
+tiapan
+maudlin
+borgeoisie
+shelf warmer
+storekeeper
+fibster
+parasitization
+patch
+business person
+shop-keeper
+tradesman
+dilettante
+testis
+freeloader
+huts
+medieval
+dilettantish
+bourgeoise
+teste
+ballast
+pratfall
+commoners
+testicle
+bourgeoisifies
+sinker
+balls
+tābiʿī
+orchitic
+ideological
+poor
+ballocks
+sponge
+hotchpotch
+hallucinating
+businessman
+epiparasite
+gentlemanfarmer
+abidance
+white-collars
+business owner
+top executive
+factory owner
+ball
+housework
+waste
+smother
+moocher
+captain of industry
+farmists
+marseillaise belt
+countryman
+middle class
+addle
+businesswoman
+bloodhound
+taper-bearer
+parasytes
+bollock
+frenzied
+housepainting
+fix
+bucolic
+fishing sinkers
+administrative professional
+industrialists
+omnium-gatherum
+tarradiddle
+culling
+testical
+bourgoisie
+farmer
+abandoned ship
+hapless
+field hand
+bourgeoisified
+baroque
+acolyte
+endoparasites
+parasitically
+baronesses
+lying through your teeth
+ceorle
+fumble
+caste-based discrimination
+ideologue
+pathetic
+parastitism
+fluff
+autoinfect
+schmaltzy
+bobble
+sign-writer
+soppy
+weightbelt
+magnates
+agriculturers
+blow
+tabieen
+jam
+magnate
+bollocking
+husbandman
+misfortunate
+melange
+shop keeper
+parishes
+parish
+grandiloquence
+muff
+mixtures
+caste
+customary
+lumber czar
+parasitism
+usual
+cadger
+baronies
+frantic
+parasites
+provincial
+planet
+gentlemanfarmers
+bourgeoisify
+hovel
+parasitizing
+cast system
+doghouse
+rhetorics
+mediaeval
+rethoric
+crucify
+slushy
+blood-hound
+mawkish
+dog.house
+cubicle worker
+torment
+tabi'een
+managerial class
+soupy
+middle-middle class
+diving weighting system
+frenetic
+bourgeoisification
+pesantry
+housepainter
+magnat
+burgher
+piteous
+egg
+industrialist
+bodge
+middle-income
+bourgeoisifying
+collaborator
+biotroph
+epiparasites
+wordcraft
+parasitise
+feudalistic
+krestian
+ideologic
+follower
+divulgement
+middle social class
+wonted
+rhetorically
+hutch
+chien de saint-hubert
+whitecollar worker
+acolytes
+acolyth
+diving weight
+magniloquence
+kennels
+troubler
+scrounger
+bourgeosie
+gentleman-farmers
+autoinfection
+farmhand
+amateur
+crew
+employing class
+mediæval
+jumble
+shopkeeper
+nadgers
+rhetorical
+testicular
+divulgence
+baronial
+baroqueness
+necrotrophic
+ballock
+office work
+whitecollar workers
+bloodhounds
+ballest
+excited
+kennel
+agrarian
+sciolistic
+ovum
+schmalzy
+microparasites
+bollocks.
+testes
+dauber
+barons
+commoner
+ballix
+bore
+tabi'in
+weight belt
+everyday
+railroad czar
+accustomed
+conformity
+troublemaker
+
+# ── Derogatory / Insults ────────────────────────────────────────────────
+snotty
+lying in trade
+nerdiness
+pædant
+clann
+ponce
+prate
+lawlessly
+muthafucker
+narcism
+black-legger
+overseas press
+cosanostra
+hubrus
+dastardliness
+m o f f i a
+dietrology
+politics and current events
+mancraziness
+usura
+changeling
+buffoon
+shot caller
+pandering
+crooned
+babble
+rascal
+bragger
+mongrel
+teaching aid
+lying by omission
+swindler
+girl-crazily
+sicilian mobsters
+fashism
+slovenly person
+boy-craziest
+woman-craziness
+hypersexualism
+pimpet
+scheme
+recreant
+imp
+crimination
+pandemonium
+rafts
+zealotry
+sewerage
+new borns
+narcissists
+book-louse
+conspiratard
+shy lock
+scientismist
+pedants
+stealing
+monkey
+grumbler
+pimping
+nymphomaniacs
+nymphomaniac
+stumbler
+dependencia sexual
+papparazi
+mother-fucker
+rapscallion
+saphead
+fundamental regime
+dime novels
+moronic
+conventicles
+flesh mongers
+wither
+machinate
+newspaperman
+band
+cheekiness
+m.o.f.f.i.a.
+wise guy
+compulsive sexualities
+freimaurer
+moffias
+criminous
+sheik
+chump
+stoled
+sexually compulsive
+man-crazily
+maffias
+mass
+celebrity photographer
+boaster
+prankster
+winterdyke
+facism- meaning
+properties of msw
+caper
+wardress
+fascist
+incriminates
+rookie
+garbage
+fabricator
+heaps
+barbarian
+criminally
+smart
+knavish
+cowardliness
+egotisms
+the masons
+messalina complex
+pédant
+retard
+pietism
+katerfelts
+gossips
+great company
+nazi
+rat
+villainous
+strike breakers
+blackleggers
+fundamentalists
+theif
+dissembled
+idolized
+m. o. f. f. i. a.
+outlawry
+rez car
+larsony
+freezer-duty
+antic
+police officers
+masses
+do-gooder
+zaptiah
+worship
+gang
+ringleader
+craftiness
+brothel-keeper
+hyperphilias
+huckster
+schoolmarm
+snaparazzi
+new-borns
+dudett
+mf'er
+oleaginous
+usurer
+pop off
+wanky
+clichéd
+lav
+casinoes
+smatter
+tattle
+odds and ends
+john
+shakkanho
+transformismo
+henchmen
+superciliousness
+craven
+vanity
+bargain
+womancraziest
+bigot
+money-lending
+gormandise
+hyper sexuality
+do-nothing
+correspondent
+mongrelism
+dissembles
+hypersexuals
+the egoist
+babe
+police man
+wankers
+mancrazier
+ingroup
+demagogues
+hypersexually
+hyper-sexualist
+dehydrate
+bounder
+boycraziest
+flub
+junky
+lots
+clothes maidens
+theivery
+אגוטיזם
+mafiosi
+snuff it
+wankily
+schoolmistress
+blather
+narcissistical
+clansmen
+mazafaka
+girl craziest
+know-all
+conspiracy theorist
+sly
+officer
+ballup
+people
+tai ee long
+abactor
+fraudster
+working rich
+infants
+extreme right-winger
+sextraders
+villan
+money lending
+school marm
+chiseller
+dogmatism
+sleiveen
+scrabble
+freemasonic
+paper-pusher
+freshness
+japanese units
+ostentation
+scammer
+hyperlibido
+mongrelized
+bloopers
+stuff
+grungecore
+parvenus
+scalawag
+demanding
+carrionism
+man-crazy
+put-on
+fancy man
+loan-sharking
+mischiefs
+fascsim
+whoresons
+primate
+reactionary
+chiseler
+greenhorn
+iason chronis
+professeur
+slip of the tongue
+fundamentalist
+pimps
+derelict
+religism
+prevaricates
+paraphilia related disorders
+pimpin
+hyper sexualism
+plant breeder
+%e2%80%99ndrangheta
+new rich
+tribes
+problem
+blunder
+grungies
+braggart
+simpleton
+impertinence
+unctuous
+bluestocking
+swell
+imbecile
+gnurd
+pretentious
+jokester
+unlawfulness
+boy craziest
+jesters
+latrines
+loan sharking
+puzzler
+superbia
+tribeswomen
+incriminating
+boycraziness
+ordre de felicite
+nursling
+tattler
+it's a conspiracy
+regressivism
+vanagloria
+complacence
+abaction
+scribbler
+mac
+shrink
+teaser
+chesty
+usurious
+paprazzi
+prison warden
+procurer
+mason
+hypersexualities
+criminator
+fiend
+fops
+ostentatiousness
+intermediator
+computer geek
+🚼
+m. o. f. i. a.
+béguines
+conspiracism
+correspondents
+fuckup
+illicit
+motherfather
+fascists
+the "mf" word
+vainglory
+swinish
+incriminator
+reprobate
+gambling industry
+boycrazily
+villainess
+defrauder
+culled
+pig
+cacography
+wily
+rotter
+hyper sexual
+bitser
+slacking
+girl-crazier
+instructor
+cross
+sexual impulsivity
+kin
+crossbreed
+cheek
+gallant
+soft touch
+stock
+whoremonger
+illegitimate
+handjob
+puffiness
+narcissistically
+retail brokerage
+casanova complexes
+mess
+scamp
+blooper
+municipal composting
+sexual dependencies
+daub
+beau
+pedantry
+robber
+crime
+sinner
+groveller
+filching
+blabber
+schoolmarms
+conspiracy theorists
+knock-shop
+drying racks
+bedlam
+kingpin
+presumption
+bookworm
+fanatic
+neonates
+man-crazier
+loansharking
+messiness
+arrogance
+cowardlinesses
+upstart
+maunder
+mafiosos
+usury
+hybridizers
+man crazily
+tormentor
+outlawed
+cub
+math geek
+lucrum cessans
+jokesters
+pilferer
+craft
+clan
+party
+idiocies
+gobble
+foul-up
+prelate
+infaneto
+narcisist
+bathroom
+demagogism
+money-lender
+maffia
+venality
+fanatism
+pimpin'
+teachest
+money lender
+junkie
+masonic
+heavies
+procuress
+shylocking
+despoilment
+grifter
+man crazier
+moffia
+poltroon
+dunderheads
+milquetoast
+galoot
+teachings
+illegal
+egotists
+knocking-shop
+tattletale
+heller
+house
+incrimination
+muthafucka
+splashiness
+hyper-sexualities
+nuvo riche
+intraspecific hybrids
+hellion
+religiosities
+brokers
+interfertile
+hypersexualist
+busybody
+idoit
+compulsive sexual behaviour
+crossbreeds
+home credit
+advocacy
+windbag
+out of control sexual behaviour
+hayseed
+deviltry
+matcher
+Ὕβρις
+tribesmen
+hubris
+lip
+fusion paranoia
+archpriest
+lawlessness
+newborn children
+churl
+bungle
+agent
+para-fascism
+rhine league
+guileful
+wisenheimer
+clothes horses
+dumb
+freak
+law-breaking
+multitude
+woman-crazier
+cloaca
+demagog
+new money
+alt-thrash
+tribally
+bumpkin
+trafficker
+woman-craziest
+scrawler
+fascistic
+oafish
+pansy
+intrigue
+amour propre
+gangster
+whoreson
+brothels
+conspiracist
+cashed up bogan
+scoundrel
+latrina
+god
+airer
+boss
+bunghole
+tosser
+charlantry
+pup
+mafiosa
+fellowcraft
+beghards
+crossbred
+herd
+rook
+criminations
+listen in
+haystack answer
+moralizing
+religious extremists
+ingurgitate
+witcrackers
+cernō
+delinquent
+chaffer
+d00d
+bribable
+lot
+wash room
+overindulge
+masonism
+sass
+baby
+crop selection
+megabrothel
+hypersexual
+fashion-monging
+flesh-monger
+zealots
+babies
+complainer
+water closet
+wc
+moneylender
+nazism
+satyromania
+highway-robber
+hybris
+bas bleu
+hoaxer
+dudes
+compulsive sexuality
+jelopie
+teacheth
+larceny-theft
+movement
+piles
+m.o.f.i.a.
+assumption
+back talk
+m o f i a
+pimp
+not to entertain thoughts of other gods besides him
+slyness
+carrion
+cattle-rustling
+camarilla
+panderer
+filched
+vainglories
+dummy
+scribe
+muss
+cop
+order de felicité
+boy crazy
+rumourmonger
+clans
+police men
+idoltry
+eavesdrop
+screw
+lhasash1tzapoo
+conspire
+slews
+ordre de felicité
+hyper sexualist
+scientific expansionism
+tribal
+blacklegger
+clotheshorses
+woman crazy
+woman crazily
+tricky
+sissy
+gossip
+household wastes
+delicts
+privy
+purchasable
+theft
+telltale
+bagnio
+beguines
+scratch
+procrasturbation
+preachify
+perspicaciousness
+af&am
+messenger boy
+prohibited
+religously
+nervelessly
+circle
+crossings
+burglar
+demagoguism
+dissemble
+satyriasis
+boycrazier
+ring
+convenience
+backtalk
+asportation
+balls-up
+charlatan
+tribe
+brigands
+badda bing
+can
+police-woman
+girlcrazily
+womancraziness
+overweeningly
+stalkerazzi
+decaying meat
+necessarium
+freezer duty
+camp
+stupid
+wads
+prevaricated
+excessive sexual drive
+m. a. f. i. a.
+nickel novel
+impudence
+sexual dependents
+squiggle
+hypersexualisms
+boorish
+crossed
+join the choir invisible
+bigots
+fall guy
+incriminatory
+corca
+savvy
+deceitfulness
+stacks
+apple polisher
+caitiff
+foreign news office
+chatter
+snob
+ragtag
+fop
+falsity
+mark
+scribble
+blackballed
+banditry
+girlcrazier
+moneylending
+narcist
+simple
+moobster
+sewer
+give-up the ghost
+criminals
+perish
+tricker
+casanova complex
+huskamute
+washroom
+slackingly
+nouveau-riche
+henchwoman
+croon
+carrionistic
+tsubo
+carrionist
+japanese unit
+git
+snot
+public conveniences
+intermediary
+sassing
+ruck
+mancraziest
+raven
+loo
+kinfolk
+roguishness
+fearful
+impulsive sexuality
+egghead
+gelopy
+culchies
+quidnunc
+snitcher
+paraphilia-related disorders
+out-of-control sexual behaviour
+larseny
+plant improvement
+sonny
+strike-breaker
+narcicistic
+shylock
+mishmash
+great unwashed
+bulk
+hodgepodge
+gambling hall
+caravan
+parafascism
+👮
+hypersexuality
+moron
+coo yon
+oodles
+demagogue
+sextrader
+corruptible
+egotism
+supercilious
+facsism
+cease to be
+hyper sexualisms
+hyper sexualities
+knob sticks
+our money
+paparazzi
+knock shop
+girl-craziness
+fulsome
+balladeer
+pest resistance
+snoop
+train
+excessive masturbation
+social climbers
+kin-group
+copper
+cowardices
+comfort room
+dude
+dark enlightenment
+plant breeders
+authoritarian cultist
+selfishness
+boastfulness
+presumptuous
+mouth
+paparatsi
+talebearer
+uniform small loan law
+struck work
+umirtà
+fold
+cross-bred
+fasism
+blackball
+drumbeater
+thefts
+muscle
+snot-nosed
+nut
+overgorge
+mischief
+pedantes
+comfort rooms
+linebreaker
+la costa nostra
+bawdyhouse
+woman-crazily
+babby
+foppishly
+autophilia
+unlawful
+paedants
+mongrelization
+dandy
+restroom
+sewage
+brokering
+cathouse
+concourse
+mob
+theives
+truckler
+fundamentism
+fox
+entered apprentice
+go
+facist
+coterie
+moronism
+on-the-scene reporting
+sexual dependence
+sex-trader
+disorder
+kinship group
+pedant
+idiotes
+engorge
+cockalier
+cabal
+demagogic
+pimper
+idolatrous
+prig
+addict
+demise
+poltroonery
+public lavatories
+hyper-sexualisms
+chaos
+pedanticalness
+idiocity
+idolatry
+minstrel
+idioticness
+tribesman
+gorge
+man crazy
+jestyr
+criminated
+sermonize
+moralism
+furor uterinus
+sniveller
+anti-progressive
+eejit
+oily
+usuary
+bagong yaman
+paparazi
+shit
+sexually dependent
+gerarca
+propagandist
+topsy-turvydom
+trouble
+satyriac
+paparazzo
+farrago
+gangmembers
+clotheshorse
+zealotous
+hyper sexually
+grime
+crop enhancement
+relics
+idol-worship
+exit
+salary buying
+mistress
+junto
+boner
+stealer
+crafty
+religious totalitarianism
+hyperphilia
+criminating
+bigheaded
+shorkie
+grunge
+demagogies
+snooper
+neoreaction
+clitoromania
+devour
+mutha fucka
+nouveaux riche
+venal
+newsmonger
+jerk-off
+sbirro
+conspiracy theorism
+patrolman
+brothel
+blackleg
+pédants
+devilment
+strike-breaking
+penman
+carion
+madams
+breaking laws
+oaf
+foppery
+procurers
+jolapee
+volume
+religious extremist
+trite
+pro-fascist
+umirta
+felicitaries
+sex maniac
+comfort station
+cur
+clerical
+the m.a.f.f.i.a.
+homomunculi
+policeman
+too big for one's breeches
+infanthood
+hustler
+grease
+draught-house
+bog
+prison guard
+sub-clans
+sept
+hero-worship
+stupidhead
+sex mania
+cattle-raid
+fascisized
+conspiricy theory
+drudge
+asshole
+prankishness
+sacred trusts
+messalina complexes
+knockshop
+hybridiser
+rancid
+cockup
+pimped
+clanswomen
+robber-baron
+wagon trail
+free & accepted masons
+buttery
+the south
+matchmaker
+cliques
+phratry
+order de felicite
+neonatus
+gourmandize
+global conspiracy
+excessive sexual drives
+free company
+hijacker
+sexual compulsivities
+pedantic
+autolatry
+charlitain
+croons
+filcher
+donnish
+walloper
+beguine
+dishonest
+tomfool
+weisenheimer
+criminators
+incriminated
+loverboy
+jailor
+a. f. and a. m
+free masons
+schoolma'am
+decrepit car
+fools
+scuttlebutt
+compulsive sexual behaviors
+sex-traders
+blether
+dunderheaded
+pedagog
+porky pie
+impulsive sex
+enthusiast
+robber-barons
+pandered
+boy crazier
+neandertal
+higgle
+womancrazy
+police-man
+abigeus
+trito
+squawker
+narcissism
+interspecies reproduction
+astuteness
+hitlerite
+fanatics
+pædants
+pass
+masonry
+mothafucka
+puzzle
+moneygrubber
+fanatical
+bandits
+akranis
+blab
+clique
+criminately
+troublesome youth group
+cattiness
+wank
+filth
+pimpers
+intra-specific hybrids
+die
+pedanthood
+criminousness
+social climbing
+idolize
+girl crazily
+army
+fashion-monger
+restrooms
+conspiracy researchers
+dunder heads
+knocking shop
+prick
+motherfucka
+pomposity
+crooner
+superficiality
+criminate
+storyteller
+stand-up
+raubritter
+offender
+oddments
+impulsive sexualities
+hyper-sexualism
+so-and-so
+biglang yaman
+lavatory
+prattle
+folk
+facism
+puppy
+fascisist
+policemen
+hustlingly
+compulsively sexual
+live at the scene
+winterdykes
+lordliness
+conspiracy theory
+freesmasons
+hierarch
+suckling
+pandar
+toilet
+dudette
+trick
+satiate
+hustled
+rest rooms
+peon
+religiousism
+girl-craziest
+reactionarism
+scrapping
+highwaymen
+haggle
+commonplace
+gull
+insolence
+uppish
+operator
+gossiper
+conspiracy theorys
+conspirology
+herds
+crowd
+throng
+procuring
+ultraconservative
+factor
+crook
+teachers
+swot
+topsy-turvyness
+galley slave
+compulsive sexual behaviours
+fashion plate
+scarf out
+wiliness
+bus
+kamarilla
+loads
+choke
+flesh-mongers
+demagogically
+thiefing
+rogue
+ah long
+paraphiliarelated disorders
+gangs
+loafer
+2b1ask1
+scientism
+breaking the law
+teaches
+vigorish
+bellyacher
+highjacker
+hitlerist
+black-legged
+sexual dependences
+hyper sexualists
+interfertility
+hyper-sexualists
+mussiness
+neanderthal
+andromania
+bull
+artful
+parparazzi
+exsiccate
+decease
+strike breaker
+tittle-tattle
+baddoing
+satyriasistically
+egocentric
+bawdy-house
+rout
+superciliously
+snooty
+cosa nostra
+demogogue
+boy-craziness
+leader
+policeofficer
+drop dead
+nerveless
+grunger
+groveler
+schoolteachers
+mofias
+shenanigan
+whore's son
+chicken
+fancier
+hyper-sexual
+prison guards
+ndrangheta
+elan
+legal irresponsibility
+'ndrangheta
+demegogery
+teachingly
+overweening
+englut
+waggishly
+mafia
+buy the farm
+self-centered
+foreign news bureau
+incriminate
+out-of-control sexual behavior
+freemasons
+croak
+desiccate
+free-mason
+crust
+peons
+hustling
+meddler
+hypersexualists
+groupuscule
+set
+wagon road
+self-satisfaction
+idiolatry
+idolatress
+line-shooter
+degree
+dead-end street
+f.&a.m.
+tired
+dodgy
+motherfuck
+criminalities
+provincialism
+dodger
+cunning
+quarter
+narcisism
+conspiracy beliefs
+satyriasistic
+dickhead
+girlcraziest
+interspecific hybrids
+outlawing
+mafias
+free and accepted masons
+strikebreakers
+self-centred
+nerd
+blerd
+pedante
+begards
+overeat
+narcissistic
+hitlerism
+hybridism
+presumptuousness
+inflation
+pedagogia
+religiosity
+egoism
+break the strike
+hybridization event
+ardor
+dozens
+clack
+silly
+compulsive sexual behavior
+gibber
+stuck-up
+terry toon
+jerking off
+m a f i a
+larcency
+neo geek
+coen berrier
+motherfucking
+sexual compulsives
+egoistical
+out-of-control sexual behaviors
+clannish
+kindred
+casino
+mischievous
+dime novel
+sonofawhore
+neuvou riche
+cul de sac
+airers
+idiotism
+devil
+schemer
+culture of silence
+revere
+slick
+devilry
+fascistical
+impulsively sexual
+bawdyhouses
+idolise
+conspiracy theories
+timeserver
+fuzz
+pedanticism
+overweeningness
+mancrazy
+establishment
+moaner
+fleshmongers
+racketeer
+hyper-sexuals
+threadbare
+larceny
+a.f.&a.m.
+rest-room
+highwayman
+whore's sons
+wankier
+pompousness
+shopworn
+charlatanry
+gelopie
+mega-brothel
+brigandi
+grungers
+cash in one's chips
+dirt
+old-hat
+teacher
+connive
+religious discrimination
+comment
+kinsfolk
+astute
+plotter
+arse
+cretin
+glut
+scads
+self-importance
+mofia
+fascista
+newborn height
+changelings
+half-wit
+broking
+man craziest
+policewoman
+loutish
+dandies
+wrongdoer
+gossipping
+strumpeteer
+religious discriminations
+thievery
+wankiest
+nosey-parker
+quaintrelle
+jalopy
+mobster
+out of control sexual behaviours
+jailer
+self-complacency
+bootlicker
+penny numbers
+harasser
+baddoer
+navvy
+demagogical
+anti-conspiracionism
+police-women
+mancrazily
+reactionaries
+parvenu
+latrine
+inter-species mating
+eggheads
+hybridizer
+nouveaux riches
+binge
+idiotic
+scores
+sob
+mischievousness
+thieves
+mess-up
+cowardice
+peón
+mischievously
+foxy
+hackneyed
+clothes maiden
+zeal
+puticlubs
+idiocy
+harangue
+conspiranoia
+nympho
+police women
+designer
+persnickety
+marplot
+arsehole
+beatie
+dunder headed
+finagler
+hoi polloi
+guttle
+man-craziness
+smarmy
+mammal hybrids
+pe0n
+strike-breakers
+camorra
+idiots
+hyperphiliacs
+mafioso
+religiose
+fundamentallism
+twaddle
+sexual dependency
+crooners
+evildoer
+gobs
+computer nerds
+sexual compulsion
+fascism
+omerta
+gall
+moneylenders
+hyper-sexuality
+sharp
+newborn size
+blackballing
+mediator
+sub-clan
+cut-up
+omereta`
+broker
+infant
+prank
+nurseling
+breeding
+nouvo riche
+cop(police)
+cowardly
+academic
+castellammarse war
+peonag
+narsisism
+cross-breeding
+runt
+dry up
+rascality
+sermonise
+firm
+m.a.f.i.a.
+whoremaster
+chief
+woman craziest
+correspondant
+arrogant
+scientific world view
+foppish
+perspicacity
+laddie
+nerdy
+rabble-rouser
+motherfuckers
+loanshark
+papparazzi
+waggish
+plant biotechnology
+law enforcement personnel
+free-masonry
+mutterficker
+hyperphilic
+livestock rustling
+mischief-making
+idolaters
+alt thrash
+sanitary sewers
+onanism
+by-blow
+desperado
+peewee
+dicker
+conjure
+criminal-reform
+taught
+arriviste
+banal
+waggishness
+dude!
+gangsterism
+dime store novel
+pedantesses
+clothes horse
+se
+family
+wagon trains
+hound
+crosses
+cooyon
+gossipmonger
+wish-wash
+demagoggery
+black-legging
+shrewdness
+lashings
+gaoler
+stealers
+wiseacre
+incriminators
+the m. a. f. f. i. a.
+crimanal
+wonk
+mother fucker
+taleteller
+prison officers
+criminis
+slave driver
+th. metzger
+self-worship
+out of control sexual behavior
+carrionly
+ganxta
+idol-worshipping
+outlaw
+lout
+hyperphiliac
+offence
+neo-reactionary
+whorehouse
+pound of flesh
+woman crazier
+criminates
+bolt
+woman-crazy
+satyriacs
+pack
+tormenter
+sexual compulsive
+dweeb
+fasist
+trasformismo
+grind
+genetic crossing
+conspiracy of silence
+director
+stain
+scrawl
+mischty
+scientistic
+religionism
+knob stick
+gasbag
+infantile
+infants%e2%80%99 health
+shrewd
+womancrazier
+reactionist
+ardour
+girl crazier
+idolotry
+plant crossing
+impasse
+fashion monging
+fanaticism
+rumormonger
+carrionists
+pedantess
+reporting from the scene
+protagonism
+boy-crazily
+blither
+newswriter
+heap
+puticlub
+beghard
+pressman
+incriminations
+crimes
+complacency
+comorra
+mountebank
+soil
+thief
+freemasonary
+high priest
+fawner
+mutt
+filches
+freemasonry
+gaming industry
+zealous
+papparazzo
+seattle sound
+intriguer
+rest-rooms
+gabble
+deliberate misspelling
+well-worn
+penny dreadful
+relic
+gigolo
+conspiracy buff
+jail guard
+tribeswoman
+miscreant
+know-it-all
+cebu lodge no. 128
+hybrid
+looker-on
+fundementalist
+shysters
+omertà
+biryonim
+blacklegging
+boy-crazier
+go-between
+beguins
+free companies
+pretentiousness
+narcissitic
+blowhard
+fleshmonger
+culchie
+intercessor
+out of control sexual behaviors
+usurary
+nosy-parker
+swaggerer
+hyper-sexually
+old banger
+hybridisation event
+pander
+satyriases
+paparatchi
+mongrels
+m a f f i a
+head
+officious
+out-of-control sexual behaviours
+flock
+quiltro
+shrivel
+idolatory
+complot
+joke
+gribbly
+timeworn
+nouveau riche
+thieving
+gerarchi
+slyboots
+lad
+man-craziest
+sexually impulsive
+regular grand lodge of england
+brigandage
+sexual dependent
+blacklegged
+snoot
+charlatane
+nouvea riche
+demagogueries
+neonatal
+narcissist
+womancrazily
+foolish
+faux-paparazzi
+yellow
+tons
+stickler
+expire
+errand boy
+wangler
+mammafucker
+béguine
+palaver
+penny number
+newborns
+lawbreaking
+educator
+sexual impulsiveness
+freemason
+tricksy
+social-climbing
+scab
+black-leggers
+whiner
+mf word
+fundamentalism
+bilking
+mens room
+steal
+sexual compulsions
+alternative thrash
+pedantries
+scholastic
+girlcraziness
+bordello
+motherfucker
+jacking off
+penny dreadfuls
+ntrangata
+persecutor
+conventicle
+piffle
+brigandry
+pedagogue
+filchers
+dood
+onlooker
+👶
+nymphomania
+blabbermouth
+demagogeury
+alternative speed metal
+fascistically
+religous zealot
+warder
+public toilets
+bandits!
+hooptie
+wanker
+hyper sexuals
+foxiness
+coo-yon
+shakkanhō
+nervelessness
+rest room
+bastardly
+charlatanism
+neoreactionary
+besserwisser
+vaunter
+offense
+🚻
+barring
+turnkey
+newspaperwoman
+muscleman
+segmentary society
+cocksucker
+dewd
+cross-breed
+kick the bucket
+soapy
+hoopty
+boy crazily
+inter-breeding
+paedant
+hustles
+conk
+strikebreaker
+rustler
+hand job
+faction
+fascisti
+egoistic
+mother fucka
+
+# ── Animal-based insults ────────────────────────────────────────────────
+sucker
+jennies
+viciousness
+vultures
+crocodilians
+faunae
+stupidly
+brutality
+jack
+enichires
+ingokho
+folderol
+eurypterid
+shedog
+leeching
+savagery
+hyena
+doghood
+lampyris longipennis
+she-goat
+oinker
+slowcoach
+brutal
+betise
+ckokroach
+muggins
+mosquitoes
+kine
+midge
+infaunal
+crocodilla
+flirt
+plodder
+foolishness
+whore
+small fry
+movie villains
+chiken
+hack
+midg
+psittaciform
+villainesses
+crocodilia
+bloodsucker
+commonness
+latastea
+microörganisms
+streetwalker
+crocodiles
+rabbitkind
+man-eater
+pelias schoettleri
+euhyaena
+scorpionfish
+infauna
+snale
+crododilians
+sloven
+coarseness
+miser
+echidnoides
+pullets
+one-celled
+lampyris sibirica
+blackguard
+antibodies, helminth
+beefcow
+hyaenas
+escargots
+knucklehead
+bunny
+hyl
+syrnium varium
+slattern
+brant
+cocaroah
+otus asio
+phiz
+hyaena
+cuck
+hoaxster
+prince adam
+porker
+🐂
+vulgarism
+harlot
+miscreants
+mean
+kocroch
+lampyris obscurella
+microoerganisms
+beyotch
+putz
+jono hawkins
+crocodile
+sonamabitch
+fuckhead
+doltishly
+cimicidae
+doggies
+ixodides
+sea scorpion
+grossness
+molluscs
+yorkshire leicester
+gyps fulvus
+micro-organismical
+crumb
+truncatiramus
+hee-haw
+cuckolds
+knats
+miserliness
+mug
+gallus domesticus
+microorganism
+bisons
+cattle
+buccal organs
+capridae
+chiena
+selachimorpha
+physiognomist
+animate being
+inexorability
+doormat
+redfish
+waeringoopterus
+dusk biter
+bothridium
+siphonoptera
+domestic ram
+physiognomy
+macrofauna
+mosquitos
+bedbugs
+cuckolding
+sea scorpions
+heel
+palaearctic vipers
+coward
+pip-squeak
+freebooter
+mesofauna
+caimans
+brute
+sharks
+strigiform
+trollop
+dogs
+billy-goat
+trumpery
+hemipteran
+shellfish
+quest
+doggie
+fatshit
+headless
+slug
+pelias sudetica
+knat
+wisent
+rent boys
+strigiformes
+bock bock
+mbuzi
+claypole
+ovis aries
+dolt
+riffraff
+bitch
+bullock
+namby-pamby
+coluber prester
+syphonaptera
+scum
+crocodylia
+cad
+hirudinida
+twat
+piggy
+wolf
+gymnasio
+hoaxter
+tripe
+listening device
+jacarea
+slob
+nemichthyoidei
+dunderhead
+street walkers
+demetrius savelio
+moue
+tub of lard
+closefistedness
+cokroch
+hienna
+rent boy
+single-celled organisms
+sharkes
+caprini
+rhinaspis
+macchar
+singleceller
+athene noctua
+she-ass
+body snatching
+horner woman
+patsy
+pipistrelle
+palmichnium
+lampyris noctiluca
+canis aureus
+frogs
+metazoic
+culicidae
+caimon
+toads
+tree of life animalia
+phthiraptera
+metazoon
+hirudinea
+wittold
+tarsopterus
+mulish
+moths
+museaux
+gosling
+microbial
+molluscoidea
+rabble
+moke
+fool
+knave
+frowning
+spoiler
+diddlysquat
+zooerasty
+blattaria
+caimen
+mesohorinis
+lices
+penuriousness
+grunter
+limacidae
+lousy
+bestial
+squirt
+rubbish
+metazoan evolution
+chinch
+single cellers
+rediculosis
+museau
+goatry
+flea
+marauder
+hyenæ
+aphaniptera
+man-whores
+🐐
+anurans
+molluska
+hammerhead
+en la boca de los tiburones
+microbic
+kingdomanimalia
+physog
+hyenae
+fakes
+testaria
+anguillid
+kingdom animalia
+oxen
+single celler
+wriggler
+anserini
+pediculus humanus
+hyaenids
+she-asses
+moo unit
+gigalo
+balloon swallowing
+barbarity
+fisnamy
+single-cellers
+eurypterids
+canis familaris
+raunch
+microscopic organism
+goatfighting
+sus domesticus
+jacare
+jackals
+pelias dorsalis
+digitaldog
+physiognomists
+bunnies!
+parrot
+goat's milk
+penurious
+🐌
+street walker
+chickon
+adhesive disc
+cony
+vulgarity
+beast
+glaucodes
+single-celler
+obstinate
+fury
+crocodylidae
+crocodylian
+drug courier
+pelias tyrolensis
+yowe
+weakling
+animalculum
+kutru
+hog
+storm
+🐶
+vipera
+applesauce
+prickteaser
+a betularia
+microorganismically
+rounsey
+foot
+mollusca
+microoerganism
+owls
+puke
+micro organisms
+land seal
+tori no mushimono
+🐽
+villain
+hoaxes
+arionid
+man-eating
+wyoming state mammal
+caimin
+frogspawn
+bdellatomy
+manwhore
+الدَّيُّوْث
+he-goat
+cockraoch
+microbically
+trash
+animalistic
+physiognomies
+rabbitology
+cockmonger
+pooch
+hyeena
+poulet
+zooerastia
+pelias schreiberi
+latasteopara
+ckockroach
+coluber berus
+ckockroch
+buffalo
+woman chaser
+loggerhead
+fishes taxonomy
+selachimorph
+cunt
+incompetent
+podge
+ticks
+blattodea
+🐕
+oxe
+nag
+hooker
+physiognomically
+jackass
+hirudinean
+mesovipera
+🐄
+beef
+physiognomics
+cayman
+donkey
+pipistrellus
+enychyros
+animal
+folly
+micro organism
+ne'er-do-wells
+ixodoidea
+capra
+man-whore
+doggy
+insect
+butterball
+cows
+smeerp
+single celled
+caimaninae
+ochu
+batrachian
+pelias rudolphi
+canis canis
+diddlyshit
+yap
+wuss
+ckocroach
+psittacine
+body-snatching
+plunderer
+lampyris bellieri
+batrachan
+beedeas
+bozo
+sonofabitch
+sheep, domestic
+wittols
+braying
+anguilla
+bicho
+caprinae
+obeast
+epifaunal
+snake
+visnomy
+microrganism
+bos primigenius taurus
+acridophaga
+animals
+ungenerous
+black-beetle
+microbialities
+crocodille
+nanny-goat
+v. communis
+pelias occidentalis
+rabbit
+rouncey
+anomalopithecus
+microörganism
+faunas
+hyaenidae
+culex pipiens
+thos
+frog
+rent-boy
+sus scrofa
+microbics
+mesohoronis
+slowpoke
+congroidei
+croaking
+motsu no kushiyaki
+cow's size
+misquitos
+sheep
+🐰
+cantharis noctiluca
+chooks
+adhesive discs
+screech-owl
+squat
+she asses
+lampyris submucronata
+vulture
+micro-organism
+prostitute
+masher
+ikwal samra
+relentlessness
+jigolo
+fatty
+🐔
+ewe
+phyllidium
+strix varia
+face
+physiognomical
+worm
+floozy
+vernopterus
+coluber caeruleus
+parsimonious
+cockaroach
+body snatchers
+sharkie
+smiler
+escargot
+antigens, helminth
+codswallop
+diddly-squat
+chickens
+vamper
+bitch-slap
+crocodylians
+tebasaki
+nanny
+ox
+bunnies
+megascops
+xenosuchus
+purici
+aasvogel
+creature
+arionacea
+villian
+bodysnatching
+osteolaeminae
+eels
+pigs
+microbical
+wildcat
+cakehole
+cheapskate
+roach
+hirudiniasis
+buccal organ
+cocroch
+piggeh
+pillager
+visage
+moth
+lymbriciform
+🐸
+volaille
+lampyris thoracica
+zany
+chikkin
+cockoroach
+glow-worm
+chienna
+coluber melanis
+pelias neglecta
+jade
+equus africanus asinus
+g. domesticus
+brent
+helix pomatia
+ass
+🐖
+billy
+belinuropsis
+snout
+microbe
+animalia kingdom
+beastly
+bufo
+bleat
+hirudena
+cuckoldatrix
+sonuvabitch
+ckocroch
+salientian
+crocodylinae
+minx
+כלב
+microbially
+sap
+nanus
+bodylouse
+crybaby
+unregenerate
+tease
+jackgnat
+mazonipterus
+griffon
+adder
+midget
+she-goats
+hemipteron
+selachians
+rubbits
+sheeps
+lampyris parvicollis
+chazer
+micro organismic
+man-eaters
+rabit
+drug mules
+c.l. familiaris
+penny pincher
+snail
+doodly-squat
+buck-goat
+scowl
+eurasian vipers
+shedogs
+parots
+khota
+c. l. familiaris
+lamb
+raider
+🐷
+molluscoida
+hoggets
+shote
+coquette
+high walk
+brutish
+chook
+insecto
+kisser
+shark
+caprid
+male escort
+bray
+angustidontus
+himantopterus
+goat-antelope
+chunker
+crocodillian
+mosquito
+jilt
+cockroaches
+ibexes
+gooses
+snails
+🐑
+pelias schottleri
+stick-in-the-mud
+cimex
+pliohyaena
+glyptoscorpius
+microorganismical
+gnats
+champosaur
+griffon-vulture
+canis lupus familiaris
+🐮
+jackal
+diddly
+gnat
+brainless
+b. taurus
+escargo
+ovine
+bow-wow
+ollotis
+shithead
+teleovipera
+shoat
+jackgnats
+fleas
+beeves
+tick
+bodylice
+hornerman
+pseudopidalea
+mollusks
+body packer
+wittolds
+goose
+noctua passerina
+ferociousness
+chersea
+maggot
+micro-organismic
+graverobber
+fattie
+hooter
+arionidae
+donkeys
+caiman
+entomofauna
+mule
+squealer
+uneducated person
+she-dog
+bark
+biston
+physiognomic
+carine noctua
+houlet
+pelias schöttleri
+microbes
+🐊
+gob
+wimp
+anamalia
+viper
+germ
+caimanine
+kockroch
+murgh
+sciaenops
+coluber coeruleus
+crocodilian
+netorare
+ghoul
+pelias flavescens
+despoiler
+dogness
+horner-woman
+bug
+diddly-shit
+maggots
+micro-organismically
+lampyris carreti
+jackel
+muzzle
+cow
+coluber sachalinensis continentalis
+ovis orientalis aries
+mesocoronis
+toad
+enraged
+empalo
+mozzi
+bodypacker
+fat-ass
+cuckoo
+sons of bitches
+curviramus
+layer hen
+moo-cow
+coluber scytha
+bitchiness
+panthalopinae
+parsimony
+incilius
+george ruggle
+hyenas
+geese
+piglet
+caimun
+stupidity
+theromyzon
+rentboy
+chicket
+looter
+🐏
+h. pomatia
+cecal pellets
+rabbits
+inexorableness
+floozie
+pelias subalpina
+mozze
+animalcules
+goat
+lice
+hiena
+siphonaptera
+cryptofauna
+pelias elberfeldi
+carcharodon
+frown
+fauna
+tzarevcsya
+dicondylia
+fatass
+barbarism
+canine lupus
+street girl
+a man's best friend
+bison
+willwerathia
+body stuffing
+predator
+suckers
+postabdomen
+lardass
+hardheaded
+micro organismical
+micro-organisms
+snouts
+parrots
+animalia 101
+equus asinus
+aurochs
+bunnie
+🐇
+caprids
+body-snatcher
+streetwalking
+kokroach
+imbecility
+henroach
+maw
+pudge
+horner-man
+barker
+cynosuchus
+channel bass
+bunneh
+billygoat
+mollusk
+insects
+bedbug
+bugging
+she-dogs
+jack-gnats
+kokroch
+louses
+louse
+ixodida
+balloon swallower
+trap
+gilt
+steer
+hyiena
+mullusca
+coney
+bothridia
+bos taurus
+spottail bass
+singlecellers
+canis familiaris
+epifauna
+hoax
+animalcule
+chkn
+micro organismically
+fatfuck
+vamp
+froglet
+man eater
+neb
+blue waffle
+owl
+fathead
+lalbeg
+horner man
+hornerwoman
+dwarf
+elvers
+cockroach
+strumpet
+microbiality
+bestiality
+metazoans
+anguillidae
+laurieopterus
+singlecelled
+microorganisms
+midges
+bos americanus
+gallus gallus
+fatso
+ckokroch
+canis familiarus domesticus
+microorganismic
+selachoidei
+hookbills
+cheating fetish
+mosquitoe
+jack-gnat
+swine
+cockroch
+eel
+malacofauna
+euriptyerid
+plant microbiology
+diddley
+lampyris minor
+body packing
+profiteer
+chubster
+goats
+piranha
+ignoramus
+anguilliform
+plug
+bay
+pout
+pelias berus
+glowworm
+rabits
+lardo
+cocroach
+leeches
+pediculus corporis
+crocodylid
+osteolaemine
+cootie
+anuran
+countenance
+ramp
+cuckold
+ocellatus
+anumal
+champsa
+mollusc
+wallfish
+branta hrota
+perosuchus
+stubborn
+
+# ── Plant-based insults ─────────────────────────────────────────────────
+cucumis sativus
+homophobic slurs
+brassica septiceps
+c-word
+faggedy
+dullard
+league for civil education
+pudden-head
+queen
+c word
+bean
+solanum tuberosum tuberosum
+spud
+ghey
+c bomb
+piper o'possum
+tattie
+turnip
+colwort
+idiot
+fairy
+b. oleracea
+dome
+תפוח-אדמה
+potater
+orange peel
+faggotry
+brassica oleracea
+bonehead
+cucumbers
+princeton orange
+cucurbita maxima
+exigent
+atomic tangerine
+bittersweet
+potato, irish
+cabbage
+dark orange
+homophilia
+noggin
+butternut sqash
+beanqueen
+tomato
+squash
+homosexual
+poove
+maris peer
+dunce
+cuke
+nick junior
+pillock
+homophile
+shades of orange
+saunf
+brassica camperstris
+pomme terre
+poetatoe
+homophilic
+numskull
+attic
+patta-gobhi
+f. vulgare
+capitata f. alba
+society for individual rights
+תפו"א
+nance
+blockhead
+meticulosity
+nick jr.
+kerris pink
+coleworts
+dumbass
+potatos
+alu
+neon orange
+potato
+gayest
+fennel
+shman
+punctiliousness
+lunkhead
+buttersquash
+super tuber
+potatoe
+alloy orange
+c-bomb
+tatties
+foeniculi fructus
+fastidiousness
+melon
+staithwort
+תפוח אדמה
+queers
+meticulousness
+patatoes
+slit
+patta gobhi
+snatch
+puss
+tangelo
+fayg
+stupe
+noodle
+pumpkin
+pottato
+fagot
+that's gay.
+bonce
+fag
+mentimun
+gays
+cunts
+spuds
+variations of orange
+pateeto
+pussy
+twats
+cunt-splice
+pidor
+poof
+cucumber
+potatoes
+brassica oleraca
+kyūri
+faggot
+queer-identified
+see you, auntie
+queerio
+capitata group
+homo
+burnt orange
+dosakai
+fagala
+web color orange
+brassica rapa
+foeniculum vulgare
+the t-word
+scrupulousness
+tater
+faggy
+tatey
+faggoty
+nick, jr.
+muttonhead
+finocchio
+papaya whip
+persian orange
+pouf
+nickjr
+murphy
+gay
+cunny
+autumn poem
+brassica campestris
+carrot orange
+queer
+nick jr
+poetato
+cabbages
+
+# ── Seven deadly sins ───────────────────────────────────────────────────
+pride
+physical attraction
+swaggering
+hot-tempered
+gourmandise
+indolency
+boredom
+avid
+disinterest
+aboulic
+gormandizing
+gourmandizes
+boringly
+ravening
+avariciousness
+ewww!
+capital sins
+inaction
+bigotry
+angerings
+slugabed
+indolences
+gourmandizer
+tṛṣṇā
+bordom
+abulia
+over ate
+lazyness
+acquisitive
+lewd
+futility
+tightwad
+overnutrition
+indifferent person
+gourmandised
+esurience
+testy
+niggardliness
+invidiously
+tightwaddery
+misers
+saligia
+gourmand
+covetousness
+ewwww
+irritable
+no-account
+layabout
+cardinal sins
+sexual motivation
+emptiness
+indolencies
+vainest
+niggarly
+cardinal vices
+niggard
+skinflint
+languor
+bigget
+laziness
+trencher
+enviers
+work-shy
+vaingloriousness
+trenchermen
+wrathfully
+cocksure
+self-love
+lecherousness
+lazybones
+over eating
+conceitedness
+lascivious
+7 death sins
+egotistic
+slothful
+gormandize
+stinginess
+envy
+choler
+minginess
+rapacity
+costiveness
+gourmandizing
+indifferent to events
+cash-hungry
+inactivity
+trencher-knife
+disgustingly
+grasping
+nigard
+envied
+crapulent
+conceit
+envier
+bad-tempered
+scoffer
+meanness
+self-important
+rage
+letchery
+devouring
+indifference
+envious
+surfeiting
+parsimoniousness
+slacked
+bum
+invidia
+vainglorious
+rapaciousness
+haughty
+ira
+monotonous
+closeness
+gormandises
+greed
+inactiveness
+boredomness
+jealous
+luxuria
+wrothful
+philautia
+addiction, buddhist definition of
+gormandism
+glutton
+surfeits
+gula
+wraths
+aggressive
+trencher-knives
+apathy
+yearning
+sexual passion
+moneygrubbing
+moral repugnance
+controversies about the word "niggardly"
+gormandised
+purity and pollution
+indolence
+sexual desires
+deadly sins
+madness
+acedia
+thrift
+lecherously
+the seven sins
+overeating
+invidiousnesses
+tightness
+perfunctory
+laziest
+sluggard
+leching
+gorger
+tedium
+good-for-nothing
+loathsomely
+greedy
+imperious
+arrogantly
+lechers
+slothfulness
+penny-pinching
+unhumbleness
+spiritlessness
+taṇhā
+tightfistedness
+niggardness
+gormandized
+ravenous
+disgustedly
+haughtiness
+resentful
+indignations
+buck ofama
+wrathful
+detestation
+overeats
+peevish
+angry
+esurient
+petulant
+libidinous
+gormandizes
+gourmands
+proud
+slackers
+gormandising
+concupiscence
+angrier
+vengeful
+gormand
+loathsome
+hauteur
+impassive
+angering
+bordem
+anger
+coveting
+cardinal vice
+goof-off
+disgusted
+craving
+acquisitiveness
+quick-tempered
+nettlesome
+accidia
+voracity
+lasciviousness
+absurdity
+swollen
+tṛṣṇā)
+pissed off
+fractious
+niggerdly
+capital vices
+gormands
+concupiscent
+bigoted
+controversies concerning the word "niggardly"
+money-grabbing
+lustful
+revulsion
+tanha
+lethargy
+despiteful
+disgusting
+7 mortal sins
+angeringly
+avidity
+concupisance
+voraciousness
+apeshit
+indignational
+pettish
+crapulous
+prehensile
+gourmandized
+abulic
+abomination
+high-handedness
+gluttonous
+apathetic
+concupiscience
+apathetically
+ennui
+abhorrence
+irascible
+overbearing
+mammonism
+greeds
+surfeiter
+trsna
+hypoboulia
+enviable
+rapacious
+foodbag
+revengeful
+wrath
+apathies
+voracious
+indignantly
+leched
+💢
+disgustedness
+indivia
+self-conceited
+mad
+mope
+ne'er-do-well
+angriness
+surfeiters
+hotheaded
+egotistical
+phlegm
+swollen-headed
+surfeitness
+ire
+covetous
+surfeitly
+goldbrick
+gluttony
+perfunctoriness
+flatness
+insensibility
+concupiscences
+yucky
+seven vices
+surfeitous
+sloth
+over eater
+niggardly
+avarice
+disdainful
+salacious
+overeater
+conceited
+scrooge
+cupidity
+spiteful
+deadly sin
+hostilize
+over eat
+misoponia
+sniffy
+pridefulness
+concupiscance
+lecherous
+sexual urges
+capital vice
+indolent
+gourmandising
+trencherman
+surfeited
+indolently
+lewdness
+wanton
+bored
+yuck!
+crossest
+wolfish
+enviousness
+lordly
+short-tempered
+dilly-dallier
+impassively
+tetchy
+taedium
+phthonos
+vindictive
+lasciviously
+avaricious
+over eats
+envying
+over eaters
+crossly
+concupiscible
+peckish
+lust
+numbness
+envies
+niggerly
+greediness
+disgust
+aversion
+concupisence
+concupiscentia
+gourmandism
+ravenousness
+pigging out
+prideful
+aboulia
+hyperboulia
+angryness
+enviably
+unpleasant
+faineance
+vain
+overeaters
+boring
+choleric
+tædium
+indignant
+enviously
+emotional blunting
+desire for sex
+angriest
+angrily
+dislike
+eros
+sluggishness
+tranchier
+scratchy
+crabbed
+edacious
+accidie
+cranky
+disugst
+crabby
+idleness
+belligerent
+grumpy
+lustfulness
+sexual desire
+techy
+wroth
+vacuity
+overate
+grabby
+fussy
+concuspience
+ill-tempered
+disgusts
+avaritia
+intolerance
+hypobulia
+edacity
+lecheries
+grouchy
+
+# ── Moral & behavioral attacks ──────────────────────────────────────────
+misleading
+paraiyan
+amoralized
+deceiver
+lie
+speciosities
+brigand
+immoralisms
+delict
+mislead
+abject
+beguiling
+moral compass
+mystified
+propriety
+phoney
+scallywag
+phony
+immoralise
+evildoers
+tramps
+second-rater
+thomas cleary
+hypocrasy
+vagabond
+immoralist
+bumbler
+rip
+wakdjâka
+giullare
+barbarously
+malefactor
+dissembler
+wit crackers
+varlet
+simulated
+degradation
+bandit
+hoboman
+paraiyars
+indelicacy
+dishonourable
+moralisation
+faineant
+blood
+moralistically
+appropriatenesses
+hypocrit
+profligation
+improper
+gstieß
+shirker
+dissimulatively
+amoralize
+dissimulations
+mephitis
+skunk
+amoralizations
+ill-scented
+moralization
+pretender
+deciept
+witcracker
+immoralisation
+beguiles
+gadabout
+egregiosities
+shammer
+amoralizes
+bad
+scurvy
+churls
+mystifiedly
+amoralization
+immoralizes
+dissipated
+mozzarella
+trickster
+immoralistically
+moral core
+mystifies
+indecent
+calamitous
+foul-smelling
+deceiving
+moralised
+deceitful
+pariahs
+profligately
+rudely
+trifler
+bindle stiff
+castaway
+amoralists
+clown
+moraliser
+abjection
+good-for-naught
+mozarella
+putrid
+moral judgement
+moral code
+seedy
+moralises
+turn coated
+hypocrite
+gouger
+inacceptably
+immoralising
+bastard
+scruffy
+egregiously
+villainies
+hypocritic
+duffer
+amoralise
+prevarication
+wretch
+merry andrew
+shrimp
+amorally
+moral judgment
+narrow-minded
+villians
+impudent
+libertinism
+eviler
+elastic
+acceptably
+goth
+stinking
+fake
+amoralising
+moralise
+untrue
+mauvais
+fakery
+appropriately
+profligate
+stinker
+homunculi
+rudeness
+lounger
+moralize
+mediocrity
+turn-coated
+abasement
+vagrants
+tirckster
+fumbler
+wit cracker
+roguery
+immoralistic
+peasant
+rudesbys
+debauched
+yokel
+improperly
+evil
+dark-hearted
+profligacy
+felon
+moralistical
+turncoater
+humunculus
+unacceptability
+hipocrite
+deceptive
+immoralize
+immoralises
+prevaricate
+effrontery
+egregiousnesses
+ruseman
+hypocracy
+joker
+moralising
+turn-coat
+misrepresentation
+turncoats
+role player
+stinkpot
+barbarically
+turncoaters
+unpleasant-smelling
+moralisms
+dirty
+foetid
+inappropriately
+moralismist
+slicker
+vagrant
+dissimulated
+guiding hand
+dishonorable
+feign
+myopic
+amoralises
+immoraliser
+parochial
+stinky
+jester
+acceptability
+lingerer
+improprieties
+egregiosity
+imitation
+forgery, forger
+riotous
+hypocricy
+immoralizers
+narrowminded
+dog
+moralismists
+worthless
+criminal
+homonculi
+fetor
+profligateness
+inacceptability
+tricksters
+rube
+low-down
+indelicate
+flagitious
+rakehell
+small-minded
+scummy
+roughshod
+speciously
+flexible
+subterfuge
+tike
+acceptabilities
+deceits
+evilness
+nefarious
+frauder
+stingy
+debauchee
+ethics
+wit-cracker
+unacceptabilities
+chawbacon
+moral codes
+evilly
+renegade
+outcast
+tyke
+kakon
+immoralizing
+lazy
+lowlife
+mozerella
+contemptible
+yahoo
+savage
+deserter
+heinous
+boor
+immoralized
+badly
+decent
+homonculus
+disastrous
+mystificational
+duplicitious
+parayar
+parayan
+homunculus
+fast
+degraded
+cheater
+fior di latte
+spender
+beguiled
+unworthy
+unhappy
+wit-crackers
+moralizes
+laystan
+amoralizing
+cheat
+pseudo
+amoralisations
+banditti
+moralists
+immoral
+dissimulation
+clowns
+fraud
+hypocrites
+drifter
+immorals
+counterfeit
+beguiler
+properness
+hidebound
+dissimulating
+immoralisers
+cruel
+speciousity
+pliable
+mystifiers
+parayars
+low
+idler
+dillydallier
+moral system
+black
+subterfuges
+wastrel
+fiordilatte
+pharisee
+narrow
+paraiah
+speciousnesses
+pariah
+reek
+guile
+goofs
+hypocrisy
+turn-coats
+discourtesy
+turncoating
+filthy
+immoralities
+dissimulators
+inacceptableness
+noisome
+blunderer
+deceive
+inappropriateness
+moralitas
+insular
+turn coats
+otiose
+wickedness
+buffoonery
+malodourous
+libertine
+hick
+inacceptable
+vagrancy
+improperness
+miserable
+rude
+evils
+fetid
+amoralised
+soiled
+inappropriate
+dissimulate
+pseud
+mystifier
+moralisational
+ugly
+morals
+deception
+proprieties
+mystifying
+unclean
+turn-coater
+deceptively
+malodour
+paraiyar
+deceitfully
+rake
+paraiya
+treasonist
+nitouche
+gangsters
+half-pint
+unscrupulous
+liar
+pliant
+spend-all
+goofball
+beguilements
+imposter
+waster
+stench
+closed-minded
+indelicacies
+wretched
+moralistic
+falsities
+iniquity
+hipocrit
+spendthrifts
+scattergood
+moralizer
+libertines
+amoralisms
+amoralistic
+floater
+profligacies
+moral bankruptcy
+immorally
+turn coaters
+immoralists
+mystifyingly
+falsified
+hippocrite
+sham
+deceit
+fibber
+dissimulates
+slacker
+moral standard
+immoralism
+moral choice
+turncoat
+hipocracy
+acceptableness
+foetor
+mendacious
+vicious
+apostate
+moral theory
+prevaricator
+forgeries
+dallier
+pseudo-
+false
+forgery
+rounder
+traitor
+roue
+buffoons
+stink
+vile
+faker
+mauvaise
+turncoated
+ishmael
+slimy
+degenerate
+amoralisation
+dysphoric
+imitative
+morality
+unmorality
+hoboism
+immoralizer
+bogus
+rudesby
+base
+public decency
+indecorous
+moralized
+mendacity
+psuedo
+mozarrella
+impidint
+paraya
+speciosity
+moral values
+inappropriatenesses
+iniquitous
+immoralization
+hobos
+dissimulator
+unfortunate
+immoralised
+egregiousness
+distressed
+turn coater
+evilest
+impolite
+amoralistically
+hiding the truth
+loiterer
+despicable
+goof
+mystify
+smelly
+dissolute
+appropriateness
+turn-coating
+fatal
+hypocrisies
+foul
+unacceptableness
+inacceptabilities
+beguile
+moralisers
+profligates
+fell
+laytsan
+indelicately
+unacceptably
+turn-coaters
+dissimulative
+mozzerella
+uncivil
+impostor
+badguy
+no visible means of support
+malodorous
+moralizations
+spendthrift
+funky
+clownish
+amoralities
+homeless
+amoral
+deciet
+moral demand
+ratter
+moralities
+wrongly
+hypocritical
+hipocrisy
+immorality
+faux
+malodor
+fior-di-latte
+morally
+baddest
+close-minded
+concealing the truth
+moralizational
+deceives
+unethical
+properly
+ill-smelling
+appropiate
+double bluff
+impudently
+hobo
+ethical motive
+fateful
+spend thrifts
+turn coating
+nasty

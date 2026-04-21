@@ -1,0 +1,5 @@
+click>=8.1.0
+pyyaml>=6.0
+
+# Optional: for OpenAI/OpenCode API
+# openai>=1.0.0

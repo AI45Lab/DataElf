@@ -1,0 +1,580 @@
+[
+  {
+    "memory_id": "mem_webshop_19499503",
+    "contextual_description": "WebShop task to purchase a Men's Apparel item with Color, Size, Material, Fit, Sleeve Style, and Price constraints. Solved by searching with detailed terms, selecting size and color options, and buying.",
+    "tags": {
+      "environment": "Webshop",
+      "outcome": "Success"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Find me machine wash men's dress shirts with cotton spandex, classic fit, short sleeve with color: melon berry, and size: large, and price lower than 50.00 dollars."
+      },
+      "refined_trajectory": {
+        "refined_trajectory": [
+          {
+            "step_index": 0,
+            "action": "search[men's dress shirts cotton spandex classic fit short sleeves [Color_Constraint] [Size_Constraint] [Price_Constraint] or less]",
+            "critical_observation": "Search results page shows multiple apparel items including at least one men's short-sleeve shirt candidate within the desired price constraint.",
+            "reasoning": "Formulate a search query that encodes all known attribute constraints to surface candidate apparel items that may satisfy the goal."
+          },
+          {
+            "step_index": 1,
+            "action": "click[apparel_item]",
+            "critical_observation": "Product detail page for a men's short-sleeve shirt is opened, exposing selectable size and color options and a price within the required constraint.",
+            "reasoning": "Open a promising apparel item from the search results to inspect and configure its attributes against the goal constraints."
+          },
+          {
+            "step_index": 2,
+            "action": "click[[Size_Constraint]]",
+            "critical_observation": "The selected size constraint is applied to the apparel item, confirming availability for that size.",
+            "reasoning": "Ensure the apparel item is configured to the required size constraint before purchase."
+          },
+          {
+            "step_index": 3,
+            "action": "click[[Color_Constraint]]",
+            "critical_observation": "The selected color constraint is applied to the apparel item, confirming availability for that color.",
+            "reasoning": "Ensure the apparel item is configured to the required color constraint before purchase."
+          },
+          {
+            "step_index": 4,
+            "action": "click[buy now]",
+            "critical_observation": "The configured apparel item with the chosen size and color and within the price constraint is purchased successfully.",
+            "reasoning": "Complete the transaction once an apparel item satisfying all encoded constraints has been configured."
+          }
+        ]
+      },
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": "search -> click_product -> set_size -> set_color -> purchase",
+          "mistakes_to_avoid": []
+        }
+      }
+    },
+    "origin_env_id": "env001"
+  },
+  {
+    "memory_id": "mem_webshop_e04f990e",
+    "contextual_description": "WebShop task to find women's jeans with multi-attribute style, material, care, fit, size, and price constraints. Unsolved due to repeatedly selecting non-jeans apparel from noisy search results and never purchasing a qualifying jeans item.",
+    "tags": {
+      "environment": "Webshop",
+      "outcome": "Failure"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Find me fleece lined, low rise, straight leg, wide leg, butt lifting, wash cold, slim fit, hand wash, machine wash women's jeans with high waist, polyester spandex, regular fit, button closure for teen girls, daily wear with size: x-large, and price lower than 60.00 dollars."
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": null,
+          "mistakes_to_avoid": [
+            {
+              "trigger_condition": "On the search results page, the listed products clearly do not match the requested category (women's jeans) or key attributes (e.g., results are bike shorts, yoga shorts, shirts, coats) and repeated searches with the same long, over‑constrained query keep returning the same irrelevant set.",
+              "bad_action": "Keep re‑issuing the same extremely long, highly specific search query and repeatedly clicking the same few irrelevant items (bike shorts / yoga shorts) and toggling size/color, instead of (1) simplifying or refocusing the query on the core product type and most critical attributes, (2) scanning other result items or moving to the next page, or (3) concluding that no suitable jeans are available."
+            },
+            {
+              "trigger_condition": "After clicking into a product detail page that is clearly not jeans (e.g., bike shorts or yoga shorts) and seeing that the title and category do not match the user's request.",
+              "bad_action": "Spending additional steps changing size and color on that non‑jeans product instead of immediately going back to search and looking for an actual jeans item or adjusting the search strategy."
+            },
+            {
+              "trigger_condition": "The search results contain at least one plausible jeans item (e.g., 'myhehthw Women's High Waisted Jeans for Women Distressed Ripped Jeans Slim Fit Butt Lifting Skinny Stretch Jeans Trousers') that partially matches important constraints (women's, jeans, butt lifting, slim fit, price under $60) but not all secondary constraints.",
+              "bad_action": "Ignoring or under‑evaluating the closest matching jeans product because it does not satisfy every single constraint, rather than considering it as a candidate, checking its details, and deciding whether it is the best available approximation or explicitly reporting that no item fully satisfies all constraints."
+            },
+            {
+              "trigger_condition": "The environment offers only generic keyword search (no structured filters for fabric, care instructions, rise, etc.), and many of the user's constraints are unlikely to be simultaneously satisfied or even indexed.",
+              "bad_action": "Encoding nearly all user constraints verbatim into a single long search string (including care instructions, fit variants, and multiple conflicting style descriptors like 'low rise' and 'high waist', 'straight leg' and 'wide leg', 'slim fit' and 'regular fit') instead of prioritizing the most important attributes (product type, gender, size, price, a few key style features) and iteratively refining based on results."
+            }
+          ]
+        }
+      }
+    },
+    "origin_env_id": "env003"
+  },
+  {
+    "memory_id": "mem_webshop_ecf45c82",
+    "contextual_description": "WebShop task to purchase men's loafers & slip-ons with price and attribute constraints. Solved by searching with detailed filters, selecting the matching product options, and buying.",
+    "tags": {
+      "environment": "Webshop",
+      "outcome": "Success"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Find me slip resistant, non slip men's loafers & slip-ons with rubber outsole, rubber sole with color: 228r.brown-a, and size: 6.5, and price lower than 70.00 dollars."
+      },
+      "refined_trajectory": {
+        "refined_trajectory": [
+          {
+            "step_index": 0,
+            "action": "search[men's loafers & slip-ons slip-resistant [Color_Constraint] [Size_Constraint] [Price_Constraint]]",
+            "critical_observation": "A search results page of men's loafers & slip-ons is displayed, including at least one product that potentially matches the slip-resistant, color, size, and price constraints.",
+            "reasoning": "Issue a targeted search query so that candidate footwear items satisfying the user's constraints appear in the results."
+          },
+          {
+            "step_index": 1,
+            "action": "click[men's loafers & slip-ons product]",
+            "critical_observation": "The product detail page for a men's loafer & slip-on item is opened, showing selectable size and color options and a price within the required range.",
+            "reasoning": "Open a promising candidate product whose attributes can be configured to match the requested constraints."
+          },
+          {
+            "step_index": 2,
+            "action": "click[[Color_Constraint]]",
+            "critical_observation": "The specified color option is selected for the product, updating the configuration to the desired color.",
+            "reasoning": "Configure the product to use the required color so it aligns with the user's color preference."
+          },
+          {
+            "step_index": 3,
+            "action": "click[[Size_Constraint]]",
+            "critical_observation": "The specified size option is selected for the product, updating the configuration to the desired size.",
+            "reasoning": "Configure the product to use the required size so it fits the user's sizing constraint."
+          },
+          {
+            "step_index": 4,
+            "action": "click[Buy Now]",
+            "critical_observation": "The configured men's loafer & slip-on product with the chosen color and size and acceptable price is purchased successfully.",
+            "reasoning": "Finalize the purchase of the configured item that satisfies the user's slip resistance, color, size, and price requirements."
+          }
+        ]
+      },
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": "Search -> ClickProduct -> SelectColor -> SelectSize -> BuyNow",
+          "mistakes_to_avoid": []
+        }
+      }
+    },
+    "origin_env_id": "env010"
+  },
+  {
+    "memory_id": "mem_webshop_e852bfad",
+    "contextual_description": "WebShop task to find women's work & safety footwear with multiple style, comfort, size, color, and price constraints. Unsolved due to repeatedly focusing on mismatched high-priced or non-work items and not identifying any product satisfying all constraints.",
+    "tags": {
+      "environment": "Webshop",
+      "outcome": "Failure"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Find me open toe, slip resistant women's work & safety footwear with arch support, high heel, ankle strap, memory foam with color: grey, and size: 8.5, and price lower than 30.00 dollars."
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": null,
+          "mistakes_to_avoid": [
+            {
+              "trigger_condition": "Search results do not show any item that clearly matches all hard constraints (women's work & safety, open toe, slip resistant, arch support, high heel, ankle strap, memory foam, grey, size 8.5, price < $30), and the visible candidates either violate price or key attributes.",
+              "bad_action": "Repeatedly clicking into the same non-matching product (e.g., Alegria Women's Kourtney at $62.99+ or men's sneakers) and trying different sizes/colors instead of (1) explicitly checking description/features for required attributes, (2) scanning other search results or pages, or (3) concluding that no suitable product exists within constraints."
+            },
+            {
+              "trigger_condition": "On a product page where the available sizes and colors clearly do not include the requested size (8.5) or color (grey), or the price range is already above the user's maximum budget.",
+              "bad_action": "Spending additional steps toggling sizes/colors on that same product (e.g., selecting size 5, 5-5.5 wide, or color 'anise baby tumble') instead of immediately returning to search results to look for a different candidate."
+            },
+            {
+              "trigger_condition": "Issuing multiple similar search queries that keep returning essentially the same result set, with no new items that satisfy the constraints.",
+              "bad_action": "Looping the same or slightly rephrased search queries (repeating long keyword strings) without adjusting strategy—such as relaxing non-critical constraints, changing category filters, or deciding that the task is infeasible under the given price/attribute combination."
+            },
+            {
+              "trigger_condition": "The top search results include obviously irrelevant categories (e.g., men's running shoes, mattresses) or fashion sandals that are not work & safety footwear.",
+              "bad_action": "Treating these irrelevant items as viable candidates and clicking into them instead of refining the search (e.g., adding 'women', 'work & safety', or using category filters) or skipping them in favor of more relevant-looking results."
+            },
+            {
+              "trigger_condition": "The user’s constraints are extremely restrictive (many required features plus a very low price cap) and no candidate in the result set satisfies both the functional requirements and the price.",
+              "bad_action": "Continuing to search and click aimlessly without ever acknowledging that no product meets all constraints, instead of explicitly concluding that no suitable item is available and, if allowed, suggesting trade-offs (e.g., higher price or dropping a non-essential feature)."
+            }
+          ]
+        }
+      }
+    },
+    "origin_env_id": "env000"
+  },
+  {
+    "memory_id": "mem_webshop_ce5b82c9",
+    "contextual_description": "WebShop task to purchase Home Decor pillows with Price and Attribute constraints. Solved by searching with detailed terms, selecting matching color and size options, and buying.",
+    "tags": {
+      "environment": "Webshop",
+      "outcome": "Success"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Find me super soft decorative pillows for living room with color: lavender, and size: 20''x20'', and price lower than 50.00 dollars."
+      },
+      "refined_trajectory": {
+        "refined_trajectory": [
+          {
+            "step_index": 0,
+            "action": "search[decorative pillows [Softness_Constraint] [Color_Constraint] [Size_Constraint] [Price_Constraint]]",
+            "critical_observation": "Search results page shows multiple decorative pillow products, including at least one item within the desired price range.",
+            "reasoning": "Issue a targeted search query to surface candidate decorative pillow products that can potentially satisfy all user constraints."
+          },
+          {
+            "step_index": 1,
+            "action": "click[Decorative Pillow Product]",
+            "critical_observation": "Product detail page for a decorative pillow is opened, showing available color and size options and a price within the allowed range.",
+            "reasoning": "Open a promising decorative pillow product to inspect and configure its attributes to match the user’s constraints."
+          },
+          {
+            "step_index": 2,
+            "action": "click[[Color_Constraint]]",
+            "critical_observation": "The decorative pillow product is configured to the requested color while keeping the price within the allowed range.",
+            "reasoning": "Select the required color option so the product matches the user’s color preference."
+          },
+          {
+            "step_index": 3,
+            "action": "click[[Size_Constraint]]",
+            "critical_observation": "The decorative pillow product is configured to the requested size while keeping the price within the allowed range.",
+            "reasoning": "Select the required size option so the product matches the user’s size preference."
+          },
+          {
+            "step_index": 4,
+            "action": "click[Buy Now]",
+            "critical_observation": "The configured decorative pillow product with the desired color, size, softness, and acceptable price is successfully purchased.",
+            "reasoning": "Finalize the purchase once a decorative pillow product satisfies all specified constraints."
+          }
+        ]
+      },
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": "search -> click_product -> refine_options_on_product_page -> purchase",
+          "mistakes_to_avoid": []
+        }
+      }
+    },
+    "origin_env_id": "env031"
+  },
+  {
+    "memory_id": "mem_webshop_d6ac3f7c",
+    "contextual_description": "WebShop task to search for and purchase Home Decor pillows with Price and Attribute constraints. Unsolved due to repeatedly revisiting the same candidate item without checking its details for double-sided printing, washability, and printing technology or completing the purchase.",
+    "tags": {
+      "environment": "Webshop",
+      "outcome": "Failure"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Find me double sided, machine washable decorative pillows with printing technology with size: 20\" x 20\", and price lower than 30.00 dollars."
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": null,
+          "mistakes_to_avoid": [
+            {
+              "trigger_condition": "After opening a candidate product page that matches some constraints (e.g., price and size options visible) but without yet verifying all required attributes (double-sided, machine washable, specific printing technology), and seeing only high-level info plus tabs like 'Description', 'Features', 'Reviews', and 'Buy Now'.",
+              "bad_action": "Looping between the same search results and the same product (repeatedly clicking the same ASIN and the same size option) without ever opening the 'Description' or 'Features' sections to check whether the item is double-sided, machine washable, and uses the required printing technology, instead of inspecting details or exploring other products or pages."
+            },
+            {
+              "trigger_condition": "Search results page shows multiple items, but the current top result has already been inspected superficially and still does not confirm all required attributes.",
+              "bad_action": "Persistently re-clicking the same top result (B08K7LDM7Q) after multiple similar searches, instead of scrolling, checking other listed products, or moving to the next results page to find an item that explicitly satisfies all constraints."
+            },
+            {
+              "trigger_condition": "The search query already includes many constraints (double-sided, machine washable, size, price, printing technology) and returns mixed or noisy results (including non-pillow items).",
+              "bad_action": "Continuing to slightly tweak or repeat nearly identical long search queries without changing strategy (e.g., not simplifying the query, not using filters, and not validating candidate products via their detailed descriptions)."
+            }
+          ]
+        }
+      }
+    },
+    "origin_env_id": "env006"
+  },
+  {
+    "memory_id": "mem_webshop_dd01eda3",
+    "contextual_description": "WebShop task to purchase an Office & Computer Accessory with Price and Attribute constraints. Solved by searching with detailed terms, selecting matching color and size options, and buying.",
+    "tags": {
+      "environment": "Webshop",
+      "outcome": "Success"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Find me non slip, easy clean computer armoires with pu leather with color: red, and size: 100x50cm, and price lower than 70.00 dollars."
+      },
+      "refined_trajectory": {
+        "refined_trajectory": [
+          {
+            "step_index": 0,
+            "action": "search[non slip easy clean computer armoires pu leather [Color_Constraint] [Size_Constraint] [Price_Constraint]]",
+            "critical_observation": "Search results page shows multiple products including a non-slip PU leather desk accessory with various color and size options and a price satisfying the price constraint.",
+            "reasoning": "Issue an initial search that encodes all key attribute constraints to surface potentially matching items."
+          },
+          {
+            "step_index": 1,
+            "action": "click[Desk_Accessory_Product]",
+            "critical_observation": "Product detail page for a PU leather non-slip desk accessory is opened, showing selectable size and color attributes and a price within the allowed range.",
+            "reasoning": "Open the most relevant-looking product from the results to inspect and configure its attributes."
+          },
+          {
+            "step_index": 2,
+            "action": "click[[Color_Constraint]]",
+            "critical_observation": "The product remains selected with the desired color constraint applied as the active color option.",
+            "reasoning": "Apply the required color constraint on the chosen product to align it with the goal specification."
+          },
+          {
+            "step_index": 3,
+            "action": "click[[Size_Constraint]]",
+            "critical_observation": "The product remains selected with the desired size constraint applied as the active size option while keeping the chosen color.",
+            "reasoning": "Apply the required size constraint so the configured product matches the target dimensions."
+          },
+          {
+            "step_index": 5,
+            "action": "click[Buy_Now]",
+            "critical_observation": "The configured product with the chosen color and size and a price under the specified limit is purchased successfully.",
+            "reasoning": "Finalize the purchase once the product satisfies the color, size, material, non-slip, and price constraints."
+          }
+        ]
+      },
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": "search -> click_product -> refine_by_color_and_size -> purchase",
+          "mistakes_to_avoid": []
+        }
+      }
+    },
+    "origin_env_id": "env033"
+  },
+  {
+    "memory_id": "mem_webshop_60e3908f",
+    "contextual_description": "WebShop task to find binoculars & scopes for bird watching with price and attribute constraints. Unsolved due to repeated style selection without purchasing or confirming a matching item.",
+    "tags": {
+      "environment": "Webshop",
+      "outcome": "Failure"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Find me high power, non slip binoculars & scopes for bird watching with style: 8x40 uhd binoculars, and price lower than 180.00 dollars."
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": null,
+          "mistakes_to_avoid": [
+            {
+              "trigger_condition": "On a product page where the desired style (e.g., '8x40 uhd binoculars') appears only as a selectable style option, but the page content (title, specs, price) clearly remains for a different base product (here 'Staoptics 15x60 UHD Binoculars') and does not change after multiple clicks.",
+              "bad_action": "Repeatedly clicking the same style option (e.g., '8x40 uhd binoculars') over and over instead of either (a) verifying that the product actually matches the requested style and constraints, or (b) going back to the search results to look for another product that truly matches the required 8x40 UHD specification and price."
+            },
+            {
+              "trigger_condition": "After the initial search results show multiple candidate products, but only one is explored and it does not clearly satisfy the exact requested configuration (8x40 UHD) despite having a style selector.",
+              "bad_action": "Staying on the same mismatched product page and toggling style options instead of returning to the results list or refining the search query to find a product that explicitly matches '8x40 uhd binoculars' under $180."
+            },
+            {
+              "trigger_condition": "The environment provides a 'Back to Search' control and the current page interactions are not progressing toward satisfying the goal (no change in title/specs/price after style clicks).",
+              "bad_action": "Ignoring navigation controls like 'Back to Search' and failing to change strategy, leading to looping behavior on a single page until the step limit is reached."
+            }
+          ]
+        }
+      }
+    },
+    "origin_env_id": "env062"
+  },
+  {
+    "memory_id": "mem_webshop_6524da19",
+    "contextual_description": "WebShop task to purchase Home & Kitchen window coverings with Color, Size, and Price constraints. Solved by searching with full constraints, selecting matching options, and buying.",
+    "tags": {
+      "environment": "Webshop",
+      "outcome": "Success"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Find me machine washable window coverings for living room with color: dusty blush, and size: 42\"w x 45\"l, and price lower than 50.00 dollars."
+      },
+      "refined_trajectory": {
+        "refined_trajectory": [
+          {
+            "step_index": 0,
+            "action": "search[[Washability_Constraint] [Color_Constraint] window coverings for living room [Size_Constraint] [Price_Constraint]]",
+            "critical_observation": "Search results show multiple products including at least one window covering that can potentially satisfy the washability, color, size, and price constraints.",
+            "reasoning": "Formulate a targeted search query that encodes all key constraints to surface a suitable window covering candidate."
+          },
+          {
+            "step_index": 1,
+            "action": "click[Window_Covering_Product]",
+            "critical_observation": "Product detail page for a window covering is opened, exposing selectable size and color options along with price information.",
+            "reasoning": "Open a promising window covering product to inspect and configure its options against the goal constraints."
+          },
+          {
+            "step_index": 2,
+            "action": "click[[Color_Constraint]]",
+            "critical_observation": "The window covering product is updated to the desired color option while keeping other attributes available for selection.",
+            "reasoning": "Select the required color option so the product configuration matches the specified color constraint."
+          },
+          {
+            "step_index": 3,
+            "action": "click[[Size_Constraint]]",
+            "critical_observation": "The window covering product is updated to the desired size option while preserving the chosen color and showing a price within the required range.",
+            "reasoning": "Select the required size option so the configured product simultaneously satisfies size, color, and price constraints."
+          },
+          {
+            "step_index": 4,
+            "action": "click[Buy_Now]",
+            "critical_observation": "The configured window covering with the chosen color and size, and a price under the specified limit, is successfully purchased.",
+            "reasoning": "Confirm purchase of the configured product once all constraints are satisfied."
+          }
+        ]
+      },
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": "Search -> OpenProduct -> ConfigureOptions(size/color) -> Purchase",
+          "mistakes_to_avoid": []
+        }
+      }
+    },
+    "origin_env_id": "env017"
+  },
+  {
+    "memory_id": "mem_webshop_f45ba68a",
+    "contextual_description": "WebShop task to find a Cosmetics accessory with Price and Attribute constraints. Unsolved due to not completing the purchase despite locating a matching item.",
+    "tags": {
+      "environment": "Webshop",
+      "outcome": "Failure"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Find me high quality bags & cases for eye shadow with color: 003 zebra print, and price lower than 50.00 dollars."
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": null,
+          "mistakes_to_avoid": [
+            {
+              "trigger_condition": "On a product page that appears to match the category (makeup bag/case) and price constraint, but the page content does not explicitly confirm that the selected color/variant (e.g., '003 zebra print') is applied or visible in the product details.",
+              "bad_action": "Assuming the correct color variant is selected without verifying it in the product information or variant state, and then stopping exploration instead of confirming the variant or checking for additional suitable products."
+            },
+            {
+              "trigger_condition": "After clicking into the first seemingly relevant search result that fits price and general category, with no explicit confirmation that it is specifically a 'bag or case for eye shadow' as requested (rather than a generic cosmetic bag).",
+              "bad_action": "Treating a generic cosmetic/makeup bag as satisfying a more specific 'for eye shadow' requirement without checking the description/features or considering alternative search results that might better match the specialized use case."
+            }
+          ]
+        }
+      }
+    },
+    "origin_env_id": "env042"
+  },
+  {
+    "memory_id": "mem_webshop_e514c80c",
+    "contextual_description": "WebShop task to purchase women's activewear with color, size, and price constraints. Solved by searching with detailed terms, selecting required options, and buying.",
+    "tags": {
+      "environment": "Webshop",
+      "outcome": "Success"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Find me quick drying, moisture wicking women's activewear with long sleeve with color: c-navy blue, and size: small, and price lower than 40.00 dollars."
+      },
+      "refined_trajectory": {
+        "refined_trajectory": [
+          {
+            "step_index": 0,
+            "action": "search[women's activewear long sleeve quick drying moisture wicking [Color_Constraint] [Size_Constraint] price < [Price_Constraint]]",
+            "critical_observation": "Search results page shows multiple apparel items including a women's long sleeve quick-dry activewear top within the desired price range.",
+            "reasoning": "Issue a targeted search query to locate candidate apparel items that can satisfy all specified constraints."
+          },
+          {
+            "step_index": 1,
+            "action": "click[apparel_item]",
+            "critical_observation": "Product detail page for a women's long sleeve activewear top is opened, showing available color, size options, and a price under the required threshold.",
+            "reasoning": "Open the most relevant apparel item from the results to inspect its selectable options against the goal constraints."
+          },
+          {
+            "step_index": 2,
+            "action": "click[[Color_Constraint]]",
+            "critical_observation": "The specified color option is selected for the activewear item while other product details remain available.",
+            "reasoning": "Select the required color constraint on the chosen apparel item to align it with the user's preference."
+          },
+          {
+            "step_index": 3,
+            "action": "click[[Size_Constraint]]",
+            "critical_observation": "The specified size option is selected for the activewear item with the chosen color still applied.",
+            "reasoning": "Apply the required size constraint so the configured item fully matches the requested fit."
+          },
+          {
+            "step_index": 4,
+            "action": "click[buy now]",
+            "critical_observation": "The configured women's activewear item with the chosen color and size and acceptable price is purchased successfully.",
+            "reasoning": "Confirm purchase of the configured item once all constraints are satisfied to complete the shopping goal."
+          }
+        ]
+      },
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": "Search -> OpenProduct -> SetColor -> SetSize -> Purchase",
+          "mistakes_to_avoid": []
+        }
+      }
+    },
+    "origin_env_id": "env016"
+  },
+  {
+    "memory_id": "mem_webshop_7ffa5953",
+    "contextual_description": "WebShop task to purchase an Electronics audio player/recorder with Price and Feature/Compatibility constraints. Unsolved due to selecting a product that did not satisfy the required 4G LTE capability and specific CD player/recorder criteria.",
+    "tags": {
+      "environment": "Webshop",
+      "outcome": "Failure"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Find me high resolution cd players & recorders for 4g lte, and price lower than 340.00 dollars."
+      },
+      "refined_trajectory": null,
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": null,
+          "mistakes_to_avoid": [
+            {
+              "trigger_condition": "On the search results page for 'high resolution cd players & recorders 4g lte $340.00 or less', where multiple items are shown and the goal requires a CD player/recorder with 4G LTE capability under $340.",
+              "bad_action": "Clicking and then purchasing the first affordable audio-related product (B09Q6CZ59K: a vinyl turntable/DVD player) without verifying that it is actually a high-resolution CD player/recorder with 4G LTE support as specified in the goal."
+            },
+            {
+              "trigger_condition": "Viewing a product detail page that partially matches the category (audio player) but lacks explicit confirmation of all required features (CD player/recorder, 4G LTE, high resolution).",
+              "bad_action": "Proceeding directly to 'Buy Now' instead of checking the description/features for 4G LTE and CD player/recorder capabilities, or returning to search results to find a closer match."
+            },
+            {
+              "trigger_condition": "After an initial search returns many loosely related items (power cords, signal boosters, tablets, cameras, etc.) and no obvious perfect match on the first scan.",
+              "bad_action": "Repeating the same broad search query and re-clicking similar non-matching items instead of refining the query or using price/feature cues to filter for products that clearly satisfy all constraints."
+            }
+          ]
+        }
+      }
+    },
+    "origin_env_id": "env055"
+  },
+  {
+    "memory_id": "mem_webshop_c0f24d1d",
+    "contextual_description": "WebShop task to purchase a Bathing Accessory with Price and Attribute constraints. Solved by searching with full query terms, inspecting a suitable product, and completing the purchase.",
+    "tags": {
+      "environment": "Webshop",
+      "outcome": "Success"
+    },
+    "content": {
+      "task_meta": {
+        "original_goal": "Find me easy use bathing accessories with long handle for dead skin, and price lower than 60.00 dollars."
+      },
+      "refined_trajectory": {
+        "refined_trajectory": [
+          {
+            "step_index": 0,
+            "action": "search[bathing accessory long handle for dead skin [Price_Constraint]]",
+            "critical_observation": "Search results page shows multiple bathing accessories including a long‑handle body brush that satisfies the price constraint.",
+            "reasoning": "Issue a targeted search to retrieve candidate bathing accessories with a long handle and within the desired price range."
+          },
+          {
+            "step_index": 1,
+            "action": "click[bathing accessory with long handle]",
+            "critical_observation": "Product detail page for a long‑handle bathing accessory is opened, showing that it meets the price constraint.",
+            "reasoning": "Open the most relevant long‑handle bathing accessory that appears to satisfy the price requirement for closer inspection."
+          },
+          {
+            "step_index": 2,
+            "action": "click[buy now]",
+            "critical_observation": "The selected long‑handle bathing accessory is successfully purchased within the specified price constraint.",
+            "reasoning": "Confirm purchase of the suitable long‑handle bathing accessory that fits the user’s constraints."
+          }
+        ]
+      },
+      "strategic_guidelines": {
+        "strategic_guidelines": {
+          "planning_pattern": "Search -> ClickProduct -> BuyNow",
+          "mistakes_to_avoid": []
+        }
+      }
+    },
+    "origin_env_id": "env1061"
+  }
+]
