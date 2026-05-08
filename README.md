@@ -10,6 +10,13 @@ DataElf is an intelligent execution engine for large-scale data workflows. It tu
 
 The open-source edition is designed for teams that want one framework for data inspection, safety checks, scoring, selection, and domain-oriented tool orchestration without exposing private data-processing infrastructure.
 
+[Demo](#demo) |
+[Tools](#built-in-tools) |
+[Evaluation](#evaluation-results) |
+[Quick Start](#quick-start) |
+[CLI](#cli-overview) |
+[Extending](#extending-dataelf)
+
 ## Demo
 
 <div align="center">
