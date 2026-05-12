@@ -206,3 +206,4 @@ outputs/
 artifacts/
 test_data/skillrl/output/
 test_data/security_bench
+test-security-config.yaml
