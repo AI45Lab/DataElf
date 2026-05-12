@@ -1,3 +1,5 @@
+[中文](./README_CN.md) ｜ English
+
 <p align="center">
   <img src="./DataElf_logo.jpeg" alt="DataElf logo" width="320" />
 </p>
@@ -7,6 +9,23 @@
 DataElf is an intelligent execution engine for large-scale data workflows. It turns natural-language goals into runnable pipelines, executes built-in tools automatically, and keeps security, traceability, and extensibility in the loop.
 
 The open-source edition is designed for teams that want one framework for data inspection, safety checks, scoring, selection, and domain-oriented tool orchestration without exposing private data-processing infrastructure.
+
+[Demo](#demo) |
+[Tools](#built-in-tools) |
+[Evaluation](#evaluation-results) |
+[Quick Start](#quick-start) |
+[CLI](#cli-overview) |
+[Extending](#extending-dataelf)
+
+## Demo
+
+<div align="center">
+
+https://github.com/user-attachments/assets/dd9038dd-660e-46bf-a06d-cdb76b254f27
+
+*Click to watch the full demo.*
+
+</div>
 
 ## What DataElf Does
 
@@ -30,6 +49,34 @@ DataElf currently ships with these built-in tools:
 | `enzyme_acquire` | Enzyme information retrieval workflows | [enzyme_acquire_en.md](docs/tools/enzyme_acquire_en.md) |
 | `protein_analyzer` | Protein analysis workflows | [protein_analyzer_en.md](docs/tools/protein_analyzer_en.md) |
 | `skillrl_skill_extraction` | Skill extraction from trajectory-style data | [skillrl_skill_extraction_en.md](docs/tools/skillrl_skill_extraction_en.md) |
+
+## Evaluation Results
+
+We evaluate DataElf's core tools on standard benchmarks. The results demonstrate the effectiveness of integrating multi-dimensional analysis for data quality assessment, security auditing, and skill extraction.
+
+### Data Value Assessment
+
+On the Alpaca-52k dataset, we score all 52k samples with each of 9 integrated scorers, then select a 9k-sample subset per scorer and fine-tune Qwen2.5-7B on it. Models are evaluated on AlpacaEval 2.0, MT-Bench, and GSM8K. Our composite scorer **DataElf** fuses IFD and DEITA_Q signals and achieves the best overall performance (avg. score 98.7), surpassing the full-data baseline with less than 1/5 of the training data. Single-axis scorers exhibit clear selection bias — e.g., `ask_llm` drops mathematical samples and falls below the full-data baseline.
+
+<p align="center">
+  <img src="./selected-vs-full.png" alt="Data scoring: DataElf vs. single-axis scorers" width="720" />
+</p>
+
+### Data Security Audit
+
+We construct an evaluation set covering all 13 risk types (~100 samples each) and measure recall. DataElf integrates 4 checker categories (rule-based, LLM-as-a-Judge, model-based, heuristic) with 23 checkers. It achieves **80.46%** average recall across all 13 risk types — substantially ahead of the best baseline DeepEval (48.62%) and Qwen3Guard-Gen-8B (48.38%). Specialized models perform well in their narrow scope but fail on out-of-scope risks like label flipping, backdoor injection, and factual inconsistency.
+
+<p align="center">
+  <img src="./recall_data_risk.png" alt="Security audit: recall across 13 risk types" width="720" />
+</p>
+
+### Trajectory Skill Extraction
+
+On the RiOSWorld benchmark, injecting skills distilled by the trajectory analysis tool into kimi-k2.5 raises the overall safety rate from **32.17% to 71.08%**, cutting the risk trigger rate by half — without modifying model parameters.
+
+<p align="center">
+  <img src="./RiOSWorld_Skill_Safety.png" alt="Trajectory skill extraction on RiOSWorld" width="540" />
+</p>
 
 ## Installation
 
