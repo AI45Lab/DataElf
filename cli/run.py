@@ -141,6 +141,7 @@ def _run_internal(
         verbose=verbose,
         event_handler=emit_event,
     )
+    env["trace_recorder"].finalize_job(response["job_id"])
 
     section("🏆", "Run Summary", color="green")
     trophy("Job ID", response["job_id"])

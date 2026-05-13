@@ -9,6 +9,7 @@ from typing import Any
 
 from config import Config
 from database import DatabaseStrategy
+from llm.tracing import llm_trace_context
 from runtime.job_manager import Job, JobManager, JobStatus
 from tools import ToolRegistry
 from exceptions import (
@@ -56,6 +57,7 @@ class RuntimeEnvironment:
         self.config = config
         self.llm = llm  # LLM for agent pipeline generation
         self.tool_llm = tool_llm  # LLM for tools that need LLM
+        self.mode = "unknown"
         self._result: Any = None
         self._artifacts: dict[str, Any] = {}
         self._metadata: dict[str, Any] = {}
@@ -126,6 +128,7 @@ class RuntimeEnvironment:
         context = ToolContext(
             job_id=self.job_id,
             logger=self.logger,
+            mode=self.mode,
             config=self.config.__dict__ if self.config else {},
             llm=effective_llm,
             datasets=self._datasets.copy(),
@@ -141,7 +144,14 @@ class RuntimeEnvironment:
 
         # Run tool
         try:
-            tool_output = tool.run(context, **kwargs)
+            with llm_trace_context(
+                job_id=self.job_id,
+                mode=getattr(self, "mode", None),
+                scope="tool",
+                caller=tool_name,
+                tool_name=tool_name,
+            ):
+                tool_output = tool.run(context, **kwargs)
         except Exception as e:
             raise ToolExecutionError(f"Tool '{tool_name}' execution failed: {e}")
 
@@ -262,6 +272,7 @@ class RuntimeExecutor:
             llm=self.llm_provider,
             tool_llm=self.tool_llm_provider,
         )
+        env.mode = job.mode
 
         # Capture output
         old_stdout = sys.stdout

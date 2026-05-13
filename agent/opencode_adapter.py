@@ -5,14 +5,22 @@ from typing import Any
 
 from config import Config
 from agent.prompt_builder import create_prompt_builder
+from llm.provider import LLMProvider
 
 
 class AgentAdapter(ABC):
 
-    def __init__(self, config: Config, tool_schemas: list[dict[str, Any]], dataset_schemas: dict[str, list[str]] | None = None):
+    def __init__(
+        self,
+        config: Config,
+        tool_schemas: list[dict[str, Any]],
+        dataset_schemas: dict[str, list[str]] | None = None,
+        llm_provider: LLMProvider | None = None,
+    ):
         self.config = config
         self.tool_schemas = tool_schemas
         self.dataset_schemas = dataset_schemas or {}
+        self.llm_provider = llm_provider
 
     @abstractmethod
     def generate_pipeline(self, task: str) -> tuple[str, dict[str, Any]]:
@@ -66,8 +74,14 @@ save_result({
 
 class OpenCodeAgentAdapter(AgentAdapter):
 
-    def __init__(self, config: Config, tool_schemas: list[dict[str, Any]], dataset_schemas: dict[str, list[str]] | None = None):
-        super().__init__(config, tool_schemas, dataset_schemas)
+    def __init__(
+        self,
+        config: Config,
+        tool_schemas: list[dict[str, Any]],
+        dataset_schemas: dict[str, list[str]] | None = None,
+        llm_provider: LLMProvider | None = None,
+    ):
+        super().__init__(config, tool_schemas, dataset_schemas, llm_provider=llm_provider)
         self.api_key = config.agent.api_key
         self.model = config.agent.model
         self.base_url = config.agent.base_url
@@ -104,7 +118,7 @@ class OpenCodeAgentAdapter(AgentAdapter):
 
         from llm import OpenAIProvider
 
-        provider = OpenAIProvider(
+        provider = self.llm_provider or OpenAIProvider(
             api_key=self.api_key,
             base_url=self.base_url,
             max_retries=self.config.agent.max_retries,
@@ -151,10 +165,15 @@ class OpenCodeAgentAdapter(AgentAdapter):
         return code.strip()
 
 
-def create_agent_adapter(config: Config, tool_schemas: list[dict[str, Any]], dataset_schemas: dict[str, list[str]] | None = None) -> AgentAdapter:
+def create_agent_adapter(
+    config: Config,
+    tool_schemas: list[dict[str, Any]],
+    dataset_schemas: dict[str, list[str]] | None = None,
+    llm_provider: LLMProvider | None = None,
+) -> AgentAdapter:
     agent_type = config.agent.type.lower()
     if agent_type == "mock":
-        return MockAgentAdapter(config, tool_schemas, dataset_schemas)
+        return MockAgentAdapter(config, tool_schemas, dataset_schemas, llm_provider=llm_provider)
     if agent_type == "opencode":
-        return OpenCodeAgentAdapter(config, tool_schemas, dataset_schemas)
+        return OpenCodeAgentAdapter(config, tool_schemas, dataset_schemas, llm_provider=llm_provider)
     raise ValueError(f"Unsupported agent type: {agent_type}")

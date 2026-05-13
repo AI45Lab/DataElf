@@ -17,6 +17,7 @@ class ToolContext:
     datasets: dict[str, Any] = field(default_factory=dict)
     artifacts: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
+    mode: str = "unknown"
 
     def log(self, message: str, level: str = "info") -> None:
         log_func = getattr(self.logger, level.lower(), self.logger.info)

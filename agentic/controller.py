@@ -13,6 +13,7 @@ from typing import Any, Callable
 
 from agent import create_agent_adapter, load_tool_readme_entries, resolve_tool_readme_path
 from llm.provider import LLMProvider
+from llm.tracing import llm_trace_context
 from runtime import JobManager, JobStatus, RuntimeExecutor
 from tools import ToolRegistry
 
@@ -95,6 +96,7 @@ class RunCoordinator:
                 transcript=transcript,
                 messages=messages,
                 dataset_schemas=dataset_schemas,
+                job_id=job_id,
             )
             self._emit(event_handler, {
                 "type": "stage_completed",
@@ -244,7 +246,12 @@ class RunCoordinator:
                 "verbose": verbose,
             }
 
-        agent = create_agent_adapter(self.config, self.registry.list_schemas(), dataset_schemas)
+        agent = create_agent_adapter(
+            self.config,
+            _visible_tool_schemas(self.config, self.registry),
+            dataset_schemas,
+            llm_provider=self.llm_provider,
+        )
         self._emit(event_handler, {
             "type": "stage_started",
             "mode": "run",
@@ -252,7 +259,8 @@ class RunCoordinator:
             "stage": "pipeline_generation",
             "model": self.config.agent.model,
         })
-        pipeline, llm_metadata = agent.generate_pipeline(effective_task)
+        with llm_trace_context(job_id=job.job_id, mode="run", scope="core", caller="pipeline_generator"):
+            pipeline, llm_metadata = agent.generate_pipeline(effective_task)
         pipeline = self._stabilize_run_pipeline(effective_task, pipeline)
         self._emit(event_handler, {
             "type": "stage_completed",
@@ -334,7 +342,8 @@ class RunCoordinator:
                 "stage": "capability_gap_judge",
                 "model": self.config.agent.model,
             })
-            capability_gap = self._judge_capability_gap(effective_task, pipeline, result)
+            with llm_trace_context(job_id=job.job_id, mode="run", scope="core", caller="capability_gap_judge"):
+                capability_gap = self._judge_capability_gap(effective_task, pipeline, result)
             self._emit(event_handler, {
                 "type": "stage_completed",
                 "mode": "run",
@@ -441,6 +450,7 @@ class RunCoordinator:
         transcript: list[dict[str, Any]],
         messages: list[dict[str, str]],
         dataset_schemas: dict[str, list[str]],
+        job_id: str | None = None,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         fallback = {
             "status": "ready",
@@ -468,14 +478,22 @@ class RunCoordinator:
             transcript=transcript,
             messages=messages,
             dataset_schemas=dataset_schemas,
-            tool_schemas=self.registry.list_schemas(),
-            tool_shortlist=_select_relevant_tool_schemas(task, self.registry),
-            security_hints=_build_security_audit_hints(task, self.registry),
+            tool_schemas=_visible_tool_schemas(self.config, self.registry),
+            tool_shortlist=_select_relevant_tool_schemas(
+                task,
+                self.registry,
+                allowed_tool_names=_configured_tool_names(self.config),
+            ),
+            security_hints=_build_security_audit_hints(
+                task,
+                self.registry,
+            ),
             tool_readmes=self._clarification_tool_readmes(task),
         )
         start_time = perf_counter()
         try:
-            decision = self.llm_provider.generate_json(self.config.agent.model, prompt)
+            with llm_trace_context(job_id=job_id, mode="run", scope="core", caller="clarification"):
+                decision = self.llm_provider.generate_json(self.config.agent.model, prompt)
         except Exception as e:
             fallback_llm["elapsed_seconds"] = round(perf_counter() - start_time, 2)
             fallback_llm["error"] = f"{type(e).__name__}: {e}"
@@ -513,7 +531,11 @@ class RunCoordinator:
     def _clarification_tool_readmes(self, task: str) -> list[dict[str, str]]:
         if not getattr(self.config.agent, "include_tool_readmes", False):
             return []
-        shortlist = _select_relevant_tool_schemas(task, self.registry)
+        shortlist = _select_relevant_tool_schemas(
+            task,
+            self.registry,
+            allowed_tool_names=_configured_tool_names(self.config),
+        )
         tool_names = [schema.get("name", "") for schema in shortlist if schema.get("name")]
         max_len = getattr(self.config.agent, "tool_readmes_max_length", 2000)
         return load_tool_readme_entries(tool_names, max_len=max_len)
@@ -529,7 +551,8 @@ class RunCoordinator:
 
         prompt = _build_capability_gap_prompt(task, pipeline, execution)
         try:
-            response = self.llm_provider.generate_json(self.config.agent.model, prompt)
+            with llm_trace_context(scope="core", caller="capability_gap_judge"):
+                response = self.llm_provider.generate_json(self.config.agent.model, prompt)
         except Exception:
             return fallback
 
@@ -608,7 +631,10 @@ class RunCoordinator:
     ) -> dict[str, Any]:
         defaults: dict[str, Any] = {}
         if "checker_names" in missing_items and _task_targets_security_checker_selection(task):
-            security_hints = _build_security_audit_hints(task, self.registry) or {}
+            security_hints = _build_security_audit_hints(
+                task,
+                self.registry,
+            ) or {}
             baseline = security_hints.get("quick_baseline_checkers")
             if baseline:
                 defaults["checker_names"] = baseline
@@ -829,7 +855,10 @@ class RunCoordinator:
         )
 
     def _security_checker_recommendation_sets(self, task: str) -> dict[str, list[str]]:
-        hints = _build_security_audit_hints(task, self.registry) or {}
+        hints = _build_security_audit_hints(
+            task,
+            self.registry,
+        ) or {}
         baseline = hints.get("quick_baseline_checkers", ["PIIRule", "SecretRule"])
         llm_required = hints.get("llm_required_checkers", [])
         preferred_order = [
@@ -1028,12 +1057,13 @@ class PilotController:
                     "stage": "planner",
                     "model": self.config.agent.model if self.llm_provider is not None else None,
                 })
-                action, planner_llm = self._plan_action(
-                    task=current_task,
-                    dataset_schemas=dataset_schemas,
-                    previous_attempts=previous_attempts,
-                    allow_experimental_tools=allow_experimental_tools,
-                )
+                with llm_trace_context(job_id=job.job_id, mode="pilot", attempt_id=attempt_id):
+                    action, planner_llm = self._plan_action(
+                        task=current_task,
+                        dataset_schemas=dataset_schemas,
+                        previous_attempts=previous_attempts,
+                        allow_experimental_tools=allow_experimental_tools,
+                    )
                 action = self._stabilize_planner_action(
                     current_task,
                     previous_attempts,
@@ -1230,13 +1260,14 @@ class PilotController:
                     "stage": "pipeline_generation",
                     "model": self.config.agent.model if self.llm_provider is not None else None,
                 })
-                pipeline, pipeline_llm = self._materialize_pipeline(
-                    task=current_task,
-                    action=action,
-                    dataset_schemas=dataset_schemas,
-                    previous_attempts=previous_attempts,
-                    attempt_id=attempt_id,
-                )
+                with llm_trace_context(job_id=job.job_id, mode="pilot", attempt_id=attempt_id):
+                    pipeline, pipeline_llm = self._materialize_pipeline(
+                        task=current_task,
+                        action=action,
+                        dataset_schemas=dataset_schemas,
+                        previous_attempts=previous_attempts,
+                        attempt_id=attempt_id,
+                    )
             except Exception as e:
                 pipeline = ""
                 pipeline_llm = {
@@ -1353,13 +1384,14 @@ class PilotController:
                 "stage": "judge",
                 "model": self.config.agent.model if self.llm_provider is not None else None,
             })
-            judge, judge_llm = self._judge_attempt(
-                current_task,
-                pipeline,
-                execution,
-                previous_attempts,
-                execution_latency_s=execution_latency_s,
-            )
+            with llm_trace_context(job_id=job.job_id, mode="pilot", attempt_id=attempt_id):
+                judge, judge_llm = self._judge_attempt(
+                    current_task,
+                    pipeline,
+                    execution,
+                    previous_attempts,
+                    execution_latency_s=execution_latency_s,
+                )
             self._emit(event_handler, {
                 "type": "judge",
                 "attempt_id": attempt_id,
@@ -1388,12 +1420,13 @@ class PilotController:
 
             if action["action_type"] == "derive_composite_tool":
                 try:
-                    candidate = self._derive_composite_tool(
-                        task=current_task,
-                        pipeline=pipeline,
-                        source_attempts=[attempt_id],
-                        dataset_schemas=dataset_schemas,
-                    )
+                    with llm_trace_context(job_id=job.job_id, mode="pilot", attempt_id=attempt_id):
+                        candidate = self._derive_composite_tool(
+                            task=current_task,
+                            pipeline=pipeline,
+                            source_attempts=[attempt_id],
+                            dataset_schemas=dataset_schemas,
+                        )
                     self.asset_manager.save_candidate(candidate)
                     self.job_manager.add_candidate_asset(job.job_id, candidate["candidate_id"])
                     validation = self._validate_candidate(
@@ -1464,13 +1497,14 @@ class PilotController:
                             "status": candidate.get("status"),
                         }
                     else:
-                        candidate, code = self._derive_python_tool(
-                            task=current_task,
-                            pipeline=pipeline,
-                            source_attempts=[attempt_id],
-                            execution=execution,
-                            judge=judge,
-                        )
+                        with llm_trace_context(job_id=job.job_id, mode="pilot", attempt_id=attempt_id):
+                            candidate, code = self._derive_python_tool(
+                                task=current_task,
+                                pipeline=pipeline,
+                                source_attempts=[attempt_id],
+                                execution=execution,
+                                judge=judge,
+                            )
                         self.asset_manager.save_candidate(candidate, python_code=code)
                         self.job_manager.add_candidate_asset(job.job_id, candidate["candidate_id"])
                         validation = self._validate_candidate(
@@ -1850,7 +1884,11 @@ class PilotController:
             messages: list[dict[str, str]],
             _turn: int,
         ) -> tuple[dict[str, Any], dict[str, Any]]:
-            relevant_tools = _select_relevant_tool_schemas(current_task, self.registry)
+            relevant_tools = _select_relevant_tool_schemas(
+                current_task,
+                self.registry,
+                allowed_tool_names=_configured_tool_names(self.config),
+            )
             prompt = _build_pilot_goal_clarification_prompt(
                 task=task,
                 current_task=current_task,
@@ -1869,7 +1907,8 @@ class PilotController:
                 "error": None,
             }
             try:
-                decision = self.llm_provider.generate_json(self.config.agent.model, prompt)
+                with llm_trace_context(job_id=job_id, mode="pilot", scope="core", caller="clarification"):
+                    decision = self.llm_provider.generate_json(self.config.agent.model, prompt)
             except Exception as e:
                 fallback_llm["elapsed_seconds"] = round(perf_counter() - start_time, 2)
                 fallback_llm["error"] = f"{type(e).__name__}: {e}"
@@ -1956,7 +1995,10 @@ class PilotController:
                 "resolved_slots": {},
             }
 
-        hints = _build_security_audit_hints(current_task, self.registry) or {}
+        hints = _build_security_audit_hints(
+            current_task,
+            self.registry,
+        ) or {}
         available = hints.get("checker_names_available", [])
         suggested_defaults = self._default_slots_for_missing_items(current_task, ["checker_names"])
         current = current_task
@@ -2123,13 +2165,14 @@ class PilotController:
         prompt = _build_planner_prompt(
             task=task,
             dataset_schemas=dataset_schemas,
-            tool_schemas=self.registry.list_schemas(),
+            tool_schemas=_visible_tool_schemas(self.config, self.registry),
             previous_attempts=previous_attempts,
             allow_experimental_tools=allow_experimental_tools,
         )
         start_time = perf_counter()
         try:
-            action = self.llm_provider.generate_json(self.config.agent.model, prompt)
+            with llm_trace_context(scope="core", caller="planner"):
+                action = self.llm_provider.generate_json(self.config.agent.model, prompt)
         except Exception as e:
             fallback["reason"] = f"Default planning fallback. LLM planner error: {type(e).__name__}: {e}"
             fallback_llm["elapsed_seconds"] = round(perf_counter() - start_time, 2)
@@ -2288,7 +2331,10 @@ class PilotController:
     ) -> dict[str, Any]:
         defaults: dict[str, Any] = {}
         if "checker_names" in missing_items and _task_targets_security_checker_selection(task):
-            security_hints = _build_security_audit_hints(task, self.registry) or {}
+            security_hints = _build_security_audit_hints(
+                task,
+                self.registry,
+            ) or {}
             baseline = security_hints.get("quick_baseline_checkers")
             if baseline:
                 defaults["checker_names"] = baseline
@@ -2365,8 +2411,14 @@ class PilotController:
                 f"{attempt_suffix}` before the extension to avoid overwriting previous attempt outputs."
             )
 
-        agent = create_agent_adapter(self.config, self.registry.list_schemas(), dataset_schemas)
-        pipeline, metadata = agent.generate_pipeline(adapted_task)
+        agent = create_agent_adapter(
+            self.config,
+            _visible_tool_schemas(self.config, self.registry),
+            dataset_schemas,
+            llm_provider=self.llm_provider,
+        )
+        with llm_trace_context(scope="core", caller="pipeline_generator", attempt_id=attempt_id):
+            pipeline, metadata = agent.generate_pipeline(adapted_task)
         if _should_retry_duplicate_optimization_pipeline(previous_attempts or [], pipeline):
             retry_task = (
                 f"{adapted_task}\n\nImportant regeneration instruction:\n"
@@ -2376,7 +2428,8 @@ class PilotController:
                 "- Change the DSL structure, the primary tool path, the result contract, the robustness strategy, "
                 "or the performance/throughput approach."
             )
-            pipeline, metadata = agent.generate_pipeline(retry_task)
+            with llm_trace_context(scope="core", caller="pipeline_generator", attempt_id=attempt_id):
+                pipeline, metadata = agent.generate_pipeline(retry_task)
         elif _should_retry_duplicate_failure_pipeline(previous_attempts or [], pipeline):
             retry_task = (
                 f"{adapted_task}\n\nImportant regeneration instruction:\n"
@@ -2386,7 +2439,8 @@ class PilotController:
                 "- Prefer a different main strategy such as direct DSL filtering, load_dataset filters, a different "
                 "tool path, or deriving/fixing tool code explicitly."
             )
-            pipeline, metadata = agent.generate_pipeline(retry_task)
+            with llm_trace_context(scope="core", caller="pipeline_generator", attempt_id=attempt_id):
+                pipeline, metadata = agent.generate_pipeline(retry_task)
         if attempt_id:
             pipeline = _stabilize_attempt_write_targets(pipeline, attempt_id)
         pipeline = _stabilize_pipeline_logging(pipeline)
@@ -2452,7 +2506,8 @@ class PilotController:
         )
         start_time = perf_counter()
         try:
-            result = self.llm_provider.generate_json(self.config.agent.model, prompt)
+            with llm_trace_context(scope="core", caller="judge"):
+                result = self.llm_provider.generate_json(self.config.agent.model, prompt)
         except Exception as e:
             fallback["reason"] = f"Heuristic judge fallback. LLM judge error: {type(e).__name__}: {e}"
             fallback_llm["elapsed_seconds"] = round(perf_counter() - start_time, 2)
@@ -2912,13 +2967,14 @@ class PilotController:
         seed_execution = seed_attempt.get("execution") if isinstance(seed_attempt.get("execution"), dict) else None
         seed_judge = seed_attempt.get("judge") if isinstance(seed_attempt.get("judge"), dict) else None
 
-        candidate, code = self._derive_python_tool(
-            task=task,
-            pipeline=seed_pipeline,
-            source_attempts=[attempt_id],
-            execution=seed_execution,
-            judge=seed_judge,
-        )
+        with llm_trace_context(job_id=job_id, mode="pilot", attempt_id=attempt_id):
+            candidate, code = self._derive_python_tool(
+                task=task,
+                pipeline=seed_pipeline,
+                source_attempts=[attempt_id],
+                execution=seed_execution,
+                judge=seed_judge,
+            )
         self.asset_manager.save_candidate(candidate, python_code=code)
         self.job_manager.add_candidate_asset(job_id, candidate["candidate_id"])
         validation_seed_pipeline = seed_pipeline or _build_candidate_validation_seed_pipeline(
@@ -3060,7 +3116,8 @@ class PilotController:
             source_tool_contexts,
         )
         try:
-            candidate = self.llm_provider.generate_json(self.config.agent.model, prompt)
+            with llm_trace_context(scope="core", caller="toolsmith"):
+                candidate = self.llm_provider.generate_json(self.config.agent.model, prompt)
         except Exception:
             return fallback
 
@@ -3123,7 +3180,8 @@ class PilotController:
             judge_summary=_toolsmith_judge_summary(judge),
         )
         try:
-            response = self.llm_provider.generate_json(self.config.agent.model, prompt)
+            with llm_trace_context(scope="core", caller="toolsmith"):
+                response = self.llm_provider.generate_json(self.config.agent.model, prompt)
         except Exception:
             return fallback_candidate, fallback_code
 
@@ -5856,11 +5914,30 @@ def _tool_default_summary(schema: dict[str, Any]) -> dict[str, Any]:
     return defaults
 
 
-def _rank_tool_schemas(task: str, registry: ToolRegistry) -> list[tuple[int, dict[str, Any]]]:
+def _configured_tool_names(config: Any) -> set[str] | None:
+    tool_names = getattr(config, "tools", None) or []
+    return set(tool_names) if tool_names else None
+
+
+def _visible_tool_schemas(config: Any, registry: ToolRegistry) -> list[dict[str, Any]]:
+    allowed_tool_names = _configured_tool_names(config)
+    schemas = registry.list_schemas()
+    if allowed_tool_names is None:
+        return schemas
+    return [schema for schema in schemas if schema.get("name") in allowed_tool_names]
+
+
+def _rank_tool_schemas(
+    task: str,
+    registry: ToolRegistry,
+    allowed_tool_names: set[str] | None = None,
+) -> list[tuple[int, dict[str, Any]]]:
     task_tokens = _tokenize_text(_task_text_for_analysis(task))
     ranked: list[tuple[int, dict[str, Any]]] = []
 
-    for tool in registry.tools.values():
+    for tool_name, tool in registry.tools.items():
+        if allowed_tool_names is not None and tool_name not in allowed_tool_names:
+            continue
         schema = tool.get_schema()
         corpus = " ".join([
             schema.get("name", ""),
@@ -5875,8 +5952,13 @@ def _rank_tool_schemas(task: str, registry: ToolRegistry) -> list[tuple[int, dic
     return ranked
 
 
-def _select_relevant_tool_schemas(task: str, registry: ToolRegistry, limit: int = 4) -> list[dict[str, Any]]:
-    ranked = _rank_tool_schemas(task, registry)
+def _select_relevant_tool_schemas(
+    task: str,
+    registry: ToolRegistry,
+    limit: int = 4,
+    allowed_tool_names: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    ranked = _rank_tool_schemas(task, registry, allowed_tool_names=allowed_tool_names)
     shortlist = [schema for _, schema in ranked[:limit]]
     if shortlist:
         return shortlist
@@ -5886,11 +5968,15 @@ def _select_relevant_tool_schemas(task: str, registry: ToolRegistry, limit: int 
         and not _mentions_security_audit_intent(task)
     )
     fallback: list[dict[str, Any]] = []
-    for tool in list(registry.tools.values())[:limit]:
+    for tool_name, tool in registry.tools.items():
+        if allowed_tool_names is not None and tool_name not in allowed_tool_names:
+            continue
         schema = tool.get_schema()
         if suppress_security_audit and str(schema.get("name", "")).lower() == "security_audit":
             continue
         fallback.append(schema | {"default_summary": _tool_default_summary(schema)})
+        if len(fallback) >= limit:
+            break
     return fallback
 
 
@@ -6630,15 +6716,15 @@ def _should_trust_semantic_user_reply_for_missing_items(
     return any(retry_counts.get(item, 0) >= 2 for item in unresolved_missing_items)
 
 
-def _build_security_audit_hints(task: str, registry: ToolRegistry) -> dict[str, Any] | None:
+def _build_security_audit_hints(
+    task: str,
+    registry: ToolRegistry,
+) -> dict[str, Any] | None:
     if registry.get("security_audit") is None:
         return None
     if not _mentions_security_audit_intent(task):
         return None
 
-    readme_path = resolve_tool_readme_path("security_audit")
-    readme_content = readme_path.read_text(encoding="utf-8") if readme_path is not None else ""
-    readme_checkers = _extract_readme_checker_names(readme_content)
     try:
         from tools.security_audit.checker.registry import CheckerRegistry
 
@@ -6657,7 +6743,6 @@ def _build_security_audit_hints(task: str, registry: ToolRegistry) -> dict[str, 
         "ToxicityLLMJudge",
         "PIILLMJudge",
         "SycophancyLLMJudge",
-        *readme_checkers,
     ])
     if available_runtime_checkers:
         combined_checkers = [name for name in combined_checkers if name in available_runtime_checkers]
@@ -6702,18 +6787,7 @@ def _build_security_audit_hints(task: str, registry: ToolRegistry) -> dict[str, 
             "use defaults",
             "use HarmfulContentLLMJudge, ToxicityLLMJudge, PIILLMJudge",
         ],
-        "tool_readme_excerpt": readme_content,
     }
-
-
-def _extract_readme_checker_names(content: str) -> list[str]:
-    if not content:
-        return []
-    candidates = re.findall(
-        r"`([A-Z][A-Za-z0-9]+(?:Rule|Judge|Classifier|Detector))`",
-        content,
-    )
-    return _dedupe_preserve_order(candidates)
 
 
 def _dedupe_preserve_order(values: list[str]) -> list[str]:

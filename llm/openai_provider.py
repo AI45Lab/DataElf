@@ -66,6 +66,9 @@ class OpenAIProvider(LLMProvider):
 
         raise last_error
 
+    def generate_from_messages(self, model: str, messages: list[dict], **kwargs: Any) -> str:
+        return self._call_with_retry(model=model, messages=messages, **kwargs)
+
     def generate(
         self,
         model: str,
@@ -77,7 +80,7 @@ class OpenAIProvider(LLMProvider):
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
-        return self._call_with_retry(model=model, messages=messages, **kwargs)
+        return self.generate_from_messages(model=model, messages=messages, **kwargs)
 
     def generate_json(self, model: str, prompt: str, **kwargs: Any) -> dict[str, Any]:
         messages = [
@@ -90,27 +93,27 @@ class OpenAIProvider(LLMProvider):
 
         if supports_response_format:
             try:
-                content = self._call_with_retry(
+                content = self.generate_from_messages(
                     model=model,
                     messages=messages,
                     response_format={"type": "json_object"},
                     **kwargs,
                 )
                 self._json_response_format_support_cache[cache_key] = True
-                return self._load_json_content(content)
+                return self.load_json_content(content)
             except Exception as e:
                 if self._looks_like_response_format_incompatibility(e):
                     self._json_response_format_support_cache[cache_key] = False
                 # Some OpenAI-compatible backends reject response_format=json_object.
                 # Fall back to plain text generation with the same JSON-only contract.
 
-        content = self._call_with_retry(
+        content = self.generate_from_messages(
             model=model,
             messages=messages,
             **kwargs,
         )
 
-        return self._load_json_content(content)
+        return self.load_json_content(content)
 
     def _json_response_format_cache_key(self, model: str) -> tuple[str, str]:
         return (self.base_url or "", model)
@@ -131,7 +134,7 @@ class OpenAIProvider(LLMProvider):
         ]
         return any(marker in message for marker in incompatibility_markers)
 
-    def _load_json_content(self, content: str) -> dict[str, Any]:
+    def load_json_content(self, content: str) -> dict[str, Any]:
         cleaned = content.strip()
 
         if cleaned.startswith("```json"):
