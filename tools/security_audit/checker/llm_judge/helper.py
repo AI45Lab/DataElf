@@ -50,5 +50,34 @@ def extract_response(sample: DataSample) -> str:
 
 
 def is_content_filter_error(err_msg: str) -> bool:
-    """Check whether an error message indicates a content filter rejection."""
-    return "content_filter" in err_msg or "content management policy" in err_msg
+    """Check whether an error message indicates a provider safety rejection."""
+    if not err_msg:
+        return False
+
+    msg = err_msg.lower()
+
+    exact_indicators = (
+        # OpenAI / Azure OpenAI / compatible gateways
+        "content_filter",
+        "content management policy",
+        "content policy violation",
+        "content_policy_violation",
+        "safety system",
+        # Anthropic Claude
+        "safety policy",
+        "acceptable use policy",
+        "input blocked",
+        "output blocked",
+        # Qwen / DashScope and other moderation gateways
+        "data inspection failed",
+        "inappropriate content",
+        "input data may contain inappropriate content",
+        "output data may contain inappropriate content",
+        "sensitive information",
+    )
+    if any(indicator in msg for indicator in exact_indicators):
+        return True
+
+    moderation_terms = ("moderation", "moderated", "safety", "policy", "unsafe", "sensitive")
+    rejection_terms = ("blocked", "rejected", "refused", "disallowed", "prohibited", "violat")
+    return any(term in msg for term in moderation_terms) and any(term in msg for term in rejection_terms)
