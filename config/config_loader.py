@@ -60,6 +60,12 @@ class RuntimeConfig:
 
 
 @dataclass
+class DeploymentConfig:
+    network_mode: str = "online"
+    resource_tier: str = "light"
+
+
+@dataclass
 class AgentConfig:
     type: str = "opencode"
     model: str = "gpt-4"
@@ -95,6 +101,7 @@ class Config:
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
+    deployment: DeploymentConfig = field(default_factory=DeploymentConfig)
     agent: AgentConfig = field(default_factory=AgentConfig)
     tool_llm: ToolLLMConfig = field(default_factory=ToolLLMConfig)
     llm_tracing: LLMTracingConfig = field(default_factory=LLMTracingConfig)
@@ -109,6 +116,7 @@ class Config:
         db_data = data.get("database", {})
         exec_data = data.get("execution", {})
         runtime_data = data.get("runtime", {})
+        deployment_data = data.get("deployment", {})
         agent_data = _expand_env_placeholders(data.get("agent", {}))
         tool_llm_data = _expand_env_placeholders(data.get("tool_llm", {}))
         llm_tracing_data = data.get("llm_tracing", {})
@@ -118,6 +126,7 @@ class Config:
             database=DatabaseConfig(**db_data),
             execution=ExecutionConfig(**exec_data),
             runtime=RuntimeConfig(**runtime_data),
+            deployment=DeploymentConfig(**deployment_data),
             agent=AgentConfig(**agent_data),
             tool_llm=ToolLLMConfig(**tool_llm_data),
             llm_tracing=LLMTracingConfig(**llm_tracing_data),

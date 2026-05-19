@@ -8,7 +8,13 @@ if TYPE_CHECKING:
     from tools.tool_registry import ToolRegistry
 
 from agentic import AssetManager
-from config import load_config
+from config import (
+    apply_runtime_environment,
+    build_runtime_policy,
+    handle_preflight_issues,
+    load_config,
+    run_global_preflight,
+)
 from database import create_database_strategy
 from llm import LLMTraceRecorder, OpenAIProvider, TracingLLMProvider
 from runtime import JobManager, RuntimeExecutor
@@ -24,6 +30,13 @@ def bootstrap_environment(
     include_candidate_tools: bool = False,
 ) -> dict[str, Any]:
     cfg = load_config(config_path=config_path, prefix=prefix)
+    runtime_policy = build_runtime_policy(cfg)
+    apply_runtime_environment(runtime_policy)
+    handle_preflight_issues(
+        run_global_preflight(cfg, runtime_policy),
+        strict=runtime_policy.strict_preflight,
+        logger=logger,
+    )
     trace_recorder = LLMTraceRecorder(
         env_id=_resolve_env_id(config_path, prefix),
         enabled=cfg.llm_tracing.enabled,
@@ -61,6 +74,7 @@ def bootstrap_environment(
 
     return {
         "config": cfg,
+        "runtime_policy": runtime_policy,
         "database": db,
         "registry": registry,
         "job_manager": job_manager,

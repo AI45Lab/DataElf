@@ -11,10 +11,12 @@ Pipeline usage:
 import os
 from typing import Any
 
+from config import build_runtime_policy, handle_preflight_issues
 from tools.base_tool import BaseTool, ToolContext
 from .config import AuditConfig, CheckerConfig, ExecutorConfig, LLMConfig
 from .executor import Executor
 from .loader import load_samples
+from .policy import validate_selected_checkers
 
 
 _DEFAULT_RISK_WEIGHTS = {
@@ -137,8 +139,22 @@ class SecurityAuditTool(BaseTool):
         tool_defaults = _get_tool_defaults(context.config)
         checker_configs = _resolve_checker_configs(kwargs, tool_defaults)
         checker_names = [c.name for c in checker_configs if c.enabled]
+        runtime_policy = build_runtime_policy(context.config)
+        explicit_checker_names = bool(kwargs.get("checker_names"))
 
-        if kwargs.get("checker_names"):
+        handle_preflight_issues(
+            validate_selected_checkers(
+                checker_configs=checker_configs,
+                tool_defaults=tool_defaults,
+                runtime_policy=runtime_policy,
+                explicit_checker_names=explicit_checker_names,
+                context_config=context.config,
+            ),
+            strict=runtime_policy.strict_preflight,
+            logger=context.logger,
+        )
+
+        if explicit_checker_names:
             context.log(f"SecurityAuditTool: using user-specified checkers: {checker_names}")
         if tool_defaults.get("checkers"):
             context.log(

@@ -1,3 +1,8 @@
+deployment:
+  network_mode: offline # Options: online | offline
+  resource_tier: full # Options: light | standard | full
+
+
 database:
   type: local_file  # Options: local_file, mock
   path: ./test_data
