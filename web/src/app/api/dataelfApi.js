@@ -27,6 +27,16 @@ export async function answerCheckpoint(jobId, checkpointId, answer) {
   return response.json();
 }
 
+export async function fetchJob(jobId) {
+  const response = await fetch(
+    `${apiBaseUrl()}/api/v1/jobs/${encodeURIComponent(jobId)}`,
+  );
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return response.json();
+}
+
 export function subscribeRunEvents(jobId, handlers) {
   const source = new EventSource(
     `${apiBaseUrl()}/api/v1/jobs/${encodeURIComponent(jobId)}/events`,

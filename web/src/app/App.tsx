@@ -5,7 +5,7 @@ import { LeftSidebar } from './components/LeftSidebar';
 import { RightSidebar } from './components/RightSidebar';
 import { Footer } from './components/Footer';
 import { parseUserCommand } from './api/commandParser.js';
-import { answerCheckpoint, createRun, subscribeRunEvents } from './api/dataelfApi.js';
+import { answerCheckpoint, createRun, fetchJob, subscribeRunEvents } from './api/dataelfApi.js';
 
 interface ExecutionStep {
   id: string;
@@ -257,6 +257,7 @@ export default function App() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const resumeRef = useRef<((approved: boolean) => void) | null>(null);
   const runStreamsRef = useRef<Record<string, EventSource>>({});
+  const runPollersRef = useRef<Record<string, number>>({});
 
   // Auto-save session state
   useEffect(() => {
@@ -1057,6 +1058,8 @@ log_step("Final audit package saved")`;
     return () => {
       Object.values(runStreamsRef.current).forEach(source => source.close());
       runStreamsRef.current = {};
+      Object.values(runPollersRef.current).forEach(intervalId => window.clearInterval(intervalId));
+      runPollersRef.current = {};
     };
   }, []);
 
@@ -1172,6 +1175,7 @@ log_step("Final audit package saved")`;
         }
       });
       runStreamsRef.current[submitted.job_id] = source;
+      startRunStatusPolling(submitted.job_id, execId);
     } catch (error: any) {
       updateExecutionMessage(execId, 'error', 'Backend Run submission failed.');
       appendSystemMessage(`Backend Run failed to start: ${String(error?.message || error)}`);
@@ -1245,32 +1249,12 @@ log_step("Final audit package saved")`;
     }
 
     if (event.type === 'job.completed') {
-      const resultData = normalizeRunResultData(event);
-      setBestScore(resultData.score);
-      updateExecutionMessage(execId, 'success', 'Backend Run completed.');
-      setMessages(prev => [
-        ...prev,
-        {
-          id: Date.now().toString() + '-result',
-          type: 'result',
-          content: 'RUN Execution Completed',
-          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-          resultData
-        }
-      ]);
-      closeRunStream(event.job_id);
-      setHeaderStatus('STABLE');
-      setExecutingSessionId(null);
+      completeBackendRun(event.job_id, execId, event);
       return;
     }
 
     if (event.type === 'job.failed') {
-      const error = event.error || event.execution?.error || 'Backend Run failed.';
-      updateExecutionMessage(execId, 'error', error);
-      appendSystemMessage(`Backend Run failed: ${error}`);
-      closeRunStream(event.job_id);
-      setHeaderStatus('STABLE');
-      setExecutingSessionId(null);
+      failBackendRun(event.job_id, execId, event.error || event.execution?.error || 'Backend Run failed.');
     }
   };
 
@@ -1280,6 +1264,84 @@ log_step("Final audit package saved")`;
       source.close();
       delete runStreamsRef.current[jobId];
     }
+  };
+
+  const stopRunStatusPolling = (jobId: string) => {
+    const intervalId = runPollersRef.current[jobId];
+    if (intervalId !== undefined) {
+      window.clearInterval(intervalId);
+      delete runPollersRef.current[jobId];
+    }
+  };
+
+  const startRunStatusPolling = (jobId: string, execId: string) => {
+    stopRunStatusPolling(jobId);
+    runPollersRef.current[jobId] = window.setInterval(async () => {
+      try {
+        const job = await fetchJob(jobId);
+        if (job.status === 'completed') {
+          completeBackendRun(jobId, execId, {
+            job_id: jobId,
+            result: job.result?.result ?? job.result,
+            execution: {
+              result: job.result?.result ?? job.result,
+              metadata: job.result?.metadata || {},
+              error: null
+            }
+          });
+        } else if (job.status === 'failed') {
+          failBackendRun(jobId, execId, job.error || 'Backend Run failed.');
+        } else if (job.status === 'paused') {
+          setHeaderStatus('PENDING');
+          updateExecutionMessage(execId, 'running', 'Backend Run is waiting for user input.');
+        }
+      } catch (_error) {
+        // Keep SSE as the primary transport; polling is only a state reconciliation fallback.
+      }
+    }, 2000);
+  };
+
+  const completeBackendRun = (jobId: string, execId: string, event: any) => {
+    stopRunStatusPolling(jobId);
+    closeRunStream(jobId);
+    const resultData = normalizeRunResultData(event);
+    setBestScore(resultData.score);
+    updateExecutionMessage(execId, 'success', 'Backend Run completed.');
+    setMessages(prev => {
+      if (prev.some(message => message.id === `${jobId}-result`)) return prev;
+      return [
+        ...prev,
+        {
+          id: `${jobId}-result`,
+          type: 'result',
+          content: 'RUN Execution Completed',
+          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+          resultData
+        }
+      ];
+    });
+    setHeaderStatus('STABLE');
+    setExecutingSessionId(null);
+  };
+
+  const failBackendRun = (jobId: string, execId: string, error: string) => {
+    stopRunStatusPolling(jobId);
+    closeRunStream(jobId);
+    updateExecutionMessage(execId, 'error', error);
+    setMessages(prev => {
+      if (prev.some(message => message.id === `${jobId}-failed`)) return prev;
+      return [
+        ...prev,
+        {
+          id: `${jobId}-failed`,
+          type: 'system',
+          content: `Backend Run failed: ${error}`,
+          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
+        }
+      ];
+    });
+    setHeaderStatus('STABLE');
+    setExecutingSessionId(null);
   };
 
   const submitBackendCheckpointReply = async (message: Message, reply: string) => {
