@@ -81,3 +81,14 @@ def test_tracing_provider_records_tool_metadata(tmp_path):
     assert meta["tool_name"] == "security_audit"
     assert meta["tool_component"] == "HarmfulContentLLMJudge"
     assert meta["tool_call_context"] == {"risk_type": "harmful", "sample_id": "sample_001"}
+
+
+def test_disabled_recorder_does_not_flush_file(tmp_path):
+    recorder = LLMTraceRecorder(env_id="disabled", enabled=False, output_dir=tmp_path)
+    provider = TracingLLMProvider(FakeMessageProvider(), recorder)
+
+    with llm_trace_context(job_id="job_disabled", mode="run", scope="core", caller="planner"):
+        provider.generate("demo-model", "prompt")
+
+    assert recorder.finalize_job("job_disabled") is None
+    assert not list(tmp_path.glob("*.jsonl"))

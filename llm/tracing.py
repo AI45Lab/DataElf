@@ -39,6 +39,7 @@ def current_llm_trace_context() -> dict[str, Any]:
 @dataclass
 class LLMTraceRecorder:
     env_id: str = "default"
+    enabled: bool = True
     output_dir: Path = field(default_factory=lambda: Path(".elf") / "llm_traces")
     _buffers: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
     _lock: threading.Lock = field(default_factory=threading.Lock)
@@ -57,6 +58,8 @@ class LLMTraceRecorder:
         request_options: dict[str, Any] | None = None,
         error: Exception | None = None,
     ) -> None:
+        if not self.enabled:
+            return
         context = current_llm_trace_context()
         job_id = context.get("job_id")
         if not job_id:
@@ -120,6 +123,8 @@ class LLMTraceRecorder:
             buffer.append(row)
 
     def finalize_job(self, job_id: str) -> Path | None:
+        if not self.enabled:
+            return None
         with self._lock:
             rows = self._buffers.pop(job_id, [])
         if not rows:
@@ -136,6 +141,8 @@ class LLMTraceRecorder:
         return path
 
     def discard_job(self, job_id: str) -> None:
+        if not self.enabled:
+            return
         with self._lock:
             self._buffers.pop(job_id, None)
 

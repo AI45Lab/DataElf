@@ -85,12 +85,19 @@ class ToolLLMConfig:
 
 
 @dataclass
+class LLMTracingConfig:
+    enabled: bool = False
+    output_dir: str = ".elf/llm_traces"
+
+
+@dataclass
 class Config:
     database: DatabaseConfig = field(default_factory=DatabaseConfig)
     execution: ExecutionConfig = field(default_factory=ExecutionConfig)
     runtime: RuntimeConfig = field(default_factory=RuntimeConfig)
     agent: AgentConfig = field(default_factory=AgentConfig)
     tool_llm: ToolLLMConfig = field(default_factory=ToolLLMConfig)
+    llm_tracing: LLMTracingConfig = field(default_factory=LLMTracingConfig)
     tool_defaults: dict[str, Any] = field(default_factory=dict)
     tools: list[str] = field(default_factory=list)
     required_scoring_tool: bool = False
@@ -104,6 +111,7 @@ class Config:
         runtime_data = data.get("runtime", {})
         agent_data = _expand_env_placeholders(data.get("agent", {}))
         tool_llm_data = _expand_env_placeholders(data.get("tool_llm", {}))
+        llm_tracing_data = data.get("llm_tracing", {})
         tool_defaults_data = data.get("tool_defaults", {})
 
         return cls(
@@ -112,6 +120,7 @@ class Config:
             runtime=RuntimeConfig(**runtime_data),
             agent=AgentConfig(**agent_data),
             tool_llm=ToolLLMConfig(**tool_llm_data),
+            llm_tracing=LLMTracingConfig(**llm_tracing_data),
             tool_defaults=tool_defaults_data if isinstance(tool_defaults_data, dict) else {},
             tools=data.get("tools", []),
             required_scoring_tool=bool(data.get("required_scoring_tool", False)),

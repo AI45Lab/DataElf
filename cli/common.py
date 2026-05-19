@@ -24,7 +24,11 @@ def bootstrap_environment(
     include_candidate_tools: bool = False,
 ) -> dict[str, Any]:
     cfg = load_config(config_path=config_path, prefix=prefix)
-    trace_recorder = LLMTraceRecorder(env_id=_resolve_env_id(config_path, prefix))
+    trace_recorder = LLMTraceRecorder(
+        env_id=_resolve_env_id(config_path, prefix),
+        enabled=cfg.llm_tracing.enabled,
+        output_dir=Path(cfg.llm_tracing.output_dir),
+    )
 
     db = create_database_strategy(
         db_type=cfg.database.type,
