@@ -87,6 +87,25 @@ export function extractCheckpointSuggestions(payload) {
   return Array.from(new Set(suggestions)).slice(0, 8);
 }
 
+export function checkpointEventFromJob(job) {
+  if (
+    job?.status !== 'paused' ||
+    job?.checkpoint_state !== 'pending' ||
+    !job?.checkpoint_type ||
+    job.checkpoint_type === 'none' ||
+    !job?.checkpoint_payload
+  ) {
+    return null;
+  }
+  return {
+    type: 'checkpoint.created',
+    job_id: job.job_id,
+    checkpoint_id: job.checkpoint_payload.checkpoint_id,
+    checkpoint_type: job.checkpoint_type,
+    payload: job.checkpoint_payload,
+  };
+}
+
 function apiBaseUrl() {
   return getDataElfApiBaseUrl();
 }

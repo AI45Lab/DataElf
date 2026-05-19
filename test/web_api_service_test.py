@@ -52,6 +52,17 @@ class AutoAnswerCheckpointBroker(WebCheckpointBroker):
         return checkpoint
 
 
+class InspectingCheckpointBroker(WebCheckpointBroker):
+    def __init__(self, answer, before_answer):
+        super().__init__()
+        self.answer = answer
+        self.before_answer = before_answer
+
+    def wait_for_answer(self, **kwargs):
+        self.before_answer()
+        return self.answer
+
+
 class WebApiServiceTest(unittest.TestCase):
     def test_run_service_creates_job_and_publishes_lifecycle(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -144,6 +155,44 @@ class WebApiServiceTest(unittest.TestCase):
             self.assertEqual(
                 checkpoint_events[0]["payload"]["options"],
                 ["security_audit_samples"],
+            )
+
+    def test_dataset_checkpoint_is_persisted_as_paused_while_waiting(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            job_manager = JobManager(jobs_dir=Path(tmp_dir) / ".jobs")
+            observed_states = []
+
+            def observe_waiting_state():
+                jobs = job_manager.list_jobs()
+                self.assertEqual(len(jobs), 1)
+                observed_states.append(jobs[0].to_dict())
+
+            service = RunWebService(
+                environment=FakeEnvironment(
+                    job_manager=job_manager,
+                    dataset_schemas={"security_audit_samples": ["text"]},
+                    registry=FakeRegistry(),
+                ),
+                event_bus=JobEventBus(),
+                checkpoint_broker=InspectingCheckpointBroker(
+                    {"decision": "answer", "answer": "security_audit_samples"},
+                    observe_waiting_state,
+                ),
+                coordinator_factory=lambda _environment, _broker: FakeCoordinator(),
+                run_in_background=False,
+            )
+
+            service.submit_run(RunSubmission(command="run"))
+
+            self.assertEqual(observed_states[0]["status"], "paused")
+            self.assertEqual(observed_states[0]["checkpoint_type"], "dataset_selection")
+            self.assertEqual(observed_states[0]["checkpoint_state"], "pending")
+            self.assertEqual(
+                observed_states[0]["checkpoint_payload"]["options"],
+                ["security_audit_samples"],
+            )
+            self.assertTrue(
+                observed_states[0]["checkpoint_payload"]["checkpoint_id"].startswith("chk_")
             )
 
 

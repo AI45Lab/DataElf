@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { extractCheckpointSuggestions, fetchJob, getDataElfApiBaseUrl } from './dataelfApi.js';
+import {
+  checkpointEventFromJob,
+  extractCheckpointSuggestions,
+  fetchJob,
+  getDataElfApiBaseUrl,
+} from './dataelfApi.js';
 
 test('defaults DataElf API base URL to forwarded backend port', () => {
   assert.equal(getDataElfApiBaseUrl(), 'http://127.0.0.1:8001');
@@ -35,4 +40,30 @@ test('extracts checkpoint suggestions from payload options before defaults', () 
   });
 
   assert.deepEqual(suggestions, ['security_audit_samples', 'companies']);
+});
+
+test('creates checkpoint event from paused job state', () => {
+  const event = checkpointEventFromJob({
+    job_id: 'job_1',
+    status: 'paused',
+    checkpoint_type: 'dataset_selection',
+    checkpoint_state: 'pending',
+    checkpoint_payload: {
+      checkpoint_id: 'chk_123',
+      options: ['security_audit_samples'],
+      prompt: '请选择数据集',
+    },
+  });
+
+  assert.deepEqual(event, {
+    type: 'checkpoint.created',
+    job_id: 'job_1',
+    checkpoint_id: 'chk_123',
+    checkpoint_type: 'dataset_selection',
+    payload: {
+      checkpoint_id: 'chk_123',
+      options: ['security_audit_samples'],
+      prompt: '请选择数据集',
+    },
+  });
 });

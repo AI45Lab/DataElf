@@ -5,7 +5,7 @@ import { LeftSidebar } from './components/LeftSidebar';
 import { RightSidebar } from './components/RightSidebar';
 import { Footer } from './components/Footer';
 import { parseUserCommand } from './api/commandParser.js';
-import { answerCheckpoint, createRun, extractCheckpointSuggestions, fetchJob, subscribeRunEvents } from './api/dataelfApi.js';
+import { answerCheckpoint, checkpointEventFromJob, createRun, extractCheckpointSuggestions, fetchJob, subscribeRunEvents } from './api/dataelfApi.js';
 
 interface ExecutionStep {
   id: string;
@@ -1292,6 +1292,10 @@ log_step("Final audit package saved")`;
         } else if (job.status === 'failed') {
           failBackendRun(jobId, execId, job.error || 'Backend Run failed.');
         } else if (job.status === 'paused') {
+          const checkpointEvent = checkpointEventFromJob(job);
+          if (checkpointEvent) {
+            handleBackendRunEvent(checkpointEvent, execId);
+          }
           setHeaderStatus('PENDING');
           updateExecutionMessage(execId, 'running', 'Backend Run is waiting for user input.');
         }

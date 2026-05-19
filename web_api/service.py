@@ -220,12 +220,24 @@ class RunWebService:
         return append_dataset_to_task(task, dataset_name)
 
     def _wait_for_checkpoint_answer(self, job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        job_manager: JobManager = _env_get(self.environment, "job_manager")
         checkpoint_type = str(payload.get("checkpoint_type", "clarification"))
         checkpoint_payload = dict(payload.get("payload", payload))
         checkpoint = self.checkpoint_broker.create_checkpoint(
             job_id=job_id,
             checkpoint_type=checkpoint_type,
             payload=checkpoint_payload,
+        )
+        persisted_checkpoint_payload = {
+            **checkpoint_payload,
+            "checkpoint_id": checkpoint.checkpoint_id,
+        }
+        job_manager.update_checkpoint(
+            job_id,
+            checkpoint_type=checkpoint_type,
+            checkpoint_state="pending",
+            checkpoint_payload=persisted_checkpoint_payload,
+            status=JobStatus.PAUSED,
         )
         self.event_bus.publish(
             job_id,
@@ -239,6 +251,13 @@ class RunWebService:
         response = self.checkpoint_broker.wait_for_answer(
             job_id=job_id,
             checkpoint_id=checkpoint.checkpoint_id,
+        )
+        job_manager.update_checkpoint(
+            job_id,
+            checkpoint_type=checkpoint_type,
+            checkpoint_state="resolved",
+            checkpoint_payload=checkpoint_payload,
+            status=JobStatus.RUNNING,
         )
         self.event_bus.publish(
             job_id,
