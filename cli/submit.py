@@ -34,6 +34,7 @@ def submit(asset_id: str, config: str | None, prefix: str | None, wait: bool) ->
 
     if wait:
         result = env["executor"].execute(job.job_id, asset["pipeline"])
+        env["trace_recorder"].finalize_job(job.job_id)
         click.echo(f"Status: {'completed' if result['success'] else 'failed'}")
         if result["success"]:
             click.echo(f"Result: {result['result']}")

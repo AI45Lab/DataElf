@@ -10,6 +10,10 @@ runtime:
   save_result: true
   timeout_seconds: 300
 
+llm_tracing:
+  enabled: false
+  output_dir: .elf/llm_traces
+
 tools:
   - security_audit # Just register the tools you needed. Some tools may need to install related libs.
   # - enzyme_acquire

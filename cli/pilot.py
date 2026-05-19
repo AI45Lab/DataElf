@@ -271,6 +271,7 @@ def pilot(
             checkpoint_handler=handle_checkpoint,
             event_handler=emit_event,
         )
+        env["trace_recorder"].finalize_job(response["job_id"])
         section("🏆", "Pilot Summary", color="green")
         trophy("Job ID", response["job_id"])
         focus("Pilot Status", response["status"])

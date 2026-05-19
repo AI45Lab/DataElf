@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -9,7 +10,7 @@ if TYPE_CHECKING:
 from agentic import AssetManager
 from config import load_config
 from database import create_database_strategy
-from llm import OpenAIProvider
+from llm import LLMTraceRecorder, OpenAIProvider, TracingLLMProvider
 from runtime import JobManager, RuntimeExecutor
 from tools import get_global_registry
 
@@ -23,6 +24,11 @@ def bootstrap_environment(
     include_candidate_tools: bool = False,
 ) -> dict[str, Any]:
     cfg = load_config(config_path=config_path, prefix=prefix)
+    trace_recorder = LLMTraceRecorder(
+        env_id=_resolve_env_id(config_path, prefix),
+        enabled=cfg.llm_tracing.enabled,
+        output_dir=Path(cfg.llm_tracing.output_dir),
+    )
 
     db = create_database_strategy(
         db_type=cfg.database.type,
@@ -42,7 +48,7 @@ def bootstrap_environment(
         asset_manager.register_candidate_tools(registry, allow_experimental=allow_experimental_tools)
 
     job_manager = JobManager()
-    llm_provider, tool_llm_provider = _build_llm_providers(cfg)
+    llm_provider, tool_llm_provider = _build_llm_providers(cfg, trace_recorder)
     executor = RuntimeExecutor(
         job_manager=job_manager,
         tool_registry=registry,
@@ -62,6 +68,7 @@ def bootstrap_environment(
         "asset_manager": asset_manager,
         "llm_provider": llm_provider,
         "tool_llm_provider": tool_llm_provider,
+        "trace_recorder": trace_recorder,
         "dataset_schemas": dataset_schemas,
     }
 
@@ -143,24 +150,32 @@ def _validate_config_tools(config_tools: list[str], registry: ToolRegistry) -> N
         raise RuntimeError(msg)
 
 
-def _build_llm_providers(cfg: Any) -> tuple[Any, Any]:
+def _build_llm_providers(cfg: Any, trace_recorder: LLMTraceRecorder) -> tuple[Any, Any]:
     llm_provider = None
     tool_llm_provider = None
     if cfg.agent.type == "opencode":
-        llm_provider = OpenAIProvider(
+        llm_provider = TracingLLMProvider(OpenAIProvider(
             api_key=cfg.agent.api_key,
             base_url=cfg.agent.base_url,
             max_retries=cfg.agent.max_retries,
             retry_delay=cfg.agent.retry_delay,
-        )
+        ), trace_recorder)
     if cfg.tool_llm.is_configured():
-        tool_llm_provider = OpenAIProvider(
+        tool_llm_provider = TracingLLMProvider(OpenAIProvider(
             api_key=cfg.tool_llm.api_key,
             base_url=cfg.tool_llm.base_url,
             max_retries=cfg.tool_llm.max_retries,
             retry_delay=cfg.tool_llm.retry_delay,
-        )
+        ), trace_recorder)
     return llm_provider, tool_llm_provider
+
+
+def _resolve_env_id(config_path: str | None, prefix: str | None) -> str:
+    if prefix:
+        return prefix
+    if config_path:
+        return Path(config_path).stem
+    return "default"
 
 
 def _safe_register(registry: "ToolRegistry", tool: Any) -> None:

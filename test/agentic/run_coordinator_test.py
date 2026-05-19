@@ -10,6 +10,7 @@ from agentic.controller import (
     _normalize_missing_items,
     _should_force_programmatic_missing_slot_followup,
     _should_trust_semantic_user_reply_for_missing_items,
+    _visible_tool_schemas,
 )
 
 DEFAULT_SECURITY_BASELINE = [
@@ -865,6 +866,20 @@ def test_security_audit_hints_include_only_runtime_available_checkers(tmp_path):
     assert "PromptInjectionClassifier" not in hints["checker_names_available"]
     assert "HarmfulContentLLMJudge" in hints["llm_required_checkers"]
     assert "PIIRule" in hints["rule_based_checkers"]
+    assert "tool_readme_excerpt" not in hints
+
+
+def test_visible_tool_schemas_follow_configured_tools(tmp_path):
+    cfg = Config()
+    cfg.tools = ["security_audit"]
+
+    registry = ToolRegistry()
+    registry.register(DummySecurityAuditTool())
+    registry.register(DummyProfileTool())
+
+    schemas = _visible_tool_schemas(cfg, registry)
+
+    assert [schema["name"] for schema in schemas] == ["security_audit"]
 
 
 def test_run_coordinator_does_not_accept_ready_when_missing_checker_names(monkeypatch, tmp_path):

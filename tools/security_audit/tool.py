@@ -178,7 +178,7 @@ class SecurityAuditTool(BaseTool):
             context.log(f"Tool LLM model: {llm_name}", "info")
 
         # 4. Run the audit engine (writes artifacts to output_path)
-        engine = Executor(cfg, logger=context.logger, llm=context.llm)
+        engine = Executor(cfg, logger=context.logger, llm=context.llm, job_id=context.job_id, mode=context.mode)
         engine.setup()
         task_report, _ = engine.run(samples)
 
@@ -218,4 +218,3 @@ class SecurityAuditTool(BaseTool):
                 "sample_results": os.path.join(output_path, "sample_results.json"),
             },
         }
-

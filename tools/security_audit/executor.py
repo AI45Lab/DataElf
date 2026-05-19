@@ -12,6 +12,7 @@ from .checker.registry import CheckerRegistry
 from .config import AuditConfig
 from .schema import DataSample
 from .result import CheckResult, SampleReport, TaskReport
+from llm.tracing import llm_trace_context
 
 _fallback_log = logging.getLogger(__name__)
 
@@ -166,10 +167,19 @@ def _build_report_md(report: TaskReport, sample_reports: list | None = None) -> 
 class Executor:
     """schedules checkers to audit data samples."""
 
-    def __init__(self, config: AuditConfig, logger: Optional[Any] = None, llm: Optional[Any] = None):
+    def __init__(
+        self,
+        config: AuditConfig,
+        logger: Optional[Any] = None,
+        llm: Optional[Any] = None,
+        job_id: str | None = None,
+        mode: str | None = None,
+    ):
         self.config = config
         self._log = logger or _fallback_log
         self._llm = llm
+        self.job_id = job_id
+        self.mode = mode or "unknown"
         self.checkers: List[BaseChecker] = []
         self.heuristic_checkers: List[HeuristicChecker] = []
 
@@ -271,7 +281,19 @@ class Executor:
                     and sample.dataset_type not in checker.supported_formats):
                 continue
             try:
-                result = checker.check(sample)
+                with llm_trace_context(
+                    job_id=self.job_id,
+                    mode=self.mode,
+                    scope="tool",
+                    caller=f"security_audit.{checker.name}",
+                    tool_name="security_audit",
+                    tool_component=checker.name,
+                    tool_call_context={
+                        "risk_type": getattr(checker.risk_type, "value", str(checker.risk_type)),
+                        "sample_id": sample.id,
+                    },
+                ):
+                    result = checker.check(sample)
             except Exception as e:
                 self._log.warning(f"Checker {checker.name} failed on {sample.id}: {e}")
                 result = CheckResult(
