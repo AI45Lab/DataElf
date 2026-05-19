@@ -4,6 +4,8 @@ import { Header } from './components/Header';
 import { LeftSidebar } from './components/LeftSidebar';
 import { RightSidebar } from './components/RightSidebar';
 import { Footer } from './components/Footer';
+import { parseUserCommand } from './api/commandParser.js';
+import { answerCheckpoint, createRun, subscribeRunEvents } from './api/dataelfApi.js';
 
 interface ExecutionStep {
   id: string;
@@ -54,6 +56,9 @@ interface Message {
   index?: number;
   total?: number;
   suggestions?: string[]; // Suggested options
+  jobId?: string;
+  checkpointId?: string;
+  checkpointType?: string;
   // Execution fields
   executionSteps?: ExecutionStep[];
   // Lifecycle fields
@@ -251,6 +256,7 @@ export default function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const resumeRef = useRef<((approved: boolean) => void) | null>(null);
+  const runStreamsRef = useRef<Record<string, EventSource>>({});
 
   // Auto-save session state
   useEffect(() => {
@@ -1047,6 +1053,13 @@ log_step("Final audit package saved")`;
     }
   }, [input]);
 
+  useEffect(() => {
+    return () => {
+      Object.values(runStreamsRef.current).forEach(source => source.close());
+      runStreamsRef.current = {};
+    };
+  }, []);
+
   // Handle footer resize dragging
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -1076,6 +1089,226 @@ log_step("Final audit package saved")`;
     };
   }, [isDragging]);
 
+  const updateExecutionMessage = (
+    execId: string,
+    status: ExecutionStep['status'],
+    log: string,
+    name: string = 'Backend Run'
+  ) => {
+    setMessages(prev => prev.map(message => {
+      if (message.id !== execId || message.type !== 'execution') return message;
+      const currentStep = message.executionSteps?.[0] || {
+        id: 'backend-run',
+        name,
+        status: 'pending' as const,
+        log: 'Pending...'
+      };
+      return {
+        ...message,
+        executionSteps: [{
+          ...currentStep,
+          name,
+          status,
+          log
+        }]
+      };
+    }));
+  };
+
+  const appendSystemMessage = (content: string) => {
+    setMessages(prev => [
+      ...prev,
+      {
+        id: Date.now().toString() + '-system',
+        type: 'system',
+        content,
+        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
+      }
+    ]);
+  };
+
+  const startBackendRun = async (command: string, sessionId?: string) => {
+    const execId = Date.now().toString() + '-backend-exec';
+    setHeaderStatus('PROCESSING');
+    setLogs([]);
+    setBestScore('NA');
+    setMessages(prev => [
+      ...prev,
+      {
+        id: execId,
+        type: 'execution',
+        content: '',
+        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+        executionSteps: [{
+          id: 'backend-run',
+          name: 'Backend Run',
+          status: 'running',
+          log: 'Submitting task to DataElf backend...'
+        }]
+      }
+    ]);
+
+    try {
+      const submitted = await createRun(command, sessionId);
+      updateExecutionMessage(
+        execId,
+        'running',
+        `Backend job ${submitted.job_id} accepted.`,
+        'Backend Run'
+      );
+      setLogs(prev => [
+        ...prev,
+        `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] [INFO] Backend job ${submitted.job_id} started`
+      ]);
+
+      const source = subscribeRunEvents(submitted.job_id, {
+        onEvent: (event: any) => handleBackendRunEvent(event, execId),
+        onError: (error: any) => {
+          if (runStreamsRef.current[submitted.job_id]?.readyState === EventSource.CLOSED) return;
+          updateExecutionMessage(execId, 'error', 'Lost connection to backend event stream.');
+          appendSystemMessage(`Backend event stream error: ${String(error?.message || error)}`);
+          setHeaderStatus('STABLE');
+          setExecutingSessionId(null);
+        }
+      });
+      runStreamsRef.current[submitted.job_id] = source;
+    } catch (error: any) {
+      updateExecutionMessage(execId, 'error', 'Backend Run submission failed.');
+      appendSystemMessage(`Backend Run failed to start: ${String(error?.message || error)}`);
+      setHeaderStatus('STABLE');
+      setExecutingSessionId(null);
+    }
+  };
+
+  const handleBackendRunEvent = (event: any, execId: string) => {
+    if (event.type === 'job.running') {
+      updateExecutionMessage(execId, 'running', 'Backend pipeline is running.');
+      return;
+    }
+
+    if (event.type === 'checkpoint.created') {
+      const payload = event.payload || {};
+      const checkpointMsgId = `${event.checkpoint_id}-clarification`;
+      setHeaderStatus('PENDING');
+      setMessages(prev => {
+        if (prev.some(message => message.id === checkpointMsgId)) return prev;
+        return [
+          ...prev,
+          {
+            id: checkpointMsgId,
+            type: 'clarification',
+            content: '',
+            question: payload.prompt || 'Please clarify the task.',
+            status: 'pending',
+            suggestions: checkpointSuggestions(payload),
+            index: payload.turn || 1,
+            total: 5,
+            jobId: event.job_id,
+            checkpointId: event.checkpoint_id,
+            checkpointType: event.checkpoint_type,
+            timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
+          }
+        ];
+      });
+      setReplyingTo(checkpointMsgId);
+      updateExecutionMessage(execId, 'running', 'Waiting for clarification.');
+      return;
+    }
+
+    if (event.type === 'checkpoint.resolved') {
+      setHeaderStatus('PROCESSING');
+      setReplyingTo(null);
+      updateExecutionMessage(execId, 'running', 'Clarification accepted. Continuing Run.');
+      return;
+    }
+
+    if (event.type === 'pipeline.generated') {
+      const pipeline = event.pipeline || '';
+      const tools = extractPipelineTools(pipeline);
+      setPipelineTools(tools);
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now().toString() + '-pipeline',
+          type: 'pipeline',
+          content: pipeline ? `pipeline:\n${pipeline}` : 'pipeline generated',
+          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
+        }
+      ]);
+      updateExecutionMessage(execId, 'running', 'Pipeline generated. Executing DSL.');
+      return;
+    }
+
+    if (event.type === 'log.appended') {
+      setLogs(prev => [...prev, formatBackendLog(event.log)]);
+      return;
+    }
+
+    if (event.type === 'job.completed') {
+      const resultData = normalizeRunResultData(event);
+      setBestScore(resultData.score);
+      updateExecutionMessage(execId, 'success', 'Backend Run completed.');
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now().toString() + '-result',
+          type: 'result',
+          content: 'RUN Execution Completed',
+          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+          resultData
+        }
+      ]);
+      closeRunStream(event.job_id);
+      setHeaderStatus('STABLE');
+      setExecutingSessionId(null);
+      return;
+    }
+
+    if (event.type === 'job.failed') {
+      const error = event.error || event.execution?.error || 'Backend Run failed.';
+      updateExecutionMessage(execId, 'error', error);
+      appendSystemMessage(`Backend Run failed: ${error}`);
+      closeRunStream(event.job_id);
+      setHeaderStatus('STABLE');
+      setExecutingSessionId(null);
+    }
+  };
+
+  const closeRunStream = (jobId: string) => {
+    const source = runStreamsRef.current[jobId];
+    if (source) {
+      source.close();
+      delete runStreamsRef.current[jobId];
+    }
+  };
+
+  const submitBackendCheckpointReply = async (message: Message, reply: string) => {
+    if (!message.jobId || !message.checkpointId) return;
+    setMessages(prev => prev.map(item => {
+      if (item.id !== message.id) return item;
+      return {
+        ...item,
+        status: 'resolved' as const,
+        userReply: reply,
+        resolvedText: `Resolved: ${reply}`
+      };
+    }));
+    setReplyingTo(null);
+    setInput('');
+    setHeaderStatus('PROCESSING');
+    try {
+      await answerCheckpoint(message.jobId, message.checkpointId, {
+        decision: 'answer',
+        answer: reply,
+        approved: /^(allow|approve|yes|y|ok|okay|好|可以|是)$/i.test(reply.trim())
+      });
+    } catch (error: any) {
+      appendSystemMessage(`Failed to answer backend checkpoint: ${String(error?.message || error)}`);
+      setHeaderStatus('STABLE');
+      setExecutingSessionId(null);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cmd = input.trim();
@@ -1091,25 +1324,25 @@ log_step("Final audit package saved")`;
     }
 
     const lowerCmd = cmd.toLowerCase();
+    const parsedCommand = parseUserCommand(cmd);
     
     // Handle mode change if not replying to clarification
     let detectedMode = mode;
     
     if (!replyingTo) {
-      if (/\b(run|pilot|submit)\b/.test(lowerCmd)) {
-        const match = lowerCmd.match(/\b(run|pilot|submit)\b/)?.[0];
-        if (match) {
-          detectedMode = match.toUpperCase();
-          if (detectedMode !== mode) {
-            setMode(detectedMode);
-          }
-        }
+      detectedMode = parsedCommand.mode;
+      if (detectedMode !== mode) {
+        setMode(detectedMode);
       }
     }
 
     if (replyingTo) {
       // Resolve a clarification
       const clarifiedMsg = messages.find(m => m.id === replyingTo);
+      if (clarifiedMsg?.jobId && clarifiedMsg?.checkpointId) {
+        submitBackendCheckpointReply(clarifiedMsg, cmd);
+        return;
+      }
 
       // Check if this is a follow-up question (追问)
       const isFollowUpQuestion = (text: string) => {
@@ -1604,6 +1837,13 @@ log_step("Final audit package saved")`;
       setActiveTool(null);
     }
 
+    if (detectedMode === 'RUN') {
+      setMessages(nextMessages);
+      setInput('');
+      startBackendRun(cmd, activeSession?.id);
+      return;
+    }
+
     if (detectedMode === 'SUBMIT') {
       const pendingPipeMsg = messages.find(m => m.type === 'pipeline_candidate' && m.pipelineData?.status === 'pending');
       
@@ -1664,42 +1904,23 @@ log_step("Final audit package saved")`;
         setHeaderStatus('STABLE');
         setExecutingSessionId(null);
       }
-    } else if (detectedMode === 'PILOT' || detectedMode === 'RUN') {
+    } else if (detectedMode === 'PILOT') {
       setTimeout(() => {
         setHeaderStatus('PENDING');
-        if (detectedMode === 'PILOT') {
-          // PILOT mode: first ask for attempts
-          setMessages(prev => [
-            ...prev,
-            {
-              id: (Date.now() + 2).toString(),
-              type: 'clarification',
-              content: '',
-              question: 'PILOT 模式已开启，你希望执行几轮 attempt？（例如：3）',
-              status: 'pending',
-              index: 1,
-              total: 1,
-              timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
-            }
-          ]);
-        } else {
-          // RUN mode: directly ask for dataset selection
-          const datasets = ['posttrain_dialog_safety_v3', 'instruction_tuning_value_pack', 'diverse_instruction_pickset', 'wind_tunnel_trajectory_archive', 'agent_trace_skill_mining_pool'];
-          setMessages(prev => [
-            ...prev,
-            {
-              id: (Date.now() + 2).toString(),
-              type: 'clarification',
-              content: '',
-              question: `请选择要运行的数据集（可多选，用逗号分隔）：\nsuggestion: ${datasets.slice(0, 3).join(', ')}\n输入 "default" 使用推荐数据集`,
-              status: 'pending',
-              suggestions: datasets,
-              index: 1,
-              total: 1,
-              timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
-            }
-          ]);
-        }
+        // PILOT mode stays on the existing mock path for this slice.
+        setMessages(prev => [
+          ...prev,
+          {
+            id: (Date.now() + 2).toString(),
+            type: 'clarification',
+            content: '',
+            question: 'PILOT 模式已开启，你希望执行几轮 attempt？（例如：3）',
+            status: 'pending',
+            index: 1,
+            total: 1,
+            timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
+          }
+        ]);
       }, 600);
     } else if (matchedTool) {
       // Simulate adding a clarification card after 1 second to feel like processing
@@ -2510,4 +2731,72 @@ log_step("Final audit package saved")`;
       />
     </div>
   );
+}
+
+function checkpointSuggestions(payload: any): string[] {
+  const suggestions: string[] = [];
+  const defaults = payload?.suggested_defaults || {};
+  Object.values(defaults).forEach((value: any) => {
+    if (Array.isArray(value)) {
+      suggestions.push(...value.map(item => String(item)));
+    } else if (value !== undefined && value !== null && value !== '') {
+      suggestions.push(String(value));
+    }
+  });
+  return Array.from(new Set(suggestions)).slice(0, 8);
+}
+
+function extractPipelineTools(pipeline: string): string[] {
+  const tools = Array.from(pipeline.matchAll(/run_tool\(\s*["']([^"']+)["']/g))
+    .map(match => match[1]);
+  if (tools.length > 0) {
+    return Array.from(new Set(tools));
+  }
+  if (pipeline.includes('load_dataset')) {
+    return ['DataElf Pipeline'];
+  }
+  return ['Backend Run'];
+}
+
+function formatBackendLog(log: any): string {
+  if (!log || typeof log !== 'object') {
+    return String(log || '');
+  }
+  const timestamp = log.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false });
+  const level = log.level || 'INFO';
+  const step = log.step ? ` ${log.step}` : '';
+  return `[${timestamp}] [${level}]${step} ${log.message || ''}`.trim();
+}
+
+function normalizeRunResultData(event: any): {
+  score: number;
+  flaggedSamples: number;
+  approvedAssets: number;
+  allFailed?: boolean;
+} {
+  const result = event?.result || event?.execution?.result || {};
+  const metadata = event?.execution?.metadata || {};
+  const securityScore = Number(
+    result.security_score ??
+    result.score ??
+    metadata.security_score ??
+    100
+  );
+  const flaggedSamples = Number(
+    result.flagged_samples ??
+    result.flagged_count ??
+    result.flaggedSamples ??
+    metadata.flagged_samples ??
+    0
+  );
+  const approvedAssets = Array.isArray(result.approved_assets)
+    ? result.approved_assets.length
+    : Number(result.approved_assets ?? result.approvedAssets ?? 0);
+
+  return {
+    score: Number.isFinite(securityScore) ? securityScore : 100,
+    flaggedSamples: Number.isFinite(flaggedSamples) ? flaggedSamples : 0,
+    approvedAssets: Number.isFinite(approvedAssets) ? approvedAssets : 0,
+    allFailed: false
+  };
 }

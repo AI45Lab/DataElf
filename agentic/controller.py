@@ -63,6 +63,7 @@ class RunCoordinator:
         max_rounds: int = 5,
         job_id: str | None = None,
         event_handler: Callable[[dict[str, Any]], None] | None = None,
+        checkpoint_handler: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         if self.llm_provider is None or not ask_user:
             return {
@@ -115,6 +116,45 @@ class RunCoordinator:
             _llm_meta: dict[str, Any],
             _current_task: str,
         ) -> dict[str, Any]:
+            if checkpoint_handler is not None:
+                web_payload = {
+                    "job_id": job_id,
+                    "checkpoint_type": "clarification",
+                    "payload": checkpoint_payload,
+                }
+                if job_id is not None:
+                    self.job_manager.update_checkpoint(
+                        job_id,
+                        checkpoint_type="clarification",
+                        checkpoint_state="pending",
+                        checkpoint_payload=checkpoint_payload,
+                        status=JobStatus.PAUSED,
+                    )
+                self._emit(event_handler, {
+                    "type": "checkpoint_paused",
+                    "mode": "run",
+                    "job_id": job_id,
+                    "checkpoint_type": "clarification",
+                    "payload": checkpoint_payload,
+                })
+                response = checkpoint_handler(web_payload)
+                if job_id is not None:
+                    self.job_manager.update_checkpoint(
+                        job_id,
+                        checkpoint_type="clarification",
+                        checkpoint_state="resolved",
+                        checkpoint_payload=checkpoint_payload,
+                        status=JobStatus.RUNNING,
+                    )
+                self._emit(event_handler, {
+                    "type": "checkpoint_resolved",
+                    "mode": "run",
+                    "job_id": job_id,
+                    "checkpoint_type": "clarification",
+                    "response": response,
+                })
+                return response
+
             click.echo(f"Clarification turn {turn}/{max_rounds}")
             click.echo(checkpoint_payload["prompt"])
             click.echo("> ", nl=False)
@@ -150,8 +190,12 @@ class RunCoordinator:
         ask_user: bool,
         verbose: bool,
         event_handler: Callable[[dict[str, Any]], None] | None = None,
+        checkpoint_handler: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+        job_id: str | None = None,
     ) -> dict[str, Any]:
-        job = self.job_manager.create_job(task, mode="run")
+        job = self.job_manager.get_job(job_id) if job_id else None
+        if job is None:
+            job = self.job_manager.create_job(task, mode="run")
 
         # Fast-fail: check if any tool mentioned in the task is not registered.
         # Do this before any LLM call to avoid wasting API quota and give a clear error.
@@ -197,6 +241,7 @@ class RunCoordinator:
             ask_user=ask_user,
             job_id=job.job_id,
             event_handler=event_handler,
+            checkpoint_handler=checkpoint_handler,
         )
         self._emit(event_handler, {
             "type": "stage_completed",
@@ -269,6 +314,7 @@ class RunCoordinator:
             pipeline=pipeline,
             ask_user=ask_user,
             event_handler=event_handler,
+            checkpoint_handler=checkpoint_handler,
         )
         if write_approval.get("decision") == "answer" and write_approval.get("answer"):
             revised = _apply_revised_write_targets_to_pipeline(
@@ -375,6 +421,7 @@ class RunCoordinator:
         pipeline: str,
         ask_user: bool,
         event_handler: Callable[[dict[str, Any]], None] | None = None,
+        checkpoint_handler: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         paths = _extract_external_write_targets(pipeline)
         if not paths:
@@ -395,6 +442,57 @@ class RunCoordinator:
                 "decision": "defer",
                 "paths": paths,
                 "reason": "External write requires interactive approval before execution.",
+            }
+
+        if checkpoint_handler is not None:
+            self.job_manager.update_checkpoint(
+                job_id,
+                checkpoint_type="write_approval",
+                checkpoint_state="pending",
+                checkpoint_payload=payload,
+                status=JobStatus.PAUSED,
+            )
+            response = checkpoint_handler({
+                "job_id": job_id,
+                "checkpoint_type": "write_approval",
+                "payload": payload,
+            })
+            self.job_manager.update_checkpoint(
+                job_id,
+                checkpoint_type="write_approval",
+                checkpoint_state="resolved",
+                checkpoint_payload=payload,
+                status=JobStatus.RUNNING,
+            )
+            raw_answer = str(response.get("answer", "")).strip()
+            decision = str(response.get("decision", "")).strip().lower()
+            approved = bool(response.get("approved", False))
+            if approved or decision in {"allow", "approve", "yes", "y"}:
+                normalized_decision = "allow"
+            elif decision == "answer" and raw_answer:
+                normalized_decision = "answer"
+            else:
+                normalized_decision = "deny"
+            normalized_response = {
+                "decision": normalized_decision,
+                "paths": paths,
+                "answer": raw_answer,
+            }
+            self._emit(event_handler, {
+                "type": "checkpoint_resolved",
+                "mode": "run",
+                "job_id": job_id,
+                "checkpoint_type": "write_approval",
+                "response": normalized_response,
+            })
+            if normalized_decision == "allow":
+                return {"decision": "allow", "paths": paths}
+            if normalized_decision == "answer":
+                return {"decision": "answer", "paths": paths, "answer": raw_answer}
+            return {
+                "decision": "deny",
+                "paths": paths,
+                "reason": "User denied external write approval.",
             }
 
         import click
