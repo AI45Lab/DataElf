@@ -21,7 +21,6 @@ def validate_selected_checkers(
     checker_configs: list[CheckerConfig],
     tool_defaults: dict[str, Any],
     runtime_policy: RuntimePolicy,
-    explicit_checker_names: bool,
     context_config: dict[str, Any],
 ) -> list[PreflightIssue]:
     issues: list[PreflightIssue] = []
@@ -38,7 +37,6 @@ def validate_selected_checkers(
             checker_config=checker_config,
             tool_defaults=tool_defaults,
             runtime_policy=runtime_policy,
-            explicit_checker_names=explicit_checker_names,
         ))
     return issues
 
@@ -122,12 +120,12 @@ def validate_checker_resource_tier_availability(
     checker_config: CheckerConfig,
     tool_defaults: dict[str, Any],
     runtime_policy: RuntimePolicy,
-    explicit_checker_names: bool,
 ) -> list[PreflightIssue]:
     # TODO: (resource_tier) Intern-owned implementation. Keep this flexible:
-    # define checker min_tier metadata, filter auto-selected heavy checkers
-    # before execution, and fail explicit heavy-checker requests with a clear
-    # message when deployment.resource_tier is too low.
+    # define checker min_tier metadata and default checker pools for
+    # light/standard/full. Keep provenance simple for now: this layer validates
+    # the final selected checkers rather than tracking whether they came from
+    # user text, generated DSL, or config defaults.
     return []
 
 
