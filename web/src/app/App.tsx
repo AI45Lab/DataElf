@@ -5,7 +5,7 @@ import { LeftSidebar } from './components/LeftSidebar';
 import { RightSidebar } from './components/RightSidebar';
 import { Footer } from './components/Footer';
 import { parseUserCommand } from './api/commandParser.js';
-import { answerCheckpoint, createRun, fetchJob, subscribeRunEvents } from './api/dataelfApi.js';
+import { answerCheckpoint, createRun, extractCheckpointSuggestions, fetchJob, subscribeRunEvents } from './api/dataelfApi.js';
 
 interface ExecutionStep {
   id: string;
@@ -2796,16 +2796,7 @@ log_step("Final audit package saved")`;
 }
 
 function checkpointSuggestions(payload: any): string[] {
-  const suggestions: string[] = [];
-  const defaults = payload?.suggested_defaults || {};
-  Object.values(defaults).forEach((value: any) => {
-    if (Array.isArray(value)) {
-      suggestions.push(...value.map(item => String(item)));
-    } else if (value !== undefined && value !== null && value !== '') {
-      suggestions.push(String(value));
-    }
-  });
-  return Array.from(new Set(suggestions)).slice(0, 8);
+  return extractCheckpointSuggestions(payload);
 }
 
 function extractPipelineTools(pipeline: string): string[] {

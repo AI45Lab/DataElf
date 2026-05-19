@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { fetchJob, getDataElfApiBaseUrl } from './dataelfApi.js';
+import { extractCheckpointSuggestions, fetchJob, getDataElfApiBaseUrl } from './dataelfApi.js';
 
 test('defaults DataElf API base URL to forwarded backend port', () => {
   assert.equal(getDataElfApiBaseUrl(), 'http://127.0.0.1:8001');
@@ -26,4 +26,13 @@ test('fetches job state from the backend job endpoint', async () => {
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('extracts checkpoint suggestions from payload options before defaults', () => {
+  const suggestions = extractCheckpointSuggestions({
+    options: ['security_audit_samples', 'companies'],
+    suggested_defaults: { dataset_name: 'security_audit_samples' },
+  });
+
+  assert.deepEqual(suggestions, ['security_audit_samples', 'companies']);
 });

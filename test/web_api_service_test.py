@@ -6,6 +6,7 @@ import unittest
 from runtime import JobManager
 from web_api.events import JobEventBus
 from web_api.service import RunSubmission, RunWebService
+from web_api.checkpoints import WebCheckpointBroker
 
 
 @dataclass
@@ -34,6 +35,21 @@ class FakeCoordinator:
             "clarification": {"status": "not_requested"},
             "capability_gap": {},
         }
+
+
+class AutoAnswerCheckpointBroker(WebCheckpointBroker):
+    def __init__(self, answer):
+        super().__init__()
+        self.answer = answer
+
+    def create_checkpoint(self, **kwargs):
+        checkpoint = super().create_checkpoint(**kwargs)
+        self.answer_checkpoint(
+            job_id=checkpoint.job_id,
+            checkpoint_id=checkpoint.checkpoint_id,
+            answer=self.answer,
+        )
+        return checkpoint
 
 
 class WebApiServiceTest(unittest.TestCase):
@@ -89,6 +105,46 @@ class WebApiServiceTest(unittest.TestCase):
             self.assertEqual(response.mode, "pilot")
             self.assertEqual(response.status, "unsupported")
             self.assertEqual(response.task, "improve this")
+
+    def test_run_service_requests_dataset_when_task_has_no_dataset(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            job_manager = JobManager(jobs_dir=Path(tmp_dir) / ".jobs")
+            event_bus = JobEventBus()
+            coordinator = FakeCoordinator()
+            service = RunWebService(
+                environment=FakeEnvironment(
+                    job_manager=job_manager,
+                    dataset_schemas={"security_audit_samples": ["text"]},
+                    registry=FakeRegistry(),
+                ),
+                event_bus=event_bus,
+                checkpoint_broker=AutoAnswerCheckpointBroker(
+                    {"decision": "answer", "answer": "security_audit_samples"}
+                ),
+                coordinator_factory=lambda _environment, _broker: coordinator,
+                run_in_background=False,
+            )
+
+            submitted = service.submit_run(RunSubmission(command="run security_audit"))
+
+            self.assertEqual(submitted.status, "completed")
+            self.assertIn(
+                "Use dataset security_audit_samples as dataset_name.",
+                coordinator.calls[0]["task"],
+            )
+            events = event_bus.replay(submitted.job_id)
+            checkpoint_events = [
+                event for event in events if event["type"] == "checkpoint.created"
+            ]
+            self.assertEqual(len(checkpoint_events), 1)
+            self.assertEqual(
+                checkpoint_events[0]["checkpoint_type"],
+                "dataset_selection",
+            )
+            self.assertEqual(
+                checkpoint_events[0]["payload"]["options"],
+                ["security_audit_samples"],
+            )
 
 
 if __name__ == "__main__":

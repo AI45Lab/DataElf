@@ -68,6 +68,25 @@ export function getDataElfApiBaseUrl() {
   return import.meta.env?.VITE_DATAELF_API_BASE_URL || DEFAULT_API_BASE_URL;
 }
 
+export function extractCheckpointSuggestions(payload) {
+  const suggestions = [];
+  if (Array.isArray(payload?.options)) {
+    suggestions.push(...payload.options.map((item) => String(item)));
+  }
+  if (Array.isArray(payload?.datasets)) {
+    suggestions.push(...payload.datasets.map((item) => String(item)));
+  }
+  const defaults = payload?.suggested_defaults || {};
+  Object.values(defaults).forEach((value) => {
+    if (Array.isArray(value)) {
+      suggestions.push(...value.map((item) => String(item)));
+    } else if (value !== undefined && value !== null && value !== '') {
+      suggestions.push(String(value));
+    }
+  });
+  return Array.from(new Set(suggestions)).slice(0, 8);
+}
+
 function apiBaseUrl() {
   return getDataElfApiBaseUrl();
 }

@@ -10,6 +10,12 @@ from runtime import JobManager, JobStatus
 from .checkpoints import WebCheckpointBroker
 from .command_parser import parse_user_command
 from .events import JobEventBus
+from .run_preflight import (
+    append_dataset_to_task,
+    build_dataset_selection_payload,
+    needs_dataset_selection,
+    resolve_dataset_answer,
+)
 
 
 @dataclass(frozen=True)
@@ -135,11 +141,13 @@ class RunWebService:
         try:
             job_manager.update_status(job_id, JobStatus.RUNNING)
             self.event_bus.publish(job_id, {"type": "job.running", "status": "running"})
+            dataset_schemas = _env_get(self.environment, "dataset_schemas", {})
+            task = self._resolve_dataset_if_needed(job_id, task, dataset_schemas)
             coordinator = self.coordinator_factory(self.environment, self.checkpoint_broker)
             result = coordinator.execute(
                 job_id=job_id,
                 task=task,
-                dataset_schemas=_env_get(self.environment, "dataset_schemas", {}),
+                dataset_schemas=dataset_schemas,
                 ask_user=True,
                 verbose=False,
                 event_handler=lambda event: self._publish_backend_event(job_id, event),
@@ -191,6 +199,25 @@ class RunWebService:
                 },
             )
             return {"job_id": job_id, "status": "failed", "execution": {"error": error}}
+
+    def _resolve_dataset_if_needed(
+        self,
+        job_id: str,
+        task: str,
+        dataset_schemas: dict[str, list[str]],
+    ) -> str:
+        if not needs_dataset_selection(task, dataset_schemas):
+            return task
+
+        response = self._wait_for_checkpoint_answer(
+            job_id,
+            build_dataset_selection_payload(dataset_schemas),
+        )
+        dataset_name = resolve_dataset_answer(
+            str(response.get("answer", "")),
+            dataset_schemas,
+        )
+        return append_dataset_to_task(task, dataset_name)
 
     def _wait_for_checkpoint_answer(self, job_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         checkpoint_type = str(payload.get("checkpoint_type", "clarification"))
