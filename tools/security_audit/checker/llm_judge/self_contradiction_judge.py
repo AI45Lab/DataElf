@@ -109,7 +109,7 @@ class SelfContradictionLLMJudge(LLMJudgeChecker):
         response = extract_response(sample)
 
         if not response:
-            self._log.warning("SelfContradictionLLMJudge: missing actual output, skipping.")
+            self._log.warning(f"SelfContradictionLLMJudge: missing actual output in sample {sample.id}, skipping.")
             return CheckResult(**base, success=False, details={"error": "missing response"})
 
         # Step 1: extract claims from the response

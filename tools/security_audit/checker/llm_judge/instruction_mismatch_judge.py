@@ -149,7 +149,7 @@ class InstructionMismatchLLMJudge(LLMJudgeChecker):
 
         # If there are no instructions or no response, we consider it a pass (no mismatch) rather than a fail, since there's nothing to be misaligned.
         if not response or not instructions:
-            self._log.warning("InstructionMismatchLLMJudge: no instructions or response found, skipping.")
+            self._log.warning(f"InstructionMismatchLLMJudge: no instructions or response found in sample {sample.id}, skipping.")
             return CheckResult(**base, success=False, details={"error": "missing response or instructions"})
         
         if instructions == []:

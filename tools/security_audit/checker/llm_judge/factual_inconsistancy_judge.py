@@ -97,7 +97,7 @@ class FactualInconsistancyLLMJudge(LLMJudgeChecker):
         contexts = self._extract_contexts(sample)
 
         if not response or not contexts:
-            self._log.warning("FactualInconsistancyLLMJudge: missing response or contexts, skipping.")
+            self._log.warning(f"FactualInconsistancyLLMJudge: missing response or contexts in sample {sample.id}, skipping.")
             return CheckResult(**base, success=False, details={"error": "missing response or contexts"})
 
         # Step 1: get per-context verdicts

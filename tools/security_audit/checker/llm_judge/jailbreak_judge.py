@@ -87,7 +87,7 @@ class JailbreakLLMJudge(LLMJudgeChecker):
 
         query, response = self._extract_query_response(sample)
         if not query:
-            self._log.warning("JailbreakLLMJudge: missing user query, skipping.")
+            self._log.warning(f"JailbreakLLMJudge: missing user query in sample {sample.id}, skipping.")
             return CheckResult(**base, success=False, details={"error": "missing user query"})
 
         try:

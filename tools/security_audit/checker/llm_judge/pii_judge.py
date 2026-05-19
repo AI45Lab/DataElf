@@ -74,9 +74,8 @@ class PIILLMJudge(LLMJudgeChecker):
 
         content = format_content(sample)
         if not content:
-            self._log.warning("PIILLMJudge: no content to analyze, skipping.")
-            return CheckResult(**base, success=False,
-                               details={"error": "no content to analyze"})
+            self._log.warning(f"PIILLMJudge: no content to analyze in sample {sample.id}, skipping.")
+            return CheckResult(**base, success=False, details={"error": "no content to analyze"})
 
         # Step 1: extract statements
         try:

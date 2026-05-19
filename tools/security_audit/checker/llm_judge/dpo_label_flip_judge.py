@@ -213,7 +213,7 @@ class DPOLabelFlipLLMJudge(LLMJudgeChecker):
         rejected = sample.rejected_response.content if sample.rejected_response else ""
 
         if not chosen or not rejected:
-            self._log.warning("DPOLabelFlipLLMJudge: missing chosen or rejected response, skipping.")
+            self._log.warning(f"DPOLabelFlipLLMJudge: missing chosen or rejected response in sample {sample.id}, skipping.")
             return CheckResult(**base, success=False,
                                details={"error": "missing chosen_response or rejected_response"})
 

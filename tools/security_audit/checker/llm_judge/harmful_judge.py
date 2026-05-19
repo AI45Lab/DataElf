@@ -87,7 +87,7 @@ class HarmfulContentLLMJudge(LLMJudgeChecker):
 
         content = format_content(sample)
         if not content:
-            self._log.warning("HarmfulContentLLMJudge: no content to analyze, skipping.")
+            self._log.warning(f"HarmfulContentLLMJudge: no content to analyze in sample {sample.id}, skipping.")
             return CheckResult(**base, success=False, details={"error": "no content to analyze"})
 
         try:

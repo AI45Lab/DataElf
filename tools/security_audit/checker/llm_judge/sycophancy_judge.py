@@ -198,8 +198,8 @@ class SycophancyLLMJudge(LLMJudgeChecker):
 
         question, response = self._extract_query_response(sample)
         if not question:
-            return CheckResult(**base, success=False,
-                               details={"error": "missing user query"})
+            self._log.warning(f"SycophancyLLMJudge: missing user query in sample {sample.id}, skipping.")
+            return CheckResult(**base, success=False, details={"error": "missing user query"})
 
         scores = self._evaluate_turn(question, response, self.llm, self.llm_model)
 

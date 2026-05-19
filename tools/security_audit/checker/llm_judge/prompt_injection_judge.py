@@ -89,8 +89,7 @@ class PromptInjectionLLMJudge(LLMJudgeChecker):
 
         if not self.llm:
             self._log.warning("PromptInjectionLLMJudge: no LLM client available, skipping.")
-            return CheckResult(**base, success=False,
-                               details={"error": "llm not configured"})
+            return CheckResult(**base, success=False, details={"error": "llm not configured"})
 
         user_texts = []
         for m in sample.messages:
@@ -99,7 +98,7 @@ class PromptInjectionLLMJudge(LLMJudgeChecker):
 
         user_text = "\n".join(user_texts)
         if not user_text:
-            self._log.warning("PromptInjectionLLMJudge: missing user text, skipping.")
+            self._log.warning(f"PromptInjectionLLMJudge: missing user text in sample {sample.id}, skipping.")
             return CheckResult(**base, success=False, details={"error": "missing user text"})
 
         try:
@@ -113,7 +112,7 @@ class PromptInjectionLLMJudge(LLMJudgeChecker):
                 return CheckResult(**base, success=False, details={"error": str(e)})
             # The full prompt (with examples) triggered a content filter — retry with a minimal prompt
             # to determine whether the filter was triggered by the examples or the user input itself.
-            self._log.info("PromptInjectionLLMJudge: content filter hit on full prompt, retrying with minimal prompt.")
+            self._log.info(f"PromptInjectionLLMJudge: content filter hit on full prompt in sample {sample.id}, retrying with minimal prompt.")
             try:
                 fallback = _DETECT_PI_PROMPT_MINIMAL.format(user_input=user_text)
                 raw = self.llm.generate(model=self.llm_model, prompt=fallback)
@@ -124,7 +123,7 @@ class PromptInjectionLLMJudge(LLMJudgeChecker):
                     # Both prompts triggered the filter: the user input itself is the cause.
                     # This indicates harmful/unsafe content, but NOT necessarily prompt injection.
                     # Mark as inconclusive rather than assuming injection.
-                    self._log.info("PromptInjectionLLMJudge: user input triggers content filter")
+                    self._log.info(f"PromptInjectionLLMJudge: user input in sample {sample.id} triggers content filter")
                     return CheckResult(**base, success=False, details={"error": str(e2), "content_filter_triggered": True})
                 self._log.warning(f"PromptInjectionLLMJudge: fallback also failed on sample {sample.id}: {e2}")
                 return CheckResult(**base, success=False, details={"error": str(e2)})

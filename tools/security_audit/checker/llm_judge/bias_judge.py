@@ -91,7 +91,7 @@ class BiasLLMJudge(LLMJudgeChecker):
 
         content = format_content(sample)
         if not content:
-            self._log.warning("BiasLLMJudge: no content to analyze, skipping.")
+            self._log.warning(f"BiasLLMJudge: no content to analyze in sample {sample.id}, skipping.")
             return CheckResult(**base, success=False, details={"skipped": "no content to analyze"})
 
         # Step 1: extract opinions from all text fields
