@@ -6,7 +6,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "test": "node src/app/api/commandParser.test.mjs"
+    "test": "node --test src/app/api/*.test.mjs"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",

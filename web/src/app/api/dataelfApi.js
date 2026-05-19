@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000';
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8001';
 
 export async function createRun(command, sessionId) {
   const response = await fetch(`${apiBaseUrl()}/api/v1/runs`, {
@@ -54,6 +54,10 @@ function dispatchEventPayload(message, handlers) {
   }
 }
 
-function apiBaseUrl() {
+export function getDataElfApiBaseUrl() {
   return import.meta.env?.VITE_DATAELF_API_BASE_URL || DEFAULT_API_BASE_URL;
+}
+
+function apiBaseUrl() {
+  return getDataElfApiBaseUrl();
 }
