@@ -16,7 +16,7 @@ from tools.base_tool import BaseTool, ToolContext
 from .config import AuditConfig, CheckerConfig, ExecutorConfig, LLMConfig
 from .executor import Executor
 from .loader import load_samples
-from .policy import validate_selected_checkers
+from .policy import resolve_default_checkers_for_resource_tier, validate_selected_checkers
 
 
 _DEFAULT_RISK_WEIGHTS = {
@@ -44,29 +44,53 @@ def _get_tool_defaults(context_config: dict) -> dict:
     return security_defaults if isinstance(security_defaults, dict) else {}
 
 
-def _resolve_checker_configs(kwargs: dict, tool_defaults: dict) -> list[CheckerConfig]:
+def _load_default_checker_configs(tool_defaults: dict) -> list[CheckerConfig]:
+    raw = tool_defaults.get("checkers")
+    if not isinstance(raw, list):
+        return []
+
+    configs: list[CheckerConfig] = []
+    for item in raw:
+        if isinstance(item, str):
+            configs.append(CheckerConfig(name=item, selection_source="config"))
+        elif isinstance(item, dict) and "name" in item:
+            configs.append(CheckerConfig(**{**item, "selection_source": "config"}))
+    return configs
+
+
+def _resolve_checker_configs(kwargs: dict, tool_defaults: dict, resource_tier: str) -> list[CheckerConfig]:
     """Resolve CheckerConfig list.
 
     Priority:
-      1. ``checkers`` list in tool_defaults (from default.yaml).
-      2. Built-in fallback: [PIIRule].
+      1. Explicit ``checker_names`` from tool call. These force-enable the
+         named checkers while inheriting same-name params from default.yaml.
+      2. Enabled ``checkers`` list in tool_defaults (from default.yaml).
+      3. Resource-tier default checkers.
     """
+    default_configs = _load_default_checker_configs(tool_defaults)
+    defaults_by_name = {config.name: config for config in default_configs}
+
     names = kwargs.get("checker_names")
-    if names:  # non-empty list → explicit override
-        return [CheckerConfig(name=n) for n in names]
-
-    raw = tool_defaults.get("checkers")
-    if raw and isinstance(raw, list):
+    if names:
         configs = []
-        for item in raw:
-            if isinstance(item, str):
-                configs.append(CheckerConfig(name=item))
-            elif isinstance(item, dict) and "name" in item:
-                configs.append(CheckerConfig(**item))
-        if configs:
-            return configs
+        for name in names:
+            default_config = defaults_by_name.get(name)
+            params = dict(default_config.params) if default_config else {}
+            configs.append(CheckerConfig(
+                name=name,
+                enabled=True,
+                params=params,
+                selection_source="explicit",
+            ))
+        return configs
 
-    return [CheckerConfig(name="PIIRule")]
+    if default_configs:
+        return default_configs
+
+    return [
+        CheckerConfig(name=name, selection_source="auto")
+        for name in resolve_default_checkers_for_resource_tier(resource_tier)
+    ]
 
 
 def _calc_security_score(risk_distribution: dict, risk_weights: dict) -> float:
@@ -137,30 +161,33 @@ class SecurityAuditTool(BaseTool):
         max_workers: int = kwargs.get("max_workers", 4)
 
         tool_defaults = _get_tool_defaults(context.config)
-        checker_configs = _resolve_checker_configs(kwargs, tool_defaults)
-        checker_names = [c.name for c in checker_configs if c.enabled]
         runtime_policy = build_runtime_policy(context.config)
-
+        checker_configs = _resolve_checker_configs(
+            kwargs,
+            tool_defaults,
+            runtime_policy.resource_tier,
+        )
         handle_preflight_issues(
             validate_selected_checkers(
                 checker_configs=checker_configs,
-                tool_defaults=tool_defaults,
                 runtime_policy=runtime_policy,
                 context_config=context.config,
             ),
             strict=runtime_policy.strict_preflight,
             logger=context.logger,
         )
+        checker_names = [c.name for c in checker_configs if c.enabled]
 
         if kwargs.get("checker_names"):
             context.log(f"SecurityAuditTool: using user-specified checkers: {checker_names}")
-        if tool_defaults.get("checkers"):
+        elif tool_defaults.get("checkers"):
             context.log(
                 f"SecurityAuditTool: using checkers from default.yaml: {checker_names}. "
             )
         else:
             context.log(
-                f"SecurityAuditTool: no checkers configured, using built-in default: {checker_names}"
+                f"SecurityAuditTool: no checkers configured, using "
+                f"{runtime_policy.resource_tier} resource-tier defaults: {checker_names}"
             )
 
         context.log(f"SecurityAuditTool: {len(data)} records, checkers={checker_names}")

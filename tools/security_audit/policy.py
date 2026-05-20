@@ -8,18 +8,64 @@ from config import PreflightIssue, RuntimePolicy
 from .config import CheckerConfig
 
 
-_MODEL_PATH_KEYS = {
-    "HarmfulContentClassifier": "harmful_content_classifier",
-    "JailbreakClassifier": "jailbreak_classifier",
-    "PromptInjectionClassifier": "prompt_injection_classifier",
-    "BiasClassifier": "bias_classifier",
+_RULE_BASED_CHECKERS = [
+    "PIIRule",
+    "SecretRule",
+    "ToxicityKeywordRule",
+    "HarmfulKeywordRule",
+    "BiasKeywordRule",
+]
+
+_LLM_JUDGE_CHECKERS = [
+    "HarmfulContentLLMJudge",
+    "BiasLLMJudge",
+    "ToxicityLLMJudge",
+    "PIILLMJudge",
+    "SycophancyLLMJudge",
+    "PromptInjectionLLMJudge",
+    "JailbreakLLMJudge",
+    "FactualInconsistancyLLMJudge",
+    "SelfContradictionLLMJudge",
+    "InstructionMismatchLLMJudge",
+    "DPOLabelFlipLLMJudge",
+]
+
+_STANDARD_MODEL_CHECKERS = [
+    "PIINERDetector",
+]
+
+_HEAVY_MODEL_CHECKERS = [
+    "HarmfulContentClassifier",
+    "ToxicityClassifier",
+    "BiasClassifier",
+    "JailbreakClassifier",
+    "PromptInjectionClassifier",
+    "GraCeFulBackdoorDefender",
+]
+
+_HEAVY_CHECKERS = set(_HEAVY_MODEL_CHECKERS)
+
+_RESOURCE_TIER_ORDER = {"light": 0, "standard": 1, "full": 2}
+
+_CHECKER_MIN_RESOURCE_TIERS = {
+    **{name: "light" for name in _RULE_BASED_CHECKERS},
+    **{name: "standard" for name in _LLM_JUDGE_CHECKERS},
+    **{name: "standard" for name in _STANDARD_MODEL_CHECKERS},
+    **{name: "full" for name in _HEAVY_MODEL_CHECKERS},
 }
+
+_LOCAL_MODEL_PATH_CHECKERS = {
+    "HarmfulContentClassifier",
+    "JailbreakClassifier",
+    "PromptInjectionClassifier",
+    "BiasClassifier",
+}
+
 
 
 def validate_selected_checkers(
     *,
     checker_configs: list[CheckerConfig],
-    tool_defaults: dict[str, Any],
     runtime_policy: RuntimePolicy,
     context_config: dict[str, Any],
 ) -> list[PreflightIssue]:
@@ -27,16 +73,19 @@ def validate_selected_checkers(
     for checker_config in checker_configs:
         if not checker_config.enabled:
             continue
+        resource_issues = validate_checker_resource_tier_availability(
+            checker_config=checker_config,
+            runtime_policy=runtime_policy,
+        )
+        issues.extend(resource_issues)
+        if not checker_config.enabled:
+            continue
+        if any(issue.level == "error" for issue in resource_issues):
+            continue
         issues.extend(validate_checker_network_availability(
             checker_config=checker_config,
-            tool_defaults=tool_defaults,
             runtime_policy=runtime_policy,
             context_config=context_config,
-        ))
-        issues.extend(validate_checker_resource_tier_availability(
-            checker_config=checker_config,
-            tool_defaults=tool_defaults,
-            runtime_policy=runtime_policy,
         ))
     return issues
 
@@ -44,7 +93,6 @@ def validate_selected_checkers(
 def validate_checker_network_availability(
     *,
     checker_config: CheckerConfig,
-    tool_defaults: dict[str, Any],
     runtime_policy: RuntimePolicy,
     context_config: dict[str, Any],
 ) -> list[PreflightIssue]:
@@ -66,9 +114,8 @@ def validate_checker_network_availability(
             ),
         )]
 
-    if name in _MODEL_PATH_KEYS:
-        model_key = _MODEL_PATH_KEYS[name]
-        model_path = _resolve_model_path(checker_config, tool_defaults, model_key)
+    if name in _LOCAL_MODEL_PATH_CHECKERS:
+        model_path = _resolve_model_path(checker_config)
         if not model_path:
             return [PreflightIssue(
                 level="error",
@@ -76,8 +123,8 @@ def validate_checker_network_availability(
                 checker_name=name,
                 message=(
                     "Offline model-based checker requires a local model path. "
-                    f"Set tool_defaults.security_audit.models.{model_key} or pass "
-                    "checker params.model_name_or_path."
+                    "Set checker params.model_name_or_path in "
+                    "tools/security_audit/default.yaml."
                 ),
             )]
         if not _path_exists(model_path):
@@ -118,27 +165,60 @@ def validate_checker_network_availability(
 def validate_checker_resource_tier_availability(
     *,
     checker_config: CheckerConfig,
-    tool_defaults: dict[str, Any],
     runtime_policy: RuntimePolicy,
 ) -> list[PreflightIssue]:
-    # TODO: (resource_tier) Intern-owned implementation. Keep this flexible:
-    # define checker min_tier metadata and default checker pools for
-    # light/standard/full. Keep provenance simple for now: this layer validates
-    # the final selected checkers rather than tracking whether they came from
-    # user text, generated DSL, or config defaults.
-    return []
+
+    name = checker_config.name
+    required_tier = _CHECKER_MIN_RESOURCE_TIERS.get(name)
+    if required_tier is None:
+        return []
+
+    current_tier = runtime_policy.resource_tier
+    current_rank = _RESOURCE_TIER_ORDER.get(current_tier)
+    required_rank = _RESOURCE_TIER_ORDER[required_tier]
+    if current_rank is None or current_rank >= required_rank:
+        return []
+
+    source = getattr(checker_config, "selection_source", "config")
+    if source != "explicit":
+        checker_config.enabled = False
+        return [PreflightIssue(
+            level="warning",
+            code="checker_filtered_by_resource_tier",
+            checker_name=name,
+            message=(
+                f"Checker `{name}` requires deployment.resource_tier >= {required_tier!r}, "
+                f"but current resource_tier is {current_tier!r}; "
+                f"it was disabled from the {source} checker selection."
+            ),
+        )]
+
+    return [PreflightIssue(
+        level="error",
+        code="checker_resource_tier_too_low",
+        checker_name=name,
+        message=(
+            f"Checker `{name}` requires deployment.resource_tier >= {required_tier!r}, "
+            f"but current resource_tier is {current_tier!r}."
+        ),
+    )]
+
 
 
 def resolve_default_checkers_for_resource_tier(resource_tier: str) -> list[str]:
-    # TODO: (resource_tier) Replace this placeholder with light/standard/full
-    # default checker sets and, later, funnel-routing strategy selection.
-    return [
-        "PIIRule",
-        "SecretRule",
-        "ToxicityKeywordRule",
-        "HarmfulKeywordRule",
-        "BiasKeywordRule",
-    ]
+    normalized = (resource_tier or "light").strip().lower()
+    if normalized == "standard":
+        return [
+            *_STANDARD_MODEL_CHECKERS,
+            *_LLM_JUDGE_CHECKERS,
+        ]
+    if normalized == "full":
+        return [
+            *_STANDARD_MODEL_CHECKERS,
+            *_LLM_JUDGE_CHECKERS,
+            *_HEAVY_MODEL_CHECKERS,
+        ]
+    return list(_RULE_BASED_CHECKERS)
 
 
 def _has_local_llm_config(context_config: dict[str, Any]) -> bool:
@@ -150,17 +230,9 @@ def _has_local_llm_config(context_config: dict[str, Any]) -> bool:
     )
 
 
-def _resolve_model_path(
-    checker_config: CheckerConfig,
-    tool_defaults: dict[str, Any],
-    model_key: str,
-) -> str | None:
+def _resolve_model_path(checker_config: CheckerConfig) -> str | None:
     explicit = checker_config.params.get("model_name_or_path")
-    if explicit:
-        return str(explicit)
-    models = tool_defaults.get("models") if isinstance(tool_defaults.get("models"), dict) else {}
-    value = models.get(model_key)
-    return str(value) if value else None
+    return str(explicit) if explicit else None
 
 
 def _path_exists(value: str) -> bool:
