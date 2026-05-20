@@ -37,6 +37,43 @@ class FakeCoordinator:
         }
 
 
+class LogReturningCoordinator:
+    def execute(self, **kwargs):
+        return {
+            "job_id": kwargs["job_id"],
+            "status": "completed",
+            "pipeline": 'log_step("hello")\nsave_result({"ok": True})',
+            "execution": {
+                "success": True,
+                "result": {"ok": True},
+                "artifacts": {"report": "outputs/report.md"},
+                "metadata": {"tool": "fake"},
+                "logs": [
+                    {
+                        "step": "step_1",
+                        "level": "INFO",
+                        "message": "hello",
+                        "timestamp": "t1",
+                        "duration_ms": 0,
+                    }
+                ],
+                "log_ref": ".logs/job_1.json",
+                "log_excerpt": [
+                    {
+                        "step": "step_1",
+                        "level": "INFO",
+                        "message": "hello",
+                        "timestamp": "t1",
+                        "duration_ms": 0,
+                    }
+                ],
+                "error": None,
+            },
+            "clarification": {"status": "not_requested"},
+            "capability_gap": {},
+        }
+
+
 class PipelineBeforeExecutionCoordinator:
     def __init__(self, job_manager):
         self.job_manager = job_manager
@@ -312,6 +349,29 @@ class WebApiServiceTest(unittest.TestCase):
                 },
                 log_messages,
             )
+
+    def test_execution_logs_are_persisted_on_job_for_polling_fallback(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            job_manager = JobManager(jobs_dir=Path(tmp_dir) / ".jobs")
+            service = RunWebService(
+                environment=FakeEnvironment(
+                    job_manager=job_manager,
+                    dataset_schemas={"security_audit_samples": ["text"]},
+                    registry=FakeRegistry(),
+                ),
+                event_bus=JobEventBus(),
+                coordinator_factory=lambda _environment, _broker: LogReturningCoordinator(),
+                run_in_background=False,
+            )
+
+            submitted = service.submit_run(
+                RunSubmission(command="run security_audit on security_audit_samples")
+            )
+
+            job = service.get_job(submitted.job_id)
+            self.assertEqual(job["result"]["logs"][0]["message"], "hello")
+            self.assertEqual(job["result"]["log_ref"], ".logs/job_1.json")
+            self.assertEqual(job["result"]["log_excerpt"][0]["step"], "step_1")
 
 
 if __name__ == "__main__":

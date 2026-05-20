@@ -173,6 +173,8 @@ class RunWebService:
                     llm_metadata=result.get("llm_metadata", {}),
                 )
             execution = result.get("execution", {})
+            if isinstance(execution, dict):
+                self._persist_execution_log_context(job_id, execution)
             for log in execution.get("logs", []) if isinstance(execution, dict) else []:
                 self._publish_runtime_log(job_id, log)
             if result.get("status") == "completed":
@@ -354,6 +356,21 @@ class RunWebService:
             return
         published_keys.add(key)
         self.event_bus.publish(job_id, {"type": "log.appended", "log": log})
+
+    def _persist_execution_log_context(self, job_id: str, execution: dict[str, Any]) -> None:
+        log_context = {
+            key: execution[key]
+            for key in ("logs", "log_ref", "log_excerpt")
+            if execution.get(key)
+        }
+        if not log_context:
+            return
+        job_manager: JobManager = _env_get(self.environment, "job_manager")
+        job = job_manager.get_job(job_id)
+        if job is None:
+            return
+        existing_result = job.result if isinstance(job.result, dict) else {}
+        job_manager.update_result(job_id, {**existing_result, **log_context})
 
 
 def _default_coordinator_factory(environment: Any, _broker: WebCheckpointBroker) -> RunCoordinator:
