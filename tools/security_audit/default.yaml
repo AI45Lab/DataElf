@@ -23,6 +23,22 @@ checkers:
   # - DPOLabelFlipLLMJudge
   # - name: JailbreakLLMJudge
   #   enabled: false
+  - name: JailbreakClassifier
+    enabled: false
+    params:
+      model_name_or_path: /mnt/shared-storage-gpfs2/gpfs2-shared-public/huggingface/zskj-hub/models--allenai--wildguard
+  - name: PromptInjectionClassifier
+    enabled: false
+    params:
+      model_name_or_path: leolee99/PIGuard
+  - name: HarmfulContentClassifier
+    enabled: false
+    params:
+      model_name_or_path: /mnt/shared-storage-gpfs2/gpfs2-shared-public/huggingface/zskj-hub/models-meta-llama-Llama-Guard-3-8B
+  - name: BiasClassifier
+    enabled: false
+    params:
+      model_name_or_path: cirimus/modernbert-large-bias-type-classifier
   - name: GraCeFulBackdoorDefender
     enabled: false
     params:
@@ -48,9 +64,3 @@ risk_weights:
   jailbreak: 10
   sycophancy: 2
 
-# model name/path for model-based checkers (HuggingFace model ID or local path)
-models:
-  jailbreak_classifier: /mnt/shared-storage-gpfs2/gpfs2-shared-public/huggingface/zskj-hub/models--allenai--wildguard
-  prompt_injection_classifier: leolee99/PIGuard
-  harmful_content_classifier: /mnt/shared-storage-gpfs2/gpfs2-shared-public/huggingface/zskj-hub/models-meta-llama-Llama-Guard-3-8B
-  bias_classifier: cirimus/modernbert-large-bias-type-classifier
