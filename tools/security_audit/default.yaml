@@ -23,6 +23,10 @@ checkers:
   # - DPOLabelFlipLLMJudge
   # - name: JailbreakLLMJudge
   #   enabled: false
+  - name: PIINERDetector
+    enabled: false
+    params:
+      language: en
   - name: JailbreakClassifier
     enabled: false
     params:
