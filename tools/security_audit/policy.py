@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,21 @@ _MODEL_PATH_KEYS = {
     "PromptInjectionClassifier": "prompt_injection_classifier",
     "BiasClassifier": "bias_classifier",
 }
+
+_SPACY_MODEL_BY_LANGUAGE = {
+    "en": "en_core_web_lg",
+}
+
+_TOKENIZER_FILES = {
+    "tokenizer.json",
+    "tokenizer.model",
+    "vocab.json",
+    "vocab.txt",
+    "merges.txt",
+    "spiece.model",
+}
+
+_WEIGHT_SUFFIXES = (".safetensors", ".bin")
 
 
 def validate_selected_checkers(
@@ -80,6 +96,16 @@ def validate_checker_network_availability(
                     "checker params.model_name_or_path."
                 ),
             )]
+        if _looks_like_hf_model_id(model_path):
+            return [PreflightIssue(
+                level="error",
+                code="offline_checker_uses_hf_model_id",
+                checker_name=name,
+                message=(
+                    f"Configured model_name_or_path={model_path!r} looks like a HuggingFace model id. "
+                    "Offline mode requires a local model directory."
+                ),
+            )]
         if not _path_exists(model_path):
             return [PreflightIssue(
                 level="error",
@@ -87,6 +113,26 @@ def validate_checker_network_availability(
                 checker_name=name,
                 message=f"Configured local model path does not exist: {model_path!r}.",
             )]
+        issue = _validate_transformers_model_dir(name, model_path)
+        if issue:
+            return [issue]
+
+    if name == "ToxicityClassifier":
+        return [PreflightIssue(
+            level="error",
+            code="offline_checker_not_local_only_ready",
+            checker_name=name,
+            message=(
+                "ToxicityClassifier uses Detoxify, which may fetch weights from package caches "
+                "or remote sources. It is disabled in offline mode until an explicit local "
+                "weights/cache contract is implemented."
+            ),
+        )]
+
+    if name == "PIINERDetector":
+        issue = _validate_pii_ner_offline(checker_config)
+        if issue:
+            return [issue]
 
     if name == "GraCeFulBackdoorDefender":
         victim_config = checker_config.params.get("victim_config") or {}
@@ -108,10 +154,13 @@ def validate_checker_network_availability(
                 checker_name=name,
                 message=f"Configured victim model path does not exist: {victim_path!r}.",
             )]
+        issue = _validate_transformers_model_dir(name, victim_path)
+        if issue:
+            return [issue]
 
     # TODO: (network_mode) Extend offline checks for Detoxify local cache,
-    # Presidio/spaCy model availability, local_files_only propagation, and
-    # checker implementations that may still trigger implicit downloads.
+    # local_files_only propagation, and checker implementations that may still
+    # trigger implicit downloads.
     return []
 
 
@@ -165,6 +214,83 @@ def _resolve_model_path(
 
 def _path_exists(value: str) -> bool:
     return Path(value).expanduser().exists()
+
+
+def _validate_transformers_model_dir(checker_name: str, model_path: str) -> PreflightIssue | None:
+    path = Path(model_path).expanduser()
+    if not path.is_dir():
+        return PreflightIssue(
+            level="error",
+            code="offline_checker_model_path_not_directory",
+            checker_name=checker_name,
+            message=f"Configured model path must be a local directory: {model_path!r}.",
+        )
+    if not (path / "config.json").exists():
+        return PreflightIssue(
+            level="error",
+            code="offline_checker_model_missing_config",
+            checker_name=checker_name,
+            message=f"Local model directory is missing config.json: {model_path!r}.",
+        )
+    if not any((path / filename).exists() for filename in _TOKENIZER_FILES):
+        return PreflightIssue(
+            level="error",
+            code="offline_checker_model_missing_tokenizer",
+            checker_name=checker_name,
+            message=f"Local model directory is missing tokenizer files: {model_path!r}.",
+        )
+    if not any(file.is_file() and file.name.endswith(_WEIGHT_SUFFIXES) for file in path.rglob("*")):
+        return PreflightIssue(
+            level="error",
+            code="offline_checker_model_missing_weights",
+            checker_name=checker_name,
+            message=f"Local model directory is missing .safetensors or .bin weights: {model_path!r}.",
+        )
+    return None
+
+
+def _validate_pii_ner_offline(checker_config: CheckerConfig) -> PreflightIssue | None:
+    if importlib.util.find_spec("spacy") is None:
+        return PreflightIssue(
+            level="error",
+            code="offline_checker_missing_dependency",
+            checker_name=checker_config.name,
+            message="PIINERDetector requires spaCy to be installed in offline mode.",
+        )
+    if importlib.util.find_spec("presidio_analyzer") is None:
+        return PreflightIssue(
+            level="error",
+            code="offline_checker_missing_dependency",
+            checker_name=checker_config.name,
+            message="PIINERDetector requires presidio-analyzer to be installed in offline mode.",
+        )
+    if importlib.util.find_spec("presidio_anonymizer") is None:
+        return PreflightIssue(
+            level="error",
+            code="offline_checker_missing_dependency",
+            checker_name=checker_config.name,
+            message="PIINERDetector requires presidio-anonymizer to be installed in offline mode.",
+        )
+
+    import spacy
+
+    language = str(checker_config.params.get("language", "en"))
+    spacy_model = _SPACY_MODEL_BY_LANGUAGE.get(language, f"{language}_core_web_sm")
+    if not spacy.util.is_package(spacy_model):
+        return PreflightIssue(
+            level="error",
+            code="offline_checker_missing_spacy_model",
+            checker_name=checker_config.name,
+            message=(
+                f"PIINERDetector requires spaCy model {spacy_model!r} to be installed. "
+                "Offline mode will not run spacy.cli.download()."
+            ),
+        )
+    return None
+
+
+def _looks_like_hf_model_id(value: str) -> bool:
+    return "/" in value and not value.startswith(("/", "./", "../", "~"))
 
 
 def _get_section(config: dict[str, Any], name: str) -> Any:

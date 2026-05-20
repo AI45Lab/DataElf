@@ -11,7 +11,7 @@ Pipeline usage:
 import os
 from typing import Any
 
-from config import build_runtime_policy, handle_preflight_issues
+from config import apply_runtime_environment, build_runtime_policy, handle_preflight_issues
 from tools.base_tool import BaseTool, ToolContext
 from .config import AuditConfig, CheckerConfig, ExecutorConfig, LLMConfig
 from .executor import Executor
@@ -53,7 +53,11 @@ def _resolve_checker_configs(kwargs: dict, tool_defaults: dict) -> list[CheckerC
     """
     names = kwargs.get("checker_names")
     if names:  # non-empty list → explicit override
-        return [CheckerConfig(name=n) for n in names]
+        default_params = _checker_params_by_name(tool_defaults)
+        return [
+            CheckerConfig(name=n, params=dict(default_params.get(n, {})))
+            for n in names
+        ]
 
     raw = tool_defaults.get("checkers")
     if raw and isinstance(raw, list):
@@ -67,6 +71,27 @@ def _resolve_checker_configs(kwargs: dict, tool_defaults: dict) -> list[CheckerC
             return configs
 
     return [CheckerConfig(name="PIIRule")]
+
+
+def _checker_params_by_name(tool_defaults: dict) -> dict[str, dict]:
+    raw = tool_defaults.get("checkers")
+    if not isinstance(raw, list):
+        return {}
+    params_by_name: dict[str, dict] = {}
+    for item in raw:
+        if isinstance(item, dict) and item.get("name") and isinstance(item.get("params"), dict):
+            params_by_name[str(item["name"])] = item["params"]
+    return params_by_name
+
+
+def _apply_runtime_policy_to_checker_configs(
+    checker_configs: list[CheckerConfig],
+    runtime_policy: Any,
+) -> None:
+    if runtime_policy.model_policy != "local_only":
+        return
+    for checker_config in checker_configs:
+        checker_config.params["local_files_only"] = True
 
 
 def _calc_security_score(risk_distribution: dict, risk_weights: dict) -> float:
@@ -140,6 +165,8 @@ class SecurityAuditTool(BaseTool):
         checker_configs = _resolve_checker_configs(kwargs, tool_defaults)
         checker_names = [c.name for c in checker_configs if c.enabled]
         runtime_policy = build_runtime_policy(context.config)
+        apply_runtime_environment(runtime_policy)
+        _apply_runtime_policy_to_checker_configs(checker_configs, runtime_policy)
 
         handle_preflight_issues(
             validate_selected_checkers(

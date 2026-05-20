@@ -23,6 +23,7 @@ class PromptInjectionClassifier(ModelBasedChecker):
         threshold: float = 0.5,
         max_length: int = 512,
         device: str = "auto",
+        local_files_only: bool = False,
     ):
         """
         Args:
@@ -30,12 +31,14 @@ class PromptInjectionClassifier(ModelBasedChecker):
             threshold: injection probability score above which input is flagged.
             max_length: max token length passed to the tokenizer (PIGuard supports up to 2048).
             device: "auto", "cuda", or "cpu".
+            local_files_only: only load local model files; used by offline mode.
         """
         super().__init__()
         self.model_name_or_path = model_name_or_path
         self.threshold = threshold
         self.max_length = max_length
         self._device = device
+        self.local_files_only = local_files_only
         self.model = None
 
     def load_model(self):
@@ -56,10 +59,12 @@ class PromptInjectionClassifier(ModelBasedChecker):
             tokenizer = AutoTokenizer.from_pretrained(
                 self.model_name_or_path,
                 model_max_length=self.max_length,
+                local_files_only=self.local_files_only,
             )
             model = AutoModelForSequenceClassification.from_pretrained(
                 self.model_name_or_path,
                 trust_remote_code=True,
+                local_files_only=self.local_files_only,
             )
             self.model = pipeline(
                 "text-classification",

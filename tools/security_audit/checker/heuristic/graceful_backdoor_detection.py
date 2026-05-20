@@ -34,6 +34,7 @@ class GraCeFulBackdoorDefender(HeuristicChecker):
         min_batch_size: int = _MIN_BATCH_SIZE,
         dct_keep_ratio: float = 0.125,
         device: str = "auto",
+        local_files_only: bool = False,
         **kwargs,
     ):
         """
@@ -45,6 +46,7 @@ class GraCeFulBackdoorDefender(HeuristicChecker):
             min_batch_size: Minimum samples required for clustering.
             dct_keep_ratio: Keep top-left ratio for DCT (default 1/8).
             device: "auto" | "cuda" | "cpu".
+            local_files_only: only load local model files; used by offline mode.
         """
         super().__init__(**kwargs)
         self.victim_config = victim_config or {}
@@ -54,6 +56,7 @@ class GraCeFulBackdoorDefender(HeuristicChecker):
         self.min_batch_size = min_batch_size
         self.dct_keep_ratio = dct_keep_ratio
         self.device = device
+        self.local_files_only = local_files_only
         self._victim: Optional[CasualLLMVictim] = None
 
     def check(self, sample: DataSample) -> CheckResult:
@@ -142,6 +145,7 @@ class GraCeFulBackdoorDefender(HeuristicChecker):
             config["device"] = "gpu"
         elif self.device == "cpu":
             config["device"] = "cpu"
+        config["local_files_only"] = self.local_files_only
         self._victim = load_victim(config)
         return self._victim
 
