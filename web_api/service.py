@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import threading
 from dataclasses import dataclass
+from inspect import signature
 from typing import Any, Callable
 
 from agentic.controller import RunCoordinator
@@ -51,6 +52,9 @@ class RunWebService:
         self.checkpoint_broker = checkpoint_broker or WebCheckpointBroker()
         self.coordinator_factory = coordinator_factory or _default_coordinator_factory
         self.run_in_background = run_in_background
+        self._published_pipeline_job_ids: set[str] = set()
+        self._pipeline_llm_metadata_by_job: dict[str, dict[str, Any]] = {}
+        self._published_log_keys_by_job: dict[str, set[tuple[str, str, str, str]]] = {}
 
     def submit_run(self, submission: RunSubmission) -> RunSubmissionResponse:
         parsed = parse_user_command(submission.command)
@@ -143,7 +147,14 @@ class RunWebService:
             self.event_bus.publish(job_id, {"type": "job.running", "status": "running"})
             dataset_schemas = _env_get(self.environment, "dataset_schemas", {})
             task = self._resolve_dataset_if_needed(job_id, task, dataset_schemas)
-            coordinator = self.coordinator_factory(self.environment, self.checkpoint_broker)
+            run_environment = _environment_with_executor(
+                self.environment,
+                _RealtimeLogExecutor(
+                    _env_get(self.environment, "executor"),
+                    lambda log: self._publish_runtime_log(job_id, log),
+                ),
+            )
+            coordinator = self.coordinator_factory(run_environment, self.checkpoint_broker)
             result = coordinator.execute(
                 job_id=job_id,
                 task=task,
@@ -156,17 +167,14 @@ class RunWebService:
 
             pipeline = result.get("pipeline", "")
             if pipeline:
-                self.event_bus.publish(
+                self._publish_pipeline_generated_if_available(
                     job_id,
-                    {
-                        "type": "pipeline.generated",
-                        "pipeline": pipeline,
-                        "llm_metadata": result.get("llm_metadata", {}),
-                    },
+                    pipeline=pipeline,
+                    llm_metadata=result.get("llm_metadata", {}),
                 )
             execution = result.get("execution", {})
             for log in execution.get("logs", []) if isinstance(execution, dict) else []:
-                self.event_bus.publish(job_id, {"type": "log.appended", "log": log})
+                self._publish_runtime_log(job_id, log)
             if result.get("status") == "completed":
                 job_manager.update_status(job_id, JobStatus.COMPLETED)
                 final_type = "job.completed"
@@ -272,7 +280,80 @@ class RunWebService:
 
     def _publish_backend_event(self, job_id: str, event: dict[str, Any]) -> None:
         event_type = event.get("type", "backend.event")
+        if (
+            event_type == "stage_completed"
+            and event.get("stage") == "pipeline_generation"
+            and isinstance(event.get("llm"), dict)
+        ):
+            self._pipeline_llm_metadata_by_job[job_id] = dict(event["llm"])
+        if event_type == "stage_started" and event.get("stage") == "execution":
+            self._publish_pipeline_generated_if_available(job_id)
+            self._publish_runtime_log(
+                job_id,
+                {
+                    "source": "stage",
+                    "level": "INFO",
+                    "message": "Execution: Running pipeline",
+                },
+            )
+        if event_type == "stage_completed" and event.get("stage") == "execution":
+            success = bool(event.get("success"))
+            self._publish_runtime_log(
+                job_id,
+                {
+                    "source": "stage",
+                    "level": "SUCCESS" if success else "ERROR",
+                    "message": f"Execution: status={'success' if success else 'failed'}",
+                    "icon": "✅" if success else "❌",
+                },
+            )
         self.event_bus.publish(job_id, {"type": f"backend.{event_type}", "backend_event": event})
+
+    def _publish_pipeline_generated_if_available(
+        self,
+        job_id: str,
+        *,
+        pipeline: str | None = None,
+        llm_metadata: dict[str, Any] | None = None,
+    ) -> None:
+        if job_id in self._published_pipeline_job_ids:
+            return
+        selected_pipeline = pipeline
+        if selected_pipeline is None:
+            job_manager: JobManager = _env_get(self.environment, "job_manager")
+            job = job_manager.get_job(job_id)
+            selected_pipeline = job.pipeline if job is not None else ""
+        if not selected_pipeline:
+            return
+        selected_metadata = (
+            llm_metadata
+            or self._pipeline_llm_metadata_by_job.get(job_id)
+            or {}
+        )
+        self.event_bus.publish(
+            job_id,
+            {
+                "type": "pipeline.generated",
+                "pipeline": selected_pipeline,
+                "llm_metadata": selected_metadata,
+            },
+        )
+        self._published_pipeline_job_ids.add(job_id)
+
+    def _publish_runtime_log(self, job_id: str, log: dict[str, Any]) -> None:
+        if not isinstance(log, dict):
+            log = {"message": str(log)}
+        key = (
+            str(log.get("timestamp", "")),
+            str(log.get("step", "")),
+            str(log.get("level", "")),
+            str(log.get("message", "")),
+        )
+        published_keys = self._published_log_keys_by_job.setdefault(job_id, set())
+        if key in published_keys:
+            return
+        published_keys.add(key)
+        self.event_bus.publish(job_id, {"type": "log.appended", "log": log})
 
 
 def _default_coordinator_factory(environment: Any, _broker: WebCheckpointBroker) -> RunCoordinator:
@@ -283,6 +364,37 @@ def _default_coordinator_factory(environment: Any, _broker: WebCheckpointBroker)
         registry=_env_get(environment, "registry"),
         llm_provider=_env_get(environment, "llm_provider", None),
     )
+
+
+class _RealtimeLogExecutor:
+    def __init__(
+        self,
+        executor: Any,
+        log_handler: Callable[[dict[str, Any]], None],
+    ) -> None:
+        self.executor = executor
+        self.log_handler = log_handler
+
+    def execute(self, job_id: str, pipeline: str) -> dict[str, Any]:
+        execute = self.executor.execute
+        if "log_handler" in signature(execute).parameters:
+            return execute(job_id, pipeline, log_handler=self.log_handler)
+        return execute(job_id, pipeline)
+
+
+class _EnvironmentProxy:
+    def __init__(self, base: Any, executor: Any) -> None:
+        self._base = base
+        self.executor = executor
+
+    def __getattr__(self, key: str) -> Any:
+        return getattr(self._base, key)
+
+
+def _environment_with_executor(environment: Any, executor: Any) -> Any:
+    if isinstance(environment, dict):
+        return {**environment, "executor": executor}
+    return _EnvironmentProxy(environment, executor)
 
 
 def _env_get(environment: Any, key: str, default: Any = None) -> Any:

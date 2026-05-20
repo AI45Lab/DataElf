@@ -6,6 +6,7 @@ import { RightSidebar } from './components/RightSidebar';
 import { Footer } from './components/Footer';
 import { parseUserCommand } from './api/commandParser.js';
 import { answerCheckpoint, checkpointEventFromJob, createRun, extractCheckpointSuggestions, fetchJob, subscribeRunEvents } from './api/dataelfApi.js';
+import { formatBackendLog, logsFromRunCompletion, mergeRunLogLines, normalizeRunResultData } from './api/runDisplay.js';
 
 interface ExecutionStep {
   id: string;
@@ -68,6 +69,14 @@ interface Message {
     flaggedSamples: number;
     approvedAssets: number;
     allFailed?: boolean;
+    rawResult?: any;
+    artifacts?: any;
+    metadata?: any;
+    clarification?: any;
+    capabilityGap?: any;
+    logs?: any[];
+    error?: string | null;
+    jobId?: string | null;
   };
   // Pipeline Candidate
   pipelineData?: {
@@ -1118,6 +1127,71 @@ log_step("Final audit package saved")`;
     }));
   };
 
+  const ensureExecutionTimeline = (
+    execId: string,
+    tools: string[] = [],
+    initialLog: string = 'Pipeline generated. Executing DSL.'
+  ) => {
+    const stepNames = tools.length > 0 ? tools : ['Backend Run'];
+    setMessages(prev => {
+      if (prev.some(message => message.id === execId)) return prev;
+      return [
+        ...prev,
+        {
+          id: execId,
+          type: 'execution',
+          content: '',
+          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+          executionSteps: stepNames.map((tool, idx) => ({
+            id: `${execId}-step-${idx}`,
+            name: tool,
+            status: idx === 0 ? 'running' : 'pending',
+            log: idx === 0 ? initialLog : 'Pending...'
+          }))
+        }
+      ];
+    });
+  };
+
+  const completeExecutionTimeline = (
+    execId: string,
+    status: ExecutionStep['status'],
+    log: string
+  ) => {
+    setMessages(prev => prev.map(message => {
+      if (message.id !== execId || message.type !== 'execution' || !message.executionSteps) {
+        return message;
+      }
+      return {
+        ...message,
+        executionSteps: message.executionSteps.map(step => ({
+          ...step,
+          status,
+          log
+        }))
+      };
+    }));
+  };
+
+  const addPipelineMessage = (jobId: string | undefined, pipeline: string, llmMetadata?: any) => {
+    if (!pipeline) return;
+    const pipelineId = `${jobId || 'backend'}-pipeline`;
+    setMessages(prev => {
+      if (prev.some(message => message.id === pipelineId)) return prev;
+      const elapsed = llmMetadata?.elapsed_seconds !== undefined ? ` · ${llmMetadata.elapsed_seconds}s` : '';
+      const header = llmMetadata?.model ? `# model: ${llmMetadata.model}${elapsed}\n` : '';
+      return [
+        ...prev,
+        {
+          id: pipelineId,
+          type: 'pipeline',
+          content: `${header}pipeline:\n${pipeline}`,
+          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
+        }
+      ];
+    });
+  };
+
   const appendSystemMessage = (content: string) => {
     setMessages(prev => [
       ...prev,
@@ -1135,30 +1209,9 @@ log_step("Final audit package saved")`;
     setHeaderStatus('PROCESSING');
     setLogs([]);
     setBestScore('NA');
-    setMessages(prev => [
-      ...prev,
-      {
-        id: execId,
-        type: 'execution',
-        content: '',
-        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-        executionSteps: [{
-          id: 'backend-run',
-          name: 'Backend Run',
-          status: 'running',
-          log: 'Submitting task to DataElf backend...'
-        }]
-      }
-    ]);
 
     try {
       const submitted = await createRun(command, sessionId);
-      updateExecutionMessage(
-        execId,
-        'running',
-        `Backend job ${submitted.job_id} accepted.`,
-        'Backend Run'
-      );
       setLogs(prev => [
         ...prev,
         `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] [INFO] Backend job ${submitted.job_id} started`
@@ -1177,6 +1230,7 @@ log_step("Final audit package saved")`;
       runStreamsRef.current[submitted.job_id] = source;
       startRunStatusPolling(submitted.job_id, execId);
     } catch (error: any) {
+      ensureExecutionTimeline(execId, ['Backend Run'], 'Backend Run submission failed.');
       updateExecutionMessage(execId, 'error', 'Backend Run submission failed.');
       appendSystemMessage(`Backend Run failed to start: ${String(error?.message || error)}`);
       setHeaderStatus('STABLE');
@@ -1222,7 +1276,6 @@ log_step("Final audit package saved")`;
     if (event.type === 'checkpoint.resolved') {
       setHeaderStatus('PROCESSING');
       setReplyingTo(null);
-      updateExecutionMessage(execId, 'running', 'Clarification accepted. Continuing Run.');
       return;
     }
 
@@ -1230,21 +1283,34 @@ log_step("Final audit package saved")`;
       const pipeline = event.pipeline || '';
       const tools = extractPipelineTools(pipeline);
       setPipelineTools(tools);
-      setMessages(prev => [
-        ...prev,
-        {
-          id: Date.now().toString() + '-pipeline',
-          type: 'pipeline',
-          content: pipeline ? `pipeline:\n${pipeline}` : 'pipeline generated',
-          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
-        }
-      ]);
+      addPipelineMessage(event.job_id, pipeline, event.llm_metadata);
+      ensureExecutionTimeline(execId, tools, 'Pipeline generated. Executing DSL.');
       updateExecutionMessage(execId, 'running', 'Pipeline generated. Executing DSL.');
       return;
     }
 
+    if (event.type === 'backend.stage_started') {
+      const stage = event.backend_event?.stage;
+      if (stage === 'execution') {
+        updateExecutionMessage(execId, 'running', 'Runtime execution started.');
+      }
+      return;
+    }
+
+    if (event.type === 'backend.stage_completed') {
+      const stage = event.backend_event?.stage;
+      if (stage === 'execution') {
+        updateExecutionMessage(
+          execId,
+          event.backend_event?.success === false ? 'error' : 'success',
+          event.backend_event?.success === false ? 'Runtime execution failed.' : 'Runtime execution completed.'
+        );
+      }
+      return;
+    }
+
     if (event.type === 'log.appended') {
-      setLogs(prev => [...prev, formatBackendLog(event.log)]);
+      setLogs(prev => mergeRunLogLines(prev, [formatBackendLog(event.log)]));
       return;
     }
 
@@ -1282,12 +1348,23 @@ log_step("Final audit package saved")`;
         if (job.status === 'completed') {
           completeBackendRun(jobId, execId, {
             job_id: jobId,
+            pipeline: job.pipeline,
             result: job.result?.result ?? job.result,
             execution: {
               result: job.result?.result ?? job.result,
+              artifacts: job.result?.artifacts || {},
               metadata: job.result?.metadata || {},
+              logs: job.result?.logs || [],
               error: null
-            }
+            },
+            clarification: {
+              status: job.clarification_status,
+              turns: job.clarification_turns,
+              transcript: job.clarification_transcript,
+              resolved_task: job.resolved_task,
+              resolved_slots: job.resolved_slots
+            },
+            capability_gap: job.capability_gap || {}
           });
         } else if (job.status === 'failed') {
           failBackendRun(jobId, execId, job.error || 'Backend Run failed.');
@@ -1308,9 +1385,14 @@ log_step("Final audit package saved")`;
   const completeBackendRun = (jobId: string, execId: string, event: any) => {
     stopRunStatusPolling(jobId);
     closeRunStream(jobId);
+    if (event.pipeline) {
+      addPipelineMessage(jobId, event.pipeline, event.llm_metadata);
+      ensureExecutionTimeline(execId, extractPipelineTools(event.pipeline), 'Backend Run completed.');
+    }
+    setLogs(prev => mergeRunLogLines(prev, logsFromRunCompletion(event)));
     const resultData = normalizeRunResultData(event);
     setBestScore(resultData.score);
-    updateExecutionMessage(execId, 'success', 'Backend Run completed.');
+    completeExecutionTimeline(execId, 'success', 'Backend Run completed.');
     setMessages(prev => {
       if (prev.some(message => message.id === `${jobId}-result`)) return prev;
       return [
@@ -1331,16 +1413,31 @@ log_step("Final audit package saved")`;
   const failBackendRun = (jobId: string, execId: string, error: string) => {
     stopRunStatusPolling(jobId);
     closeRunStream(jobId);
-    updateExecutionMessage(execId, 'error', error);
+    ensureExecutionTimeline(execId, ['Backend Run'], error);
+    completeExecutionTimeline(execId, 'error', error);
     setMessages(prev => {
       if (prev.some(message => message.id === `${jobId}-failed`)) return prev;
       return [
         ...prev,
         {
           id: `${jobId}-failed`,
-          type: 'system',
-          content: `Backend Run failed: ${error}`,
-          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
+          type: 'result',
+          content: 'RUN Execution Failed',
+          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+          resultData: {
+            score: 0,
+            flaggedSamples: 0,
+            approvedAssets: 0,
+            allFailed: true,
+            rawResult: null,
+            artifacts: {},
+            metadata: {},
+            clarification: {},
+            capabilityGap: {},
+            logs: [],
+            error,
+            jobId
+          }
         }
       ];
     });
@@ -2448,6 +2545,40 @@ log_step("Final audit package saved")`;
                             </div>
                           </div>
                         </div>
+                        {(msg.resultData.error || hasDisplayValue(msg.resultData.rawResult) || hasDisplayValue(msg.resultData.artifacts) || hasDisplayValue(msg.resultData.metadata)) && (
+                          <div className={cn("mt-4 pt-4 border-t text-xs font-mono flex flex-col gap-3", failed ? "border-red-500/40" : "border-gray-700/50")}>
+                            {msg.resultData.error && (
+                              <div className="p-3 bg-red-950/30 border border-red-700/50 text-red-300">
+                                <div className="text-[10px] uppercase tracking-wider mb-1 text-red-400">Error</div>
+                                <pre className="whitespace-pre-wrap break-words">{msg.resultData.error}</pre>
+                              </div>
+                            )}
+                            {hasDisplayValue(msg.resultData.rawResult) && (
+                              <div className="p-3 bg-black/40 border border-gray-700/50">
+                                <div className="text-[10px] uppercase tracking-wider mb-1 text-gray-400">Result</div>
+                                <pre className="whitespace-pre-wrap break-words text-gray-300 max-h-64 overflow-y-auto custom-scrollbar">
+                                  {formatJsonPreview(msg.resultData.rawResult)}
+                                </pre>
+                              </div>
+                            )}
+                            {hasDisplayValue(msg.resultData.artifacts) && (
+                              <div className="p-3 bg-black/40 border border-gray-700/50">
+                                <div className="text-[10px] uppercase tracking-wider mb-1 text-gray-400">Artifacts</div>
+                                <pre className="whitespace-pre-wrap break-words text-cyan-300">
+                                  {formatJsonPreview(msg.resultData.artifacts)}
+                                </pre>
+                              </div>
+                            )}
+                            {hasDisplayValue(msg.resultData.metadata) && (
+                              <div className="p-3 bg-black/40 border border-gray-700/50">
+                                <div className="text-[10px] uppercase tracking-wider mb-1 text-gray-400">Metadata</div>
+                                <pre className="whitespace-pre-wrap break-words text-gray-300 max-h-52 overflow-y-auto custom-scrollbar">
+                                  {formatJsonPreview(msg.resultData.metadata)}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -2815,45 +2946,22 @@ function extractPipelineTools(pipeline: string): string[] {
   return ['Backend Run'];
 }
 
-function formatBackendLog(log: any): string {
-  if (!log || typeof log !== 'object') {
-    return String(log || '');
-  }
-  const timestamp = log.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false });
-  const level = log.level || 'INFO';
-  const step = log.step ? ` ${log.step}` : '';
-  return `[${timestamp}] [${level}]${step} ${log.message || ''}`.trim();
+function hasDisplayValue(value: any): boolean {
+  if (value === undefined || value === null) return false;
+  if (Array.isArray(value)) return value.length > 0;
+  if (typeof value === 'object') return Object.keys(value).length > 0;
+  return String(value).length > 0;
 }
 
-function normalizeRunResultData(event: any): {
-  score: number;
-  flaggedSamples: number;
-  approvedAssets: number;
-  allFailed?: boolean;
-} {
-  const result = event?.result || event?.execution?.result || {};
-  const metadata = event?.execution?.metadata || {};
-  const securityScore = Number(
-    result.security_score ??
-    result.score ??
-    metadata.security_score ??
-    100
-  );
-  const flaggedSamples = Number(
-    result.flagged_samples ??
-    result.flagged_count ??
-    result.flaggedSamples ??
-    metadata.flagged_samples ??
-    0
-  );
-  const approvedAssets = Array.isArray(result.approved_assets)
-    ? result.approved_assets.length
-    : Number(result.approved_assets ?? result.approvedAssets ?? 0);
-
-  return {
-    score: Number.isFinite(securityScore) ? securityScore : 100,
-    flaggedSamples: Number.isFinite(flaggedSamples) ? flaggedSamples : 0,
-    approvedAssets: Number.isFinite(approvedAssets) ? approvedAssets : 0,
-    allFailed: false
-  };
+function formatJsonPreview(value: any): string {
+  if (Array.isArray(value) && value.length > 5) {
+    return JSON.stringify({
+      count: value.length,
+      preview: value.slice(0, 5)
+    }, null, 2);
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  return JSON.stringify(value, null, 2);
 }

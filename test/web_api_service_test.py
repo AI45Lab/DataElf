@@ -37,6 +37,39 @@ class FakeCoordinator:
         }
 
 
+class PipelineBeforeExecutionCoordinator:
+    def __init__(self, job_manager):
+        self.job_manager = job_manager
+
+    def execute(self, **kwargs):
+        job_id = kwargs["job_id"]
+        event_handler = kwargs["event_handler"]
+        pipeline = 'log_step("hello")\nsave_result({"ok": True})'
+        self.job_manager.update_pipeline(job_id, pipeline)
+        event_handler({
+            "type": "stage_completed",
+            "stage": "pipeline_generation",
+            "llm": {"model": "fake-model", "elapsed_seconds": 0.1},
+        })
+        event_handler({
+            "type": "stage_started",
+            "stage": "execution",
+        })
+        event_handler({
+            "type": "stage_completed",
+            "stage": "execution",
+            "success": True,
+        })
+        return {
+            "job_id": job_id,
+            "status": "completed",
+            "pipeline": pipeline,
+            "execution": {"success": True, "result": {"ok": True}, "error": None},
+            "clarification": {"status": "not_requested"},
+            "capability_gap": {},
+        }
+
+
 class AutoAnswerCheckpointBroker(WebCheckpointBroker):
     def __init__(self, answer):
         super().__init__()
@@ -193,6 +226,91 @@ class WebApiServiceTest(unittest.TestCase):
             )
             self.assertTrue(
                 observed_states[0]["checkpoint_payload"]["checkpoint_id"].startswith("chk_")
+            )
+
+    def test_pipeline_event_is_published_before_execution_stage(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            job_manager = JobManager(jobs_dir=Path(tmp_dir) / ".jobs")
+            event_bus = JobEventBus()
+            coordinator = PipelineBeforeExecutionCoordinator(job_manager)
+            service = RunWebService(
+                environment=FakeEnvironment(
+                    job_manager=job_manager,
+                    dataset_schemas={"security_audit_samples": ["text"]},
+                    registry=FakeRegistry(),
+                ),
+                event_bus=event_bus,
+                coordinator_factory=lambda _environment, _broker: coordinator,
+                run_in_background=False,
+            )
+
+            submitted = service.submit_run(
+                RunSubmission(command="run security_audit on security_audit_samples")
+            )
+
+            events = event_bus.replay(submitted.job_id)
+            pipeline_index = next(
+                index for index, event in enumerate(events)
+                if event["type"] == "pipeline.generated"
+            )
+            execution_index = next(
+                index for index, event in enumerate(events)
+                if (
+                    event["type"] == "backend.stage_started"
+                    and event["backend_event"]["stage"] == "execution"
+                )
+            )
+            self.assertLess(pipeline_index, execution_index)
+            self.assertEqual(
+                events[pipeline_index]["pipeline"],
+                'log_step("hello")\nsave_result({"ok": True})',
+            )
+            self.assertEqual(
+                events[pipeline_index]["llm_metadata"]["model"],
+                "fake-model",
+            )
+
+    def test_execution_stage_events_are_published_as_log_lines(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            job_manager = JobManager(jobs_dir=Path(tmp_dir) / ".jobs")
+            event_bus = JobEventBus()
+            coordinator = PipelineBeforeExecutionCoordinator(job_manager)
+            service = RunWebService(
+                environment=FakeEnvironment(
+                    job_manager=job_manager,
+                    dataset_schemas={"security_audit_samples": ["text"]},
+                    registry=FakeRegistry(),
+                ),
+                event_bus=event_bus,
+                coordinator_factory=lambda _environment, _broker: coordinator,
+                run_in_background=False,
+            )
+
+            submitted = service.submit_run(
+                RunSubmission(command="run security_audit on security_audit_samples")
+            )
+
+            log_messages = [
+                event["log"]
+                for event in event_bus.replay(submitted.job_id)
+                if event["type"] == "log.appended"
+            ]
+            self.assertIn(
+                {
+                    "source": "stage",
+                    "level": "INFO",
+                    "message": "Execution: Running pipeline",
+                },
+                log_messages,
+            )
+            self.assertIn(
+                {
+                    "source": "stage",
+                    "level": "SUCCESS",
+                    "message": "Execution: status=success",
+                    "icon": "✅",
+                },
+                log_messages,
             )
 
 

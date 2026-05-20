@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from config import Config
 
@@ -52,6 +52,7 @@ class JobLogger:
         enable_console: bool = True,
         database: Optional[Any] = None,
         log_level: str = "INFO",
+        entry_handler: Callable[[dict[str, Any]], None] | None = None,
     ):
 
         self.job_id = job_id
@@ -60,6 +61,7 @@ class JobLogger:
         self.step_counter = 0
         self._last_step_start: datetime | None = None
         self.entries: list[dict[str, Any]] = []
+        self.entry_handler = entry_handler
 
         # Setup console logger
         self.console_logger = logging.getLogger(f"pilot.{job_id}")
@@ -103,6 +105,7 @@ class JobLogger:
         )
         entry_dict = entry.to_dict()
         self.entries.append(entry_dict)
+        self._notify_entry_handler(entry_dict)
 
         # Record start time for this step (used when next step begins)
         self._last_step_start = now
@@ -160,6 +163,7 @@ class JobLogger:
             )
             entry_dict = entry.to_dict()
             self.entries.append(entry_dict)
+            self._notify_entry_handler(entry_dict)
             if self.enable_console:
                 self.console_logger.info(f"🏆 [job_end · {duration_ms}ms] Job completed")
             if self.database:
@@ -175,6 +179,14 @@ class JobLogger:
             return None
         return str(Path(data_dir).parent / ".logs" / f"{self.job_id}.json")
 
+    def _notify_entry_handler(self, entry: dict[str, Any]) -> None:
+        if self.entry_handler is None:
+            return
+        try:
+            self.entry_handler(dict(entry))
+        except Exception:
+            return
+
     def _console_icon(self, level: LogLevel, message: str) -> str:
         message_lower = message.lower()
         if level in {LogLevel.ERROR, LogLevel.CRITICAL}:
@@ -186,11 +198,22 @@ class JobLogger:
         return ""
 
 
-def get_logger(job_id: str, config: Optional[Config] = None, database: Optional[Any] = None) -> JobLogger:
+def get_logger(
+    job_id: str,
+    config: Optional[Config] = None,
+    database: Optional[Any] = None,
+    entry_handler: Callable[[dict[str, Any]], None] | None = None,
+) -> JobLogger:
     enable_console = True
     log_level = "INFO"
     if config and hasattr(config, "execution"):
         enable_console = config.execution.enable_log
         log_level = getattr(config.execution, "log_level", "INFO")
 
-    return JobLogger(job_id, enable_console=enable_console, database=database, log_level=log_level)
+    return JobLogger(
+        job_id,
+        enable_console=enable_console,
+        database=database,
+        log_level=log_level,
+        entry_handler=entry_handler,
+    )

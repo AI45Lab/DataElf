@@ -5,7 +5,7 @@ import sys
 import traceback
 from io import StringIO
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from config import Config
 from database import DatabaseStrategy
@@ -238,7 +238,12 @@ class RuntimeExecutor:
         self.llm_provider = llm_provider
         self.tool_llm_provider = tool_llm_provider
 
-    def execute(self, job_id: str, pipeline: str) -> dict[str, Any]:
+    def execute(
+        self,
+        job_id: str,
+        pipeline: str,
+        log_handler: Callable[[dict[str, Any]], None] | None = None,
+    ) -> dict[str, Any]:
         job = self.job_manager.get_job(job_id)
         if job is None:
             raise ValueError(f"Job not found: {job_id}")
@@ -248,7 +253,12 @@ class RuntimeExecutor:
 
         # Setup logger
         import pilog
-        logger = pilog.get_logger(job_id, self.config, self.database)
+        logger = pilog.get_logger(
+            job_id,
+            self.config,
+            self.database,
+            entry_handler=log_handler,
+        )
         external_log_handler = _ExternalToolLogHandler(logger)
         tools_logger = logging.getLogger("tools")
         tools_logger.addHandler(external_log_handler)

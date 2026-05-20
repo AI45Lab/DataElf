@@ -47,6 +47,10 @@ export function subscribeRunEvents(jobId, handlers) {
   source.addEventListener('checkpoint.created', (message) => dispatchEventPayload(message, handlers));
   source.addEventListener('checkpoint.resolved', (message) => dispatchEventPayload(message, handlers));
   source.addEventListener('pipeline.generated', (message) => dispatchEventPayload(message, handlers));
+  source.addEventListener('backend.stage_started', (message) => dispatchEventPayload(message, handlers));
+  source.addEventListener('backend.stage_completed', (message) => dispatchEventPayload(message, handlers));
+  source.addEventListener('backend.checkpoint_paused', (message) => dispatchEventPayload(message, handlers));
+  source.addEventListener('backend.checkpoint_resolved', (message) => dispatchEventPayload(message, handlers));
   source.addEventListener('log.appended', (message) => dispatchEventPayload(message, handlers));
   source.addEventListener('job.completed', (message) => dispatchEventPayload(message, handlers));
   source.addEventListener('job.failed', (message) => dispatchEventPayload(message, handlers));
