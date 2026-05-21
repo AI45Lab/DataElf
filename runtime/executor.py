@@ -382,7 +382,7 @@ class RuntimeExecutor:
             # Save pipeline to file for reference
             pipeline_dir = Path("pipelines")
             pipeline_dir.mkdir(exist_ok=True)
-            pipeline_file = pipeline_dir / f"{job_id}.py"
+            pipeline_file = pipeline_dir / f"{job_id}.dsl"
             with open(pipeline_file, "w") as f:
                 f.write(pipeline)
 
