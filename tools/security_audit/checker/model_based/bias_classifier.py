@@ -31,6 +31,7 @@ class BiasClassifier(ModelBasedChecker):
         threshold: float = 0.5,
         max_length: int = 512,
         device: str = "auto",
+        local_files_only: bool = False,
     ):
         """
         Args:
@@ -38,19 +39,21 @@ class BiasClassifier(ModelBasedChecker):
             threshold: per-category score above which text is flagged as biased.
             max_length: max token length for truncation.
             device: "auto", "cuda", or "cpu".
+            local_files_only: only load local model files; used by offline mode.
         """
         super().__init__()
         self.model_name_or_path = model_name_or_path
         self.threshold = threshold
         self.max_length = max_length
         self._device = device
+        self.local_files_only = local_files_only
         self.model = None
 
     def load_model(self):
         if self.model is not None:
             return
         try:
-            from transformers import pipeline
+            from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
             import torch
 
             if self._device == "auto":
@@ -61,9 +64,18 @@ class BiasClassifier(ModelBasedChecker):
                 device = -1
 
             self._log.info(f"BiasClassifier: loading model '{self.model_name_or_path}' ...")
+            tokenizer = AutoTokenizer.from_pretrained(
+                self.model_name_or_path,
+                local_files_only=self.local_files_only,
+            )
+            model = AutoModelForSequenceClassification.from_pretrained(
+                self.model_name_or_path,
+                local_files_only=self.local_files_only,
+            )
             self.model = pipeline(
                 "text-classification",
-                model=self.model_name_or_path,
+                model=model,
+                tokenizer=tokenizer,
                 top_k=None,  # return all label scores
                 device=device,
                 truncation=True,

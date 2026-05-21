@@ -94,17 +94,20 @@ class JailbreakClassifier(ModelBasedChecker):
         model_name_or_path: str = "allenai/wildguard",
         max_new_tokens: int = 32,
         device: str = "auto",
+        local_files_only: bool = False,
     ):
         """
         Args:
             model_name_or_path: HuggingFace model ID or local path.
             max_new_tokens: token budget for WildGuard's generated verdict.
             device: "auto", "cuda", or "cpu".
+            local_files_only: only load local model files; used by offline mode.
         """
         super().__init__()
         self.model_name_or_path = model_name_or_path
         self.max_new_tokens = max_new_tokens
         self._device = device
+        self.local_files_only = local_files_only
         self.model = None
         self._tokenizer = None
 
@@ -123,11 +126,16 @@ class JailbreakClassifier(ModelBasedChecker):
             dtype = torch.float16 if device == "cuda" else torch.float32
 
             self._log.info(f"JailbreakClassifier: loading model '{self.model_name_or_path}' on {device} ...")
-            self._tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path, use_fast=False)
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                self.model_name_or_path,
+                use_fast=False,
+                local_files_only=self.local_files_only,
+            )
             self.model = AutoModelForCausalLM.from_pretrained(
                 self.model_name_or_path,
                 torch_dtype=dtype,
                 low_cpu_mem_usage=True,
+                local_files_only=self.local_files_only,
             ).to(device)
             self.model.eval()
             self._device_obj = device

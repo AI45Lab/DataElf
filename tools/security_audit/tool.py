@@ -11,12 +11,19 @@ Pipeline usage:
 import os
 from typing import Any
 
-from config import build_runtime_policy, handle_preflight_issues
+from config import apply_runtime_environment, build_runtime_policy, handle_preflight_issues
 from tools.base_tool import BaseTool, ToolContext
 from .config import AuditConfig, CheckerConfig, ExecutorConfig, LLMConfig
 from .executor import Executor
 from .loader import load_samples
-from .policy import resolve_default_checkers_for_resource_tier, validate_selected_checkers
+from .policy import (
+    ResolvedCheckerPlan,
+    build_checker_capability_set,
+    build_checker_request,
+    resolve_checker_plan,
+    validate_checker_request,
+    validate_resolved_checker_plan,
+)
 
 
 _DEFAULT_RISK_WEIGHTS = {
@@ -44,53 +51,20 @@ def _get_tool_defaults(context_config: dict) -> dict:
     return security_defaults if isinstance(security_defaults, dict) else {}
 
 
-def _load_default_checker_configs(tool_defaults: dict) -> list[CheckerConfig]:
-    raw = tool_defaults.get("checkers")
-    if not isinstance(raw, list):
-        return []
-
-    configs: list[CheckerConfig] = []
-    for item in raw:
-        if isinstance(item, str):
-            configs.append(CheckerConfig(name=item, selection_source="config"))
-        elif isinstance(item, dict) and "name" in item:
-            configs.append(CheckerConfig(**{**item, "selection_source": "config"}))
-    return configs
+def _get_config_value(section: Any, name: str, default: Any = None) -> Any:
+    if isinstance(section, dict):
+        return section.get(name, default)
+    return getattr(section, name, default)
 
 
-def _resolve_checker_configs(kwargs: dict, tool_defaults: dict, resource_tier: str) -> list[CheckerConfig]:
-    """Resolve CheckerConfig list.
-
-    Priority:
-      1. Explicit ``checker_names`` from tool call. These force-enable the
-         named checkers while inheriting same-name params from default.yaml.
-      2. Enabled ``checkers`` list in tool_defaults (from default.yaml).
-      3. Resource-tier default checkers.
-    """
-    default_configs = _load_default_checker_configs(tool_defaults)
-    defaults_by_name = {config.name: config for config in default_configs}
-
-    names = kwargs.get("checker_names")
-    if names:
-        configs = []
-        for name in names:
-            default_config = defaults_by_name.get(name)
-            params = dict(default_config.params) if default_config else {}
-            configs.append(CheckerConfig(
-                name=name,
-                enabled=True,
-                params=params,
-                selection_source="explicit",
-            ))
-        return configs
-
-    if default_configs:
-        return default_configs
-
-    return [
-        CheckerConfig(name=name, selection_source="auto")
-        for name in resolve_default_checkers_for_resource_tier(resource_tier)
-    ]
+def _apply_runtime_policy_to_checker_configs(
+    checker_configs: list[CheckerConfig],
+    runtime_policy: Any,
+) -> None:
+    if runtime_policy.model_policy != "local_only":
+        return
+    for checker_config in checker_configs:
+        checker_config.params["local_files_only"] = True
 
 
 def _calc_security_score(risk_distribution: dict, risk_weights: dict) -> float:
@@ -160,46 +134,129 @@ class SecurityAuditTool(BaseTool):
         data: list[dict] = kwargs.get("data", [])
         max_workers: int = kwargs.get("max_workers", 4)
 
+        # Step 1: Load tool defaults and deployment runtime policy.
         tool_defaults = _get_tool_defaults(context.config)
         runtime_policy = build_runtime_policy(context.config)
-        checker_configs = _resolve_checker_configs(
-            kwargs,
-            tool_defaults,
-            runtime_policy.resource_tier,
+        apply_runtime_environment(runtime_policy)
+
+        # Step 2: Validate the request, build capabilities, and resolve a checker plan.
+        plan = self._build_execution_plan(
+            context=context,
+            kwargs=kwargs,
+            tool_defaults=tool_defaults,
+            runtime_policy=runtime_policy,
         )
+
+        # Step 3: Log the resolved single-stage plan.
+        checker_configs = plan.checker_configs
+        checker_names = [c.name for c in checker_configs if c.enabled]
+        self._log_plan(context, plan, checker_names, bool(kwargs.get("checker_names")))
+        context.log(f"SecurityAuditTool: {len(data)} records, checkers={checker_names}")
+
+        # TODO:Step 4: Execute the resolved plan.
+        return self._execute_single_stage_plan(
+            context=context,
+            plan=plan,
+            data=data,
+            max_workers=max_workers,
+            tool_defaults=tool_defaults,
+            checker_configs=checker_configs,
+            checker_names=checker_names,
+        )
+
+    def _build_execution_plan(
+        self,
+        *,
+        context: ToolContext,
+        kwargs: dict[str, Any],
+        tool_defaults: dict,
+        runtime_policy: Any,
+    ) -> ResolvedCheckerPlan:
+        # Step 2.1: Build and validate the raw checker request from tool args.
+        request = build_checker_request(kwargs, tool_defaults)
         handle_preflight_issues(
-            validate_selected_checkers(
-                checker_configs=checker_configs,
+            validate_checker_request(
+                request=request,
                 runtime_policy=runtime_policy,
                 context_config=context.config,
             ),
             strict=runtime_policy.strict_preflight,
             logger=context.logger,
         )
-        checker_names = [c.name for c in checker_configs if c.enabled]
 
-        if kwargs.get("checker_names"):
+        # Step 2.2: Build the checker capability set under resource/network policy.
+        capability_set = build_checker_capability_set(
+            tool_defaults=tool_defaults,
+            runtime_policy=runtime_policy,
+            context_config=context.config,
+        )
+
+        # TODO:Step 2.3: Resolve the execution plan within the capability set.
+        plan = resolve_checker_plan(
+            request=request,
+            capability_set=capability_set,
+            tool_defaults=tool_defaults,
+            resource_tier=runtime_policy.resource_tier,
+        )
+
+        # TODO:Step 2.4: Inject runtime params and run final resolved-plan preflight.
+        _apply_runtime_policy_to_checker_configs(plan.checker_configs, runtime_policy)
+        handle_preflight_issues(
+            validate_resolved_checker_plan(
+                plan=plan,
+                capability_set=capability_set,
+                runtime_policy=runtime_policy,
+                context_config=context.config,
+            ),
+            strict=runtime_policy.strict_preflight,
+            logger=context.logger,
+        )
+        return plan
+
+    def _log_plan(
+        self,
+        context: ToolContext,
+        plan: ResolvedCheckerPlan,
+        checker_names: list[str],
+        explicit_checkers: bool,
+    ) -> None:
+        if explicit_checkers:
             context.log(f"SecurityAuditTool: using user-specified checkers: {checker_names}")
-        elif tool_defaults.get("checkers"):
+        elif plan.source == "config":
             context.log(
                 f"SecurityAuditTool: using checkers from default.yaml: {checker_names}. "
             )
         else:
             context.log(
-                f"SecurityAuditTool: no checkers configured, using "
-                f"{runtime_policy.resource_tier} resource-tier defaults: {checker_names}"
+                f"SecurityAuditTool: using {plan.strategy} defaults: {checker_names}"
             )
 
-        context.log(f"SecurityAuditTool: {len(data)} records, checkers={checker_names}")
+        for skipped in plan.skipped_checkers:
+            context.log(
+                f"SecurityAuditTool: skipped checker {skipped['name']} ({skipped['reason']}).",
+                "warning",
+            )
 
-        # 1. Convert raw dicts → DataSample
+    def _execute_single_stage_plan(
+        self,
+        *,
+        context: ToolContext,
+        plan: ResolvedCheckerPlan,
+        data: list[dict],
+        max_workers: int,
+        tool_defaults: dict,
+        checker_configs: list[CheckerConfig],
+        checker_names: list[str],
+    ) -> dict[str, Any]:
+        # TODO: (resource_tier) Replace this single-stage executor with a
+        # strategy-aware multi-stage executor when funnel plans are implemented.
         samples = load_samples(data)
 
-        # 2. Build AuditConfig
         agent_cfg = context.config.get("agent")
         tool_llm_cfg = context.config.get("tool_llm", {})
         llm_name: str = (
-            getattr(tool_llm_cfg, "model", "") or getattr(agent_cfg, "model", "")
+            _get_config_value(tool_llm_cfg, "model", "")
+            or _get_config_value(agent_cfg, "model", "")
         )
 
         task_name = f"security_audit_{context.job_id}"
@@ -214,11 +271,9 @@ class SecurityAuditTool(BaseTool):
             models=tool_defaults.get("models") or {},
         )
 
-        # 3. Log LLM model info
         if cfg.llm:
             context.log(f"Tool LLM model: {llm_name}", "info")
 
-        # 4. Run the audit engine (writes artifacts to output_path)
         engine = Executor(cfg, logger=context.logger, llm=context.llm, job_id=context.job_id, mode=context.mode)
         engine.setup()
         task_report, _ = engine.run(samples)
@@ -251,6 +306,21 @@ class SecurityAuditTool(BaseTool):
             "metadata": {
                 "task_name": task_report.task_name,
                 "checker_names": checker_names,
+                "resolved_plan": {
+                    "schema_version": "security_audit.resolved_plan.v1",
+                    "strategy": plan.strategy,
+                    "source": plan.source,
+                    "skipped_checkers": plan.skipped_checkers,
+                    "stages": [
+                        {
+                            "id": "stage_1",
+                            "name": "single_stage",
+                            "type": "single_stage",
+                            "checkers": checker_names,
+                            "input_scope": {"type": "all_samples"},
+                        }
+                    ],
+                },
                 "create_time": task_report.create_time,
                 "finish_time": task_report.finish_time,
             },
