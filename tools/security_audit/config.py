@@ -17,6 +17,7 @@ class CheckerConfig(BaseModel):
     name: str
     enabled: bool = True
     params: Dict = {}
+    selection_source: str = "config"  # explicit | config | auto
 
 
 class ExecutorConfig(BaseModel):
