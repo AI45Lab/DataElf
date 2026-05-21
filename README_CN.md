@@ -83,7 +83,7 @@ DataElf 目前内置以下工具：
 克隆仓库并安装：
 
 ```bash
-git clone https://github.com/<your-org>/DataElf.git
+git clone https://github.com/AI45Lab/DataElf.git
 cd DataElf
 pip install -e .
 ```
@@ -247,4 +247,20 @@ DataElf/
 ├── docs/            # 用户与开发者文档
 ├── test_data/       # 本地示例数据集
 └── config.yaml      # 公共示例配置
+```
+
+## 引用
+
+如果 DataElf 对你的工作有帮助，请引用本仓库和技术报告：
+
+```bibtex
+@misc{dataelf2026safactoryscalableagenticinfrastructure,
+      title={DataElf: An Intelligent Execution Engine for Natural-Language Data Workflows},
+      author={Shanghai AI Lab},
+      year={2026},
+      eprint={2605.06230},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2605.06230},
+}
 ```
