@@ -44,6 +44,7 @@ class HarmfulContentClassifier(ModelBasedChecker):
         device: str = "auto",
         dtype: str = "bfloat16",
         threshold: float = 0.5,
+        local_files_only: bool = False,
     ):
         """
         Args:
@@ -51,12 +52,14 @@ class HarmfulContentClassifier(ModelBasedChecker):
             device: "auto", "cuda", "cpu".
             dtype: torch dtype string, "bfloat16" or "float16".
             threshold: unsafe probability above which the sample is flagged.
+            local_files_only: only load local model files; used by offline mode.
         """
         super().__init__()
         self.model_name_or_path = model_name_or_path
         self.device = device
         self.dtype = getattr(torch, dtype, torch.bfloat16)
         self.threshold = threshold
+        self.local_files_only = local_files_only
         self._tokenizer = None
         self.model = None
         self._safe_token_id = None
@@ -67,19 +70,24 @@ class HarmfulContentClassifier(ModelBasedChecker):
             return
         try:
             self._log.info("HarmfulContentClassifier: loading Llama Guard model ...")
-            self._tokenizer = AutoTokenizer.from_pretrained(self.model_name_or_path)
+            self._tokenizer = AutoTokenizer.from_pretrained(
+                self.model_name_or_path,
+                local_files_only=self.local_files_only,
+            )
             if self.device in ("auto", "cuda"):
                 # Use device_map for GPU (handles multi-GPU sharding)
                 self.model = AutoModelForCausalLM.from_pretrained(
                     self.model_name_or_path,
                     torch_dtype=self.dtype,
                     device_map=self.device,
+                    local_files_only=self.local_files_only,
                 )
             else:
                 # CPU: load without device_map to avoid meta tensor issues
                 self.model = AutoModelForCausalLM.from_pretrained(
                     self.model_name_or_path,
                     torch_dtype=self.dtype,
+                    local_files_only=self.local_files_only,
                 ).to(self.device)
             self.model.eval()
             # Pre-compute token IDs for "safe" and "unsafe"

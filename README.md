@@ -83,7 +83,7 @@ On the RiOSWorld benchmark, injecting skills distilled by the trajectory analysi
 Clone the repository and install the package:
 
 ```bash
-git clone https://github.com/<your-org>/DataElf.git
+git clone https://github.com/AI45Lab/DataElf.git
 cd DataElf
 pip install -e .
 ```
@@ -247,4 +247,20 @@ DataElf/
 ├── docs/            # User and developer documentation
 ├── test_data/       # Local sample datasets
 └── config.yaml      # Public example config
+```
+
+## Citation
+
+If DataElf is useful in your work, please cite the repository and the technical report:
+
+```bibtex
+@misc{dataelf2026safactoryscalableagenticinfrastructure,
+      title={DataElf: An Intelligent Execution Engine for Natural-Language Data Workflows},
+      author={Shanghai AI Lab},
+      year={2026},
+      eprint={2605.06230},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2605.06230},
+}
 ```

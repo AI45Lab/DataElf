@@ -72,6 +72,7 @@ def apply_runtime_environment(policy: RuntimePolicy) -> None:
     os.environ.setdefault("HF_HUB_OFFLINE", "1")
     os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
     os.environ.setdefault("HF_DATASETS_OFFLINE", "1")
+    os.environ.setdefault("DATAELF_OFFLINE_MODE", "1")
 
 
 def run_global_preflight(config: Any, policy: RuntimePolicy) -> list[PreflightIssue]:
@@ -103,7 +104,7 @@ def run_global_preflight(config: Any, policy: RuntimePolicy) -> list[PreflightIs
         return issues
         
 
-    # TODO: (network_mode) !!!!Re-enable strict offline endpoint checks after local
+    # TODO: (network_mode) Re-enable strict offline endpoint checks after local
     # LLM deployment is ready. Development still uses an external relay LLM.
     # issues.extend(_validate_offline_llm_endpoint(config, "agent", required=_agent_requires_llm(config)))
     # issues.extend(_validate_offline_llm_endpoint(config, "tool_llm", required=_tool_llm_configured(config)))

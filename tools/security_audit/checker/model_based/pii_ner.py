@@ -1,6 +1,7 @@
 # Model: Microsoft Presidio (regex + spaCy NER)
 # https://github.com/microsoft/presidio
 
+import os
 from typing import Dict, List, Optional, Tuple
 
 from ..base import ModelBasedChecker
@@ -40,6 +41,11 @@ class PIINERDetector(ModelBasedChecker):
         try:
             spacy_model = "en_core_web_lg" if language == "en" else f"{language}_core_web_sm"
             if not spacy.util.is_package(spacy_model):
+                if os.environ.get("DATAELF_OFFLINE_MODE") == "1":
+                    raise RuntimeError(
+                        f"spaCy model '{spacy_model}' is required in offline mode; "
+                        "install it before running PIINERDetector."
+                    )
                 self._log.info(f"spaCy model '{spacy_model}' not found, downloading ...")
                 spacy.cli.download(spacy_model)
 

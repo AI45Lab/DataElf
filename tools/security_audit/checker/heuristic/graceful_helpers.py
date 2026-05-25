@@ -59,6 +59,7 @@ class CasualLLMVictim:
         model: Optional[str] = "llama",
         path: Optional[str] = None,
         max_len: Optional[int] = 4096,
+        local_files_only: bool = False,
         **kwargs,
     ):
         if not path:
@@ -67,16 +68,18 @@ class CasualLLMVictim:
             "cuda" if device in {"gpu", "cuda"} and torch.cuda.is_available() else "cpu"
         )
         self.model_type = model
-        self.model_config = AutoConfig.from_pretrained(path)
+        self.local_files_only = local_files_only
+        self.model_config = AutoConfig.from_pretrained(path, local_files_only=local_files_only)
         self.llm = AutoModelForCausalLM.from_pretrained(
             path,
             config=self.model_config,
             trust_remote_code=True,
             device_map="auto" if self.device.type == "cuda" else None,
+            local_files_only=local_files_only,
         )
         if self.device.type != "cuda":
             self.llm = self.llm.to(self.device)
-        self.tokenizer = AutoTokenizer.from_pretrained(path)
+        self.tokenizer = AutoTokenizer.from_pretrained(path, local_files_only=local_files_only)
         if self.model_type == "llama":
             pad_token = self.tokenizer.unk_token or self.tokenizer.eos_token
             self.llm.config.pad_token_id = self.tokenizer.convert_tokens_to_ids(pad_token)
