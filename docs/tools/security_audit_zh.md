@@ -302,11 +302,13 @@ model_paths:
 
 ## Dependencies
 
-| 依赖 | 用途 | 是否必须 |
-|------|------|----------|
-| `torch` + `transformers` | Model-Based Checkers 推理 | 启用 Model-Based Checkers 时必须 |
-| LLM API（OpenAI 兼容） | 工具内部 LLM 调用 | 启用 LLM-as-a-judge Checkers 时必须 |
-| GPU | Model-Based Checkers 加速 | 否（CPU 可运行，速度较慢） |
+下表按资源档位汇总 `security_audit` 的依赖需求：档位越高，可用依赖和 checker 池越完整，也能支持更复杂的审计策略。资源档位只表示部署环境的能力上限，实际运行时仍由策略解析器或用户指定的 checker 选择决定。
+
+| 资源模式 | LLM API / 本地 LLM | 本地模型缓存 | GPU | 额外依赖 | 可供选择的 checker | 可以跑的策略 |
+|----------|---------------------|--------------|-----|----------|--------------------|--------------|
+| `light` | 不需要 | 不需要 | 不需要 | 低依赖 | all rule-based checkers：`PIIRule`, `SecretRule`, `ToxicityKeywordRule`, `HarmfulKeywordRule`, `BiasKeywordRule` | 批量扫描；快速预筛；发现显式 PII、密钥、明显有害/毒性/偏见关键词。 |
+| `standard` | 需要 | 可选，允许 CPU 可运行模型 | 不需要 | 需要 LLM provider；启用 `PIINERDetector` 时需要 NER 相关依赖 | `light` 全部 checker + all LLM-as-a-judge checkers + `PIINERDetector` | `light` 模式下的所有策略；隐私识别增强；语义安全审计；常规入库前审计。 |
+| `full` | 需要 | 需要，需配置重模型路径或缓存 | 建议使用 | 需要 `torch`、`transformers` 及对应模型依赖 | all checkers：`standard` 全部 checker + `HarmfulContentClassifier`, `ToxicityClassifier`, `BiasClassifier`, `JailbreakClassifier`, `PromptInjectionClassifier`, `GraCeFulBackdoorDefender` | `standard` 模式下的所有策略；高召回率审计；专用模型复核；后门检测；benchmark。 |
 
 ---
 

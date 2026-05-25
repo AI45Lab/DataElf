@@ -301,11 +301,13 @@ model_paths:
 
 ## Dependencies
 
-| Dependency | Purpose | Required |
-|------------|---------|----------|
-| `torch` + `transformers` | Model-Based Checker inference | Required when Model-Based Checkers are enabled |
-| LLM API (OpenAI-compatible) | Internal LLM calls | Required when LLM-as-a-Judge Checkers are enabled |
-| GPU | Accelerate Model-Based Checkers | No (CPU supported, but slower) |
+The table below summarizes `security_audit` dependency requirements by resource tier. Higher tiers expose a larger dependency and checker pool, enabling more complex audit strategies. A resource tier only describes the deployment capability ceiling; the actual run still depends on the strategy resolver or user-selected checkers.
+
+| Resource mode | LLM API / local LLM | Local model cache | GPU | Extra dependencies | Available checkers | Supported strategies |
+|---------------|---------------------|-------------------|-----|--------------------|--------------------|----------------------|
+| `light` | Not required | Not required | Not required | Low dependency footprint | all rule-based checkers: `PIIRule`, `SecretRule`, `ToxicityKeywordRule`, `HarmfulKeywordRule`, `BiasKeywordRule` | Batch scanning; fast pre-screening; detect explicit PII, secrets, and obvious harmful/toxic/bias keywords. |
+| `standard` | Required | Optional; CPU-runnable models are allowed | Not required | Requires an LLM provider; `PIINERDetector` requires NER-related dependencies when enabled | all `light` checkers + all LLM-as-a-Judge checkers + `PIINERDetector` | All `light` strategies; enhanced privacy detection; semantic safety auditing; routine pre-ingestion auditing. |
+| `full` | Required | Required; heavyweight model paths or caches must be configured | Recommended | Requires `torch`, `transformers`, and model-specific dependencies | all checkers: all `standard` checkers + `HarmfulContentClassifier`, `ToxicityClassifier`, `BiasClassifier`, `JailbreakClassifier`, `PromptInjectionClassifier`, `GraCeFulBackdoorDefender` | All `standard` strategies; high-recall auditing; specialist model review; backdoor detection; benchmarking. |
 
 ---
 
