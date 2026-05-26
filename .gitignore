@@ -177,6 +177,7 @@ logs/
 *.sqlite3
 .claude/
 .codex
+.vscode
 
 #runtime generated
 .jobs/

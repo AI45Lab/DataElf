@@ -67,7 +67,9 @@
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
 | `data` | `list[dict]` | 是 | — | 待审计的数据集记录列表 |
-| `checker_names` | `list[str]` | 否 | `[]` | 根据用户需求指定的的 Checker 类名列表，见 [Checkers](#checkers) |
+| `checker_selection_mode` | `str` | 否 | `default` | checker 选择意图：`explicit`、`recommend` 或 `default` |
+| `checker_names` | `list[str]` | 否 | `[]` | `explicit` 模式使用的 Checker 类名列表；未传 `checker_selection_mode` 但传了本字段时，按 `explicit` 处理，见 [Checkers](#checkers) |
+| `checker_preferences` | `str` | 否 | `""` | `recommend` 模式使用的自然语言偏好，例如低成本、快速、高准确率或覆盖更强 |
 | `max_workers` | `int` | 否 | `4` | 并行执行的线程数 |
 
 
@@ -77,18 +79,11 @@
 ```yaml
 result:
   security_score: float        # 加权安全分数（0.0–1.0，越高越安全）
-  passed: bool                 # security_score >= threshold 时为 true
   total_issues: int            # 被标记为风险的样本数
   flagged_samples: int         # 同 total_issues
   safe_samples: int            # 未被标记的样本数
   total_samples: int           # 总样本数
   flagged_rate: float          # 被标记率（flagged_samples / total_samples）
-
-metadata:
-  task_name: str               # 审计任务名称
-  checker_names: list[str]     # 本次使用的 checker 列表
-  create_time: str             # 任务开始时间（ISO 格式）
-  finish_time: str             # 任务结束时间（ISO 格式）
   risk_distribution:           # 各风险类型的分布统计
     pii:
       total: int               # 检测该风险的样本总数
@@ -101,6 +96,43 @@ metadata:
       flagged: int             # 标记数
       error: int               # 执行异常数
       content_filter: int      # 触发内容过滤数
+
+metadata:
+  task_name: str               # 审计任务名称
+  checker_names: list[str]     # 本次运行使用的 checker 列表
+  runtime_policy:              # 本次运行使用的部署运行策略
+    network_mode: str          # 网络模式：online / offline
+    resource_tier: str         # 资源档位：light / standard / full
+  request:                     # 归一化后的 checker 选择请求
+    checker_selection_mode: str # checker 选择模式：explicit / recommend / default
+    checker_names: list[str]   # 用户显式指定的 checker 列表；非 explicit 时通常为空
+    checker_preferences: str   # recommend 模式下的自然语言偏好
+  capability_set:              # 根据运行策略计算出的本次可用 checker 边界
+    allowed_checker_names: list[str]  # 本次允许运行的 checker 名称
+    blocked_checkers:          # 本次被策略排除的 checker 及原因
+      - name: str              # 被排除的 checker 名称
+        reasons: list[str]     # 排除原因代码列表
+  resolved_plan:               # 最终解析出的执行计划
+    schema_version: security_audit.resolved_plan.v1  # 执行计划结构版本
+    strategy: deterministic | llm  # 计划解析策略；当前实现使用 deterministic 规则
+    source: explicit | default | recommend | fallback  # 计划来源
+    stages:                    # 执行阶段列表；当前版本仍为单阶段
+      - id: stage_1            # 阶段唯一标识
+        name: single_stage     # 阶段名称
+        type: single_stage     # 阶段类型
+        checkers: list[str]    # 该阶段运行的 checker 列表
+        input_scope:           # 该阶段输入样本范围
+          type: all_samples    # 输入范围类型；all_samples 表示全部样本
+          source_stage_id: null # 多阶段场景下的上游阶段 ID；单阶段为 null
+        routing:               # 阶段路由策略
+          mode: all            # all 表示对输入范围内全部样本运行
+    skipped_checkers: list     # 解析计划时被跳过的 checker 及原因
+    degradations: list         # 推荐或规划过程中发生的降级记录
+  execution:                   # 实际执行参数
+    max_workers: int           # 并行 worker 数
+  create_time: str             # 任务开始时间（ISO 格式）
+  finish_time: str             # 任务结束时间（ISO 格式）
+  
 
 artifacts:
   report_md: str               # Markdown 格式的完整审计报告文件路径

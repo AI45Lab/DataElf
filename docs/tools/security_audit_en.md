@@ -67,7 +67,9 @@ Example input sample:
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `data` | `list[dict]` | Yes | — | List of dataset records to audit |
-| `checker_names` | `list[str]` | No | `[]` | List of Checker class names to enable; see [Checkers](#checkers) |
+| `checker_selection_mode` | `str` | No | `default` | Checker selection intent: `explicit`, `recommend`, or `default` |
+| `checker_names` | `list[str]` | No | `[]` | Checker class names for `explicit` mode. If provided without `checker_selection_mode`, the request is treated as `explicit`; see [Checkers](#checkers) |
+| `checker_preferences` | `str` | No | `""` | Natural-language preferences for `recommend` mode, such as low cost, fast, high accuracy, or stronger coverage |
 | `max_workers` | `int` | No | `4` | Number of parallel worker threads |
 
 
@@ -77,24 +79,59 @@ Example input sample:
 ```yaml
 result:
   security_score: float        # Weighted security score (0.0–1.0; higher is safer)
-  passed: bool                 # true when security_score >= threshold
   total_issues: int            # Number of samples flagged as risky
   flagged_samples: int         # Same as total_issues
   safe_samples: int            # Number of samples not flagged
   total_samples: int           # Total number of samples
   flagged_rate: float          # Flag rate (flagged_samples / total_samples)
-
-metadata:
-  task_name: str               # Audit task name
-  checker_names: list[str]     # Checkers used in this run
-  create_time: str             # Task start time (ISO format)
-  finish_time: str             # Task finish time (ISO format)
   risk_distribution:           # Distribution statistics per risk type
     pii:
       total: int               # Total samples inspected for this risk
       flagged: int             # Number of hits
     harmful: {total: int, flagged: int}
     # ... other risk types (14 in total)
+  checker_stats:               # Execution statistics per checker
+    PIIRule:
+      total: int               # Successfully executed count
+      flagged: int             # Flagged count
+      error: int               # Execution error count
+      content_filter: int      # Content filter triggered count
+
+metadata:
+  task_name: str               # Audit task name
+  checker_names: list[str]     # Checkers used in this run
+  runtime_policy:              # Deployment runtime policy used for this run
+    network_mode: str          # Network mode: online / offline
+    resource_tier: str         # Resource tier: light / standard / full
+  request:                     # Normalized checker selection request
+    checker_selection_mode: str # Checker selection mode: explicit / recommend / default
+    checker_names: list[str]   # User-specified checkers; usually empty outside explicit mode
+    checker_preferences: str   # Natural-language preferences for recommend mode
+  capability_set:              # Checker availability boundary for this run
+    allowed_checker_names: list[str]  # Checker names allowed by runtime policy
+    blocked_checkers:          # Checkers blocked by policy and their reasons
+      - name: str              # Blocked checker name
+        reasons: list[str]     # Block reason codes
+  resolved_plan:               # Final resolved execution plan
+    schema_version: security_audit.resolved_plan.v1  # Execution plan schema version
+    strategy: deterministic | llm  # Plan resolution strategy; current implementation uses deterministic rules
+    source: explicit | default | recommend | fallback  # Plan source
+    stages:                    # Execution stages; current version runs one stage
+      - id: stage_1            # Unique stage id
+        name: single_stage     # Stage name
+        type: single_stage     # Stage type
+        checkers: list[str]    # Checkers executed in this stage
+        input_scope:           # Input sample scope for this stage
+          type: all_samples    # Scope type; all_samples means all input samples
+          source_stage_id: null # Upstream stage id for multi-stage plans; null for single stage
+        routing:               # Stage routing policy
+          mode: all            # all means run on every sample in the input scope
+    skipped_checkers: list     # Checkers skipped during plan resolution and their reasons
+    degradations: list         # Degradation records from recommendation or planning
+  execution:                   # Actual execution parameters
+    max_workers: int           # Number of parallel workers
+  create_time: str             # Task start time (ISO format)
+  finish_time: str             # Task finish time (ISO format)
   checker_stats:               # Execution statistics per checker
     PIIRule:
       total: int               # Successfully executed count

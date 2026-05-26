@@ -2,7 +2,8 @@
 # Loaded automatically when required_security_audit_tool: true in upper config.
 # Users can override individual values via tool_defaults.security_audit in their config.
 
-# Checkers to enable. Priority: call-time checker_names arg > this list.
+# Checkers to enable for checker_selection_mode=default. Legacy call-time
+# checker_names still implies checker_selection_mode=explicit.
 # Each entry can be a plain string (checker class name) or a dict with name/enabled/params.
 # Available checkers:
 #   Rule-based:  PIIRule, SecretRule, ToxicityKeywordRule, HarmfulKeywordRule,
@@ -67,4 +68,3 @@ risk_weights:
   prompt_injection: 10
   jailbreak: 10
   sycophancy: 2
-

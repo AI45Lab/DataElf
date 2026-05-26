@@ -20,7 +20,10 @@ from .policy import (
     ResolvedCheckerPlan,
     build_checker_capability_set,
     build_checker_request,
+    capability_set_metadata,
     resolve_checker_plan,
+    resolved_plan_metadata,
+    checker_request_metadata,
     validate_checker_request,
     validate_resolved_checker_plan,
 )
@@ -109,8 +112,23 @@ class SecurityAuditTool(BaseTool):
                     "type": "array",
                     "items": {"type": "string"},
                     "description": (
-                        "OPTIONAL. Omit this parameter unless the user explicitly names specific checkers to run. "
-                        "When omitted, the default checker list from configuration is used automatically."
+                        "OPTIONAL. Specific checker class names. If provided without checker_selection_mode, "
+                        "the request is treated as checker_selection_mode='explicit'."
+                    ),
+                },
+                "checker_selection_mode": {
+                    "type": "string",
+                    "enum": ["explicit", "recommend", "default"],
+                    "description": (
+                        "OPTIONAL. Checker selection intent. explicit requires checker_names; recommend may use "
+                        "checker_preferences; default uses the configured default checker set."
+                    ),
+                },
+                "checker_preferences": {
+                    "type": "string",
+                    "description": (
+                        "OPTIONAL. Natural-language preferences for recommend mode, such as low cost, fast, "
+                        "high accuracy, or stronger coverage. Ignored in default mode."
                     ),
                 },
                 "max_workers": {
@@ -150,7 +168,7 @@ class SecurityAuditTool(BaseTool):
         # Step 3: Log the resolved single-stage plan.
         checker_configs = plan.checker_configs
         checker_names = [c.name for c in checker_configs if c.enabled]
-        self._log_plan(context, plan, checker_names, bool(kwargs.get("checker_names")))
+        self._log_plan(context, plan, checker_names)
         context.log(f"SecurityAuditTool: {len(data)} records, checkers={checker_names}")
 
         # TODO:Step 4: Execute the resolved plan.
@@ -162,6 +180,7 @@ class SecurityAuditTool(BaseTool):
             tool_defaults=tool_defaults,
             checker_configs=checker_configs,
             checker_names=checker_names,
+            runtime_policy=runtime_policy,
         )
 
     def _build_execution_plan(
@@ -218,13 +237,16 @@ class SecurityAuditTool(BaseTool):
         context: ToolContext,
         plan: ResolvedCheckerPlan,
         checker_names: list[str],
-        explicit_checkers: bool,
     ) -> None:
-        if explicit_checkers:
+        if plan.source == "explicit":
             context.log(f"SecurityAuditTool: using user-specified checkers: {checker_names}")
-        elif plan.source == "config":
+        elif plan.source == "default":
             context.log(
                 f"SecurityAuditTool: using checkers from default.yaml: {checker_names}. "
+            )
+        elif plan.source == "recommend":
+            context.log(
+                f"SecurityAuditTool: using recommended checkers ({plan.strategy}): {checker_names}"
             )
         else:
             context.log(
@@ -247,6 +269,7 @@ class SecurityAuditTool(BaseTool):
         tool_defaults: dict,
         checker_configs: list[CheckerConfig],
         checker_names: list[str],
+        runtime_policy: Any,
     ) -> dict[str, Any]:
         # TODO: (resource_tier) Replace this single-stage executor with a
         # strategy-aware multi-stage executor when funnel plans are implemented.
@@ -305,22 +328,18 @@ class SecurityAuditTool(BaseTool):
             },
             "metadata": {
                 "task_name": task_report.task_name,
-                "checker_names": checker_names,
-                "resolved_plan": {
-                    "schema_version": "security_audit.resolved_plan.v1",
-                    "strategy": plan.strategy,
-                    "source": plan.source,
-                    "skipped_checkers": plan.skipped_checkers,
-                    "stages": [
-                        {
-                            "id": "stage_1",
-                            "name": "single_stage",
-                            "type": "single_stage",
-                            "checkers": checker_names,
-                            "input_scope": {"type": "all_samples"},
-                        }
-                    ],
+                "runtime_policy": {
+                    "network_mode": runtime_policy.network_mode,
+                    "resource_tier": runtime_policy.resource_tier,
                 },
+                "request": checker_request_metadata(plan.request) if plan.request else {},
+                "capability_set": capability_set_metadata(plan.capability_set) if plan.capability_set else {},
+                "resolved_plan": resolved_plan_metadata(plan),
+                "execution": {
+                    "max_workers": max_workers,
+                },
+                "checker_names": checker_names,
+                "checker_stats": task_report.checker_stats,
                 "create_time": task_report.create_time,
                 "finish_time": task_report.finish_time,
             },
