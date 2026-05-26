@@ -214,8 +214,8 @@ protein_result = run_tool(
 
 ```yaml
 # config.yaml
-tools:
-  - enzyme_acquire   # 对应 docs/tools/enzyme_acquire.md
+skills:
+  - enzyme_acquire   # 对应 skills/enzyme_acquire/SKILL.md
 ```
 
 环境变量 `SDC_OUTPUT_DIR` 控制输出根目录（默认 `/tmp/sdc_outputs/bio/`）。输出文件与 `enzyme_acquire_meta.json` sidecar 均写入该目录，已加入 `.gitignore`，不应提交至仓库。

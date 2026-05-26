@@ -6,12 +6,12 @@
 
 # DataElf
 
-DataElf 是一个面向大规模数据工作流的智能执行引擎。它将自然语言目标转化为可运行的流水线，自动执行内置工具，并在全过程中保持安全性、可追溯性与可扩展性。
+DataElf 是一个面向大规模数据工作流的智能执行引擎。它将自然语言目标转化为结构化执行计划，自动调用内置 skill，并在全过程中保持安全性、可追溯性与可扩展性。
 
 开源版本面向需要一套统一框架来完成数据检查、安全扫描、质量评分、数据筛选和领域工具编排的团队，无需暴露私有数据处理基础设施。
 
 [演示](#演示) |
-[工具](#内置工具) |
+[Skill](#内置-skill) |
 [实验结果](#实验结果) |
 [快速开始](#快速开始) |
 [CLI](#cli-概览) |
@@ -29,26 +29,26 @@ https://github.com/user-attachments/assets/dd9038dd-660e-46bf-a06d-cdb76b254f27
 
 ## 核心能力
 
-- 将自然语言需求转化为可执行流水线。
+- 将自然语言需求转化为可校验的 JSON 执行计划。
 - 对明确任务运行单次执行模式，必要时进行轻量级澄清。
 - 对复杂任务运行高自主性的 Pilot 循环，涵盖规划、执行、评审、修复与资产沉淀。
-- 保留流水线、日志、报告和中间产物等执行痕迹，便于审查。
+- 保留执行计划、日志、报告和中间产物等执行痕迹，便于审查。
 - 通过审批与提交机制支持可复用的稳定工作流资产。
-- 支持通过自定义 `BaseTool` 实现扩展工具层。
+- 支持通过 AgentSkills-compatible skill package 扩展能力。
 - 在同一套 CLI 驱动的系统中整合数据安全检查与通用数据处理流程。
 
-## 内置工具
+## 内置 Skill
 
-DataElf 目前内置以下工具：
+DataElf 目前内置以下 skill：
 
-| 工具 | 功能 | 文档 |
+| Skill | 功能 | 文档 |
 | --- | --- | --- |
-| `security_audit` | 数据集安全与风险扫描 | [security_audit_cn.md](docs/tools/security_audit_cn.md) |
-| `data_scoring` | 样本级质量评分 | [data_scoring_cn.md](docs/tools/data_scoring_cn.md) |
-| `data_select` | 基于预算或聚类的数据筛选 | [data_select_cn.md](docs/tools/data_select_cn.md) |
-| `enzyme_acquire` | 酶信息检索工作流 | [enzyme_acquire_cn.md](docs/tools/enzyme_acquire_cn.md) |
-| `protein_analyzer` | 蛋白质分析工作流 | [protein_analyzer_cn.md](docs/tools/protein_analyzer_cn.md) |
-| `skillrl_skill_extraction` | 从轨迹数据中提取技能 | [skillrl_skill_extraction_cn.md](docs/tools/skillrl_skill_extraction_cn.md) |
+| `security_audit` | 数据集安全与风险扫描 | [SKILL.md](skills/security_audit/SKILL.md) |
+| `data_scoring` | 样本级质量评分 | [SKILL.md](skills/data_scoring/SKILL.md) |
+| `data_select` | 基于预算或聚类的数据筛选 | [SKILL.md](skills/data_select/SKILL.md) |
+| `enzyme_acquire` | 酶信息检索工作流 | [SKILL.md](skills/enzyme_acquire/SKILL.md) |
+| `protein_analyzer` | 蛋白质分析工作流 | [SKILL.md](skills/protein_analyzer/SKILL.md) |
+| `skillrl_skill_extraction` | 从轨迹数据中提取技能 | [SKILL.md](skills/skillrl_skill_extraction/SKILL.md) |
 
 ## 实验结果
 
@@ -170,67 +170,57 @@ elf inspect <job_id|candidate_id|asset_id> [--json]
 
 - `run`：针对相对明确的任务进行单次规划与执行。
 - `pilot`：迭代式规划与修复循环，支持候选资产生成。
-- `submit`：执行已审批的稳定流水线资产。
+- `submit`：执行已审批的稳定执行计划资产。
 
 ## 扩展 DataElf
 
-通过实现 `BaseTool`、注册工具并在 `config.yaml` 中声明即可添加自定义工具。
+通过贡献 AgentSkills-compatible skill package 并在 `config.yaml` 中声明即可添加自定义能力。
 
 最小示例：
 
-```python
-from typing import Any
+```text
+local_skills/domain_risk_check/
+  SKILL.md
+  references/
+  scripts/
+  assets/
+```
 
-from tools import BaseTool, ToolContext
+```markdown
+---
+name: domain_risk_check
+description: Check domain-specific risky patterns in dataset records.
+allowed-tools:
+  - python
+---
 
+## Usage Instructions
 
-class DomainRiskCheckTool(BaseTool):
-    @property
-    def name(self) -> str:
-        return "domain_risk_check"
+Use this skill when the user asks for domain risk scanning.
 
-    @property
-    def description(self) -> str:
-        return "Check domain-specific risky patterns in dataset records."
+## Input Expectations
 
-    @property
-    def parameters(self) -> dict[str, Any]:
-        return {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {"type": "object"},
-                },
-                "mode": {
-                    "type": "string",
-                    "default": "strict",
-                },
-            },
-            "required": ["data"],
-        }
+- `data`: list of records.
+- `mode`: optional strictness mode.
 
-    def run(self, context: ToolContext, **kwargs: Any) -> dict[str, Any]:
-        data = kwargs.get("data", [])
-        mode = kwargs.get("mode", "strict")
-        checked = data
-        return {
-            "result": checked,
-            "metadata": {
-                "records_processed": len(data),
-                "mode": mode,
-            },
-            "artifacts": {
-                "report_md": "# Domain Risk Report\n",
-            },
-        }
+## Output Expectations
+
+Return structured findings, metadata, artifacts, metrics, and trace entries.
+```
+
+```yaml
+skills:
+  - domain_risk_check
+
+skill_paths:
+  - ./local_skills
 ```
 
 详见开发者文档：
 
-- [工具开发指南](docs/tool_development_guide.md)
-- [工具规范](docs/tool_spec.md)
-- [流水线 DSL 规范](docs/pipeline_dsl_spec.md)
+- [Skill package 规范](docs/skill_spec.md)
+- [执行计划规范](docs/execution_plan_spec.md)
+- [内部 backend 说明](docs/tool_spec.md)
 
 ## 项目结构
 
@@ -241,7 +231,8 @@ DataElf/
 ├── agent/           # Agent 适配与提示构建
 ├── agentic/         # Pilot 循环与资产生命周期
 ├── runtime/         # 运行时执行层
-├── tools/           # 内置工具
+├── skills/          # 内置 AgentSkills packages
+├── tools/           # 内置 skill 的内部 Python backend
 ├── database/        # 开源数据库策略
 ├── config/          # 配置加载
 ├── docs/            # 用户与开发者文档

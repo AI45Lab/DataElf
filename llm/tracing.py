@@ -82,6 +82,8 @@ class LLMTraceRecorder:
             "error_type": type(error).__name__ if error else None,
             "error_message": str(error) if error else None,
             "parsed_response": parsed_response,
+            "skill_name": context.get("skill_name"),
+            "skill_component": context.get("skill_component"),
             "tool_name": context.get("tool_name"),
             "tool_component": context.get("tool_component"),
             "tool_call_context": context.get("tool_call_context"),
@@ -91,7 +93,13 @@ class LLMTraceRecorder:
             "response_hash": _hash_text(response_text),
         }
         row = {
-            "dataset_type": "dataelf_llm_call_tool" if scope == "tool" else "dataelf_llm_call_core",
+            "dataset_type": (
+                "dataelf_llm_call_skill"
+                if scope == "skill"
+                else "dataelf_llm_call_tool"
+                if scope == "tool"
+                else "dataelf_llm_call_core"
+            ),
             "dt": datetime.utcfromtimestamp(created_at).strftime("%Y-%m-%d"),
             "id": "",
             "session_id": job_id,
@@ -110,7 +118,13 @@ class LLMTraceRecorder:
             "ground_truth_answer": None,
             "reference_answer": None,
             "agent_model": model,
-            "env_name": "dataelf/tool" if scope == "tool" else "dataelf/core",
+            "env_name": (
+                "dataelf/skill"
+                if scope == "skill"
+                else "dataelf/tool"
+                if scope == "tool"
+                else "dataelf/core"
+            ),
             "is_session_completed": False,
             "meta_json": json.dumps(meta, ensure_ascii=False),
             "blob_manifest": [],

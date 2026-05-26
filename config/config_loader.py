@@ -73,9 +73,8 @@ class AgentConfig:
     base_url: Optional[str] = None
     max_retries: int = 3
     retry_delay: float = 1.0
-    # Tool README configuration
-    include_tool_readmes: bool = False  # If true, load READMEs for tools in config.tools
-    tool_readmes_max_length: int = 2000  # Max characters per README (truncate by priority)
+    include_skill_docs: bool = False
+    skill_docs_max_length: int = 2000
 
 
 @dataclass
@@ -106,7 +105,8 @@ class Config:
     tool_llm: ToolLLMConfig = field(default_factory=ToolLLMConfig)
     llm_tracing: LLMTracingConfig = field(default_factory=LLMTracingConfig)
     tool_defaults: dict[str, Any] = field(default_factory=dict)
-    tools: list[str] = field(default_factory=list)
+    skills: list[str] = field(default_factory=list)
+    skill_paths: list[str] = field(default_factory=list)
     required_scoring_tool: bool = False
     required_select_tool: bool = False
     required_security_audit_tool: bool = False
@@ -131,7 +131,8 @@ class Config:
             tool_llm=ToolLLMConfig(**tool_llm_data),
             llm_tracing=LLMTracingConfig(**llm_tracing_data),
             tool_defaults=tool_defaults_data if isinstance(tool_defaults_data, dict) else {},
-            tools=data.get("tools", []),
+            skills=data.get("skills", []),
+            skill_paths=data.get("skill_paths", []),
             required_scoring_tool=bool(data.get("required_scoring_tool", False)),
             required_select_tool=bool(data.get("required_select_tool", False)),
             required_security_audit_tool=bool(data.get("required_security_audit_tool", False)),

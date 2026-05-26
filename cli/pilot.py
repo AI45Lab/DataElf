@@ -51,6 +51,7 @@ def pilot(
         job_manager=env["job_manager"],
         executor=env["executor"],
         registry=env["registry"],
+        skill_registry=env["skill_registry"],
         asset_manager=env["asset_manager"],
         llm_provider=env["llm_provider"],
     )
@@ -200,7 +201,7 @@ def pilot(
             if llm.get("error"):
                 error(f"{attempt_id} Pipeline Error", str(llm.get("error")))
             if pipeline:
-                section("🔧", f"{attempt_id} Pipeline DSL", color="blue")
+                section("🔧", f"{attempt_id} Execution Plan", color="blue")
                 click.echo(pipeline)
             return
 

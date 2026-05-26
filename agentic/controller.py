@@ -11,10 +11,11 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable
 
-from agent import create_agent_adapter, load_tool_readme_entries, resolve_tool_readme_path
+from agent import create_agent_adapter
 from llm.provider import LLMProvider
 from llm.tracing import llm_trace_context
 from runtime import JobManager, JobStatus, RuntimeExecutor
+from runtime.skill_registry import SkillRegistry
 from tools import ToolRegistry
 
 
@@ -37,7 +38,7 @@ _SCORER_ALIASES: dict[str, list[str]] = {
 class CoordinationContext:
     task: str
     dataset_schemas: dict[str, list[str]]
-    tool_schemas: list[dict[str, Any]]
+    skill_views: list[dict[str, Any]]
     model: str
 
 
@@ -48,12 +49,19 @@ class RunCoordinator:
         job_manager: JobManager,
         executor: RuntimeExecutor,
         registry: ToolRegistry,
+        skill_registry: SkillRegistry | None = None,
         llm_provider: LLMProvider | None = None,
     ) -> None:
         self.config = config
         self.job_manager = job_manager
         self.executor = executor
         self.registry = registry
+        if skill_registry is None:
+            from runtime.skill_registry import builtin_skill_root
+
+            skill_registry = SkillRegistry([builtin_skill_root()], enabled_skills=getattr(config, "skills", []))
+            skill_registry.discover()
+        self.skill_registry = skill_registry
         self.llm_provider = llm_provider
 
     def maybe_request_clarification(
@@ -160,9 +168,9 @@ class RunCoordinator:
         tool_gap = self._check_tool_availability(task)
         if tool_gap:
             capability_gap = {
-                "type": "tool_not_available",
+                "type": "skill_not_available",
                 "reason": tool_gap["reason"],
-                "missing_tools": tool_gap["missing_tools"],
+                "missing_skills": tool_gap["missing_skills"],
                 "fix_hint": tool_gap["fix_hint"],
             }
             self.job_manager.update_capability_gap(job.job_id, capability_gap)
@@ -172,6 +180,7 @@ class RunCoordinator:
                 "job_id": job.job_id,
                 "status": "needs_pilot",
                 "pipeline": "",
+                "execution_plan": "",
                 "llm_metadata": {},
                 "execution": {"success": False, "result": None, "error": tool_gap["reason"]},
                 "clarification": {
@@ -239,6 +248,7 @@ class RunCoordinator:
                 "job_id": job.job_id,
                 "status": "needs_pilot",
                 "pipeline": "",
+                "execution_plan": "",
                 "llm_metadata": {},
                 "execution": {"success": False, "result": None, "error": capability_gap["reason"]},
                 "clarification": clarification,
@@ -248,25 +258,25 @@ class RunCoordinator:
 
         agent = create_agent_adapter(
             self.config,
-            _visible_tool_schemas(self.config, self.registry),
+            _visible_skill_views(self.config, self.skill_registry),
             dataset_schemas,
             llm_provider=self.llm_provider,
+            skill_docs=self._planner_skill_docs(effective_task),
         )
         self._emit(event_handler, {
             "type": "stage_started",
             "mode": "run",
             "job_id": job.job_id,
-            "stage": "pipeline_generation",
+            "stage": "execution_plan_generation",
             "model": self.config.agent.model,
         })
-        with llm_trace_context(job_id=job.job_id, mode="run", scope="core", caller="pipeline_generator"):
-            pipeline, llm_metadata = agent.generate_pipeline(effective_task)
-        pipeline = self._stabilize_run_pipeline(effective_task, pipeline)
+        with llm_trace_context(job_id=job.job_id, mode="run", scope="core", caller="execution_plan_generator"):
+            pipeline, llm_metadata = agent.generate_execution_plan(effective_task)
         self._emit(event_handler, {
             "type": "stage_completed",
             "mode": "run",
             "job_id": job.job_id,
-            "stage": "pipeline_generation",
+            "stage": "execution_plan_generation",
             "model": llm_metadata.get("model"),
             "llm": llm_metadata,
         })
@@ -311,6 +321,7 @@ class RunCoordinator:
                 "job_id": job.job_id,
                 "status": "failed",
                 "pipeline": pipeline,
+                "execution_plan": pipeline,
                 "llm_metadata": llm_metadata,
                 "execution": {"success": False, "result": None, "error": capability_gap["reason"]},
                 "clarification": clarification,
@@ -371,6 +382,7 @@ class RunCoordinator:
             "job_id": job.job_id,
             "status": "completed" if result["success"] else "failed",
             "pipeline": pipeline,
+            "execution_plan": pipeline,
             "llm_metadata": llm_metadata,
             "execution": result,
             "clarification": clarification,
@@ -478,17 +490,17 @@ class RunCoordinator:
             transcript=transcript,
             messages=messages,
             dataset_schemas=dataset_schemas,
-            tool_schemas=_visible_tool_schemas(self.config, self.registry),
-            tool_shortlist=_select_relevant_tool_schemas(
+            tool_schemas=_visible_skill_views(self.config, self.skill_registry),
+            tool_shortlist=_select_relevant_skill_views(
                 task,
-                self.registry,
-                allowed_tool_names=_configured_tool_names(self.config),
+                self.skill_registry,
+                allowed_skill_names=_configured_skill_names(self.config),
             ),
             security_hints=_build_security_audit_hints(
                 task,
                 self.registry,
             ),
-            tool_readmes=self._clarification_tool_readmes(task),
+            skill_docs=self._planner_skill_docs(task),
         )
         start_time = perf_counter()
         try:
@@ -528,17 +540,22 @@ class RunCoordinator:
             "error": None,
         }
 
-    def _clarification_tool_readmes(self, task: str) -> list[dict[str, str]]:
-        if not getattr(self.config.agent, "include_tool_readmes", False):
+    def _planner_skill_docs(self, task: str) -> list[dict[str, str]]:
+        if not getattr(self.config.agent, "include_skill_docs", False):
             return []
-        shortlist = _select_relevant_tool_schemas(
+        shortlist = _select_relevant_skill_views(
             task,
-            self.registry,
-            allowed_tool_names=_configured_tool_names(self.config),
+            self.skill_registry,
+            allowed_skill_names=_configured_skill_names(self.config),
         )
-        tool_names = [schema.get("name", "") for schema in shortlist if schema.get("name")]
-        max_len = getattr(self.config.agent, "tool_readmes_max_length", 2000)
-        return load_tool_readme_entries(tool_names, max_len=max_len)
+        max_len = getattr(self.config.agent, "skill_docs_max_length", 2000)
+        entries = []
+        for view in shortlist:
+            name = view.get("name", "")
+            if not name:
+                continue
+            entries.extend(self.skill_registry.load_documentation_entries(name, max_len=max_len))
+        return entries
 
     def _judge_capability_gap(self, task: str, pipeline: str, execution: dict[str, Any]) -> dict[str, Any]:
         fallback = {
@@ -568,9 +585,8 @@ class RunCoordinator:
             event_handler(event)
 
     def _check_tool_availability(self, task: str) -> dict[str, Any] | None:
-        """Fast-fail check: if the task references a tool that is not registered, return gap info."""
-        # All known built-in tool identifiers (registry name -> class name)
-        _BUILTIN_TOOLS: dict[str, str] = {
+        """Fast-fail check for named skills whose built-in backends are unavailable."""
+        _BUILTIN_SKILLS: dict[str, str] = {
             "security_audit": "SecurityAuditTool",
             "data_scoring": "DataScoringTool",
             "data_select": "DataSelectTool",
@@ -581,25 +597,23 @@ class RunCoordinator:
 
         registered = set(self.registry.list_tools())
         task_lower = task.lower()
-        mentioned_tools: list[str] = []
+        mentioned_skills: list[str] = []
 
-        for tool_name, class_name in _BUILTIN_TOOLS.items():
-            if tool_name in task_lower or class_name.lower() in task_lower:
-                if tool_name not in registered:
-                    mentioned_tools.append(f"{tool_name} ({class_name})")
-            # Only flag scorer aliases when the parent tool itself is NOT registered.
-            # If the tool is registered, its scorers are available at runtime.
-            if tool_name not in registered and tool_name in ("data_scoring", "data_select"):
-                for alias in _SCORER_ALIASES.get(tool_name, []):
+        for skill_name, backend_class in _BUILTIN_SKILLS.items():
+            if skill_name in task_lower or backend_class.lower() in task_lower:
+                if skill_name not in registered:
+                    mentioned_skills.append(f"{skill_name} ({backend_class})")
+            if skill_name not in registered and skill_name in ("data_scoring", "data_select"):
+                for alias in _SCORER_ALIASES.get(skill_name, []):
                     if alias in task_lower:
-                        mentioned_tools.append(f"{alias} (scorer inside {tool_name})")
+                        mentioned_skills.append(f"{alias} (scorer inside {skill_name})")
 
-        if not mentioned_tools:
+        if not mentioned_skills:
             return None
 
         fix_parts: list[str] = []
-        needs_scoring = any("data_scoring" in t or "data_select" in t for t in mentioned_tools)
-        needs_scitools = any("enzyme_acquire" in t or "protein_analyzer" in t for t in mentioned_tools)
+        needs_scoring = any("data_scoring" in t or "data_select" in t for t in mentioned_skills)
+        needs_scitools = any("enzyme_acquire" in t or "protein_analyzer" in t for t in mentioned_skills)
         if needs_scoring:
             fix_parts.append('pip install -e ".[scoring]"  # data_scoring + data_select tools')
         if needs_scitools:
@@ -609,17 +623,17 @@ class RunCoordinator:
             "Install the missing dependency group(s):\n  "
             + "\n  ".join(fix_parts)
             if fix_parts
-            else "Remove the unavailable tool from your config or install its dependencies."
+            else "Remove the unavailable skill from your config or install its dependencies."
         )
 
-        missing_summary = ", ".join(mentioned_tools)
+        missing_summary = ", ".join(mentioned_skills)
         reason = (
-            f"The following tool(s) are referenced in your task but are not available: "
+            f"The following skill(s) are referenced in your task but are not available: "
             f"{missing_summary}. This usually means the required dependencies are not installed."
         )
 
         return {
-            "missing_tools": mentioned_tools,
+            "missing_skills": mentioned_skills,
             "reason": reason,
             "fix_hint": fix_hint,
         }
@@ -929,12 +943,19 @@ class PilotController:
         executor: RuntimeExecutor,
         registry: ToolRegistry,
         asset_manager: Any,
+        skill_registry: SkillRegistry | None = None,
         llm_provider: LLMProvider | None = None,
     ) -> None:
         self.config = config
         self.job_manager = job_manager
         self.executor = executor
         self.registry = registry
+        if skill_registry is None:
+            from runtime.skill_registry import builtin_skill_root
+
+            skill_registry = SkillRegistry([builtin_skill_root()], enabled_skills=getattr(config, "skills", []))
+            skill_registry.discover()
+        self.skill_registry = skill_registry
         self.asset_manager = asset_manager
         self.llm_provider = llm_provider
 
@@ -1884,10 +1905,10 @@ class PilotController:
             messages: list[dict[str, str]],
             _turn: int,
         ) -> tuple[dict[str, Any], dict[str, Any]]:
-            relevant_tools = _select_relevant_tool_schemas(
+            relevant_tools = _select_relevant_skill_views(
                 current_task,
-                self.registry,
-                allowed_tool_names=_configured_tool_names(self.config),
+                self.skill_registry,
+                allowed_skill_names=_configured_skill_names(self.config),
             )
             prompt = _build_pilot_goal_clarification_prompt(
                 task=task,
@@ -1896,7 +1917,7 @@ class PilotController:
                 dataset_schemas=dataset_schemas,
                 relevant_tools=relevant_tools,
                 allow_experimental_tools=allow_experimental_tools,
-                tool_readmes=self._pilot_tool_readmes(relevant_tools),
+                skill_docs=self._pilot_skill_docs(relevant_tools),
             )
             start_time = perf_counter()
             fallback_llm = {
@@ -2129,12 +2150,17 @@ class PilotController:
             "resolved_slots": _accumulated_slots,
         }
 
-    def _pilot_tool_readmes(self, relevant_tools: list[dict[str, Any]]) -> list[dict[str, str]]:
-        if not getattr(self.config.agent, "include_tool_readmes", False):
+    def _pilot_skill_docs(self, relevant_tools: list[dict[str, Any]]) -> list[dict[str, str]]:
+        if not getattr(self.config.agent, "include_skill_docs", False):
             return []
-        tool_names = [schema.get("name", "") for schema in relevant_tools if schema.get("name")]
-        max_len = getattr(self.config.agent, "tool_readmes_max_length", 2000)
-        return load_tool_readme_entries(tool_names, max_len=max_len)
+        max_len = getattr(self.config.agent, "skill_docs_max_length", 2000)
+        docs: list[dict[str, str]] = []
+        for view in relevant_tools:
+            name = view.get("name", "")
+            if not name or self.skill_registry.get(name) is None:
+                continue
+            docs.extend(self.skill_registry.load_documentation_entries(name, max_len=max_len))
+        return docs
 
     def _plan_action(
         self,
@@ -2165,7 +2191,7 @@ class PilotController:
         prompt = _build_planner_prompt(
             task=task,
             dataset_schemas=dataset_schemas,
-            tool_schemas=_visible_tool_schemas(self.config, self.registry),
+            tool_schemas=_visible_skill_views(self.config, self.skill_registry),
             previous_attempts=previous_attempts,
             allow_experimental_tools=allow_experimental_tools,
         )
@@ -2377,16 +2403,16 @@ class PilotController:
             adapted_task = (
                 f"{adapted_task}\n\nExperimental tool derivation note:\n"
                 "- This attempt may use an experimental Python tool draft if it has already been derived, validated, "
-                "and appears in Available Tools for this attempt.\n"
-                "- Do not call a speculative new tool name unless it already exists in Available Tools.\n"
-                "- Use existing DSL primitives and already-registered tools to gather repair and optimization evidence.\n"
-                "- If prior derived/experimental tools failed, you may bypass them and solve the task directly in DSL."
+                "and appears in Available Skills for this attempt.\n"
+                "- Do not call a speculative new skill name unless it already exists in Available Skills.\n"
+                "- Use existing execution-plan operations and already-registered skills to gather repair and optimization evidence.\n"
+                "- If prior derived/experimental skills failed, you may bypass them and solve the task directly in the plan."
             )
         elif original_action_type == "derive_composite_tool":
             adapted_task = (
                 f"{adapted_task}\n\nComposite tool derivation note:\n"
-                "- Do not call a speculative composite tool name in this attempt unless it already exists in Available Tools.\n"
-                "- Use existing registered tools and DSL steps; the composite tool draft will be derived from this attempt's evidence."
+                "- Do not call a speculative composite skill name in this attempt unless it already exists in Available Skills.\n"
+                "- Use existing registered skills and execution-plan steps; the composite skill draft will be derived from this attempt's evidence."
             )
         strategy_guidance = _build_pilot_strategy_guidance(task)
         if strategy_guidance:
@@ -2399,8 +2425,8 @@ class PilotController:
             adapted_task = (
                 f"{adapted_task}\n\nRepair context:\n{repair_context}\n"
                 "Treat the latest failure evidence as concrete repair targets for this next attempt. "
-                "You may repair by changing DSL steps, switching tools, reusing a derived tool, or deriving a new "
-                "experimental tool when planner instructions point that way. All tool arguments must match schema exactly."
+                "You may repair by changing execution-plan steps, switching skills, reusing a derived skill, or deriving a new "
+                "experimental backend when planner instructions point that way. All skill inputs must match skill instructions."
             )
         if attempt_id:
             attempt_suffix = _attempt_suffix(attempt_id)
@@ -2413,12 +2439,19 @@ class PilotController:
 
         agent = create_agent_adapter(
             self.config,
-            _visible_tool_schemas(self.config, self.registry),
+            _visible_skill_views(self.config, self.skill_registry),
             dataset_schemas,
             llm_provider=self.llm_provider,
+            skill_docs=self._pilot_skill_docs(
+                _select_relevant_skill_views(
+                    adapted_task,
+                    self.skill_registry,
+                    allowed_skill_names=_configured_skill_names(self.config),
+                )
+            ),
         )
-        with llm_trace_context(scope="core", caller="pipeline_generator", attempt_id=attempt_id):
-            pipeline, metadata = agent.generate_pipeline(adapted_task)
+        with llm_trace_context(scope="core", caller="execution_plan_generator", attempt_id=attempt_id):
+            pipeline, metadata = agent.generate_execution_plan(adapted_task)
         if _should_retry_duplicate_optimization_pipeline(previous_attempts or [], pipeline):
             retry_task = (
                 f"{adapted_task}\n\nImportant regeneration instruction:\n"
@@ -2428,8 +2461,8 @@ class PilotController:
                 "- Change the DSL structure, the primary tool path, the result contract, the robustness strategy, "
                 "or the performance/throughput approach."
             )
-            with llm_trace_context(scope="core", caller="pipeline_generator", attempt_id=attempt_id):
-                pipeline, metadata = agent.generate_pipeline(retry_task)
+            with llm_trace_context(scope="core", caller="execution_plan_generator", attempt_id=attempt_id):
+                pipeline, metadata = agent.generate_execution_plan(retry_task)
         elif _should_retry_duplicate_failure_pipeline(previous_attempts or [], pipeline):
             retry_task = (
                 f"{adapted_task}\n\nImportant regeneration instruction:\n"
@@ -2439,16 +2472,12 @@ class PilotController:
                 "- Prefer a different main strategy such as direct DSL filtering, load_dataset filters, a different "
                 "tool path, or deriving/fixing tool code explicitly."
             )
-            with llm_trace_context(scope="core", caller="pipeline_generator", attempt_id=attempt_id):
-                pipeline, metadata = agent.generate_pipeline(retry_task)
+            with llm_trace_context(scope="core", caller="execution_plan_generator", attempt_id=attempt_id):
+                pipeline, metadata = agent.generate_execution_plan(retry_task)
         if attempt_id:
             pipeline = _stabilize_attempt_write_targets(pipeline, attempt_id)
-        pipeline = _stabilize_pipeline_logging(pipeline)
-        if _is_broad_security_audit_task(task):
-            pipeline = _stabilize_security_audit_result_logging(pipeline)
-            pipeline = _stabilize_security_checker_failover(pipeline, previous_attempts or [])
         return pipeline, {
-            "stage": "pipeline_generator",
+            "stage": "execution_plan_generator",
             "status": "success",
             "model": metadata.get("model", self.config.agent.model),
             "elapsed_seconds": metadata.get("elapsed_seconds"),
@@ -3651,13 +3680,13 @@ def _build_clarification_prompt(
     tool_schemas: list[dict[str, Any]],
     tool_shortlist: list[dict[str, Any]],
     security_hints: dict[str, Any] | None,
-    tool_readmes: list[dict[str, str]],
+    skill_docs: list[dict[str, str]],
 ) -> str:
     return (
         "You are the Clarification Agent for DataElf `elf run`.\n"
         "Your job is to help the user finish a task definition in at most 5 clarification turns, then stop.\n"
         "You are not the pilot loop. Do not retry, optimize, derive tools, or do open-ended consulting.\n"
-        "You may only clarify task parameters, output destinations, and tool choices.\n"
+        "You may only clarify task parameters, output destinations, and skill choices.\n"
         "If the user asks what options/defaults are available, answer them and try to explain the difference among the available options.\n"
         "If the task is already clear enough, set status=ready with no assistant_message.\n"
         "If the task is too open-ended for single-shot mode, set status=escalate_to_pilot.\n\n"
@@ -3673,15 +3702,15 @@ def _build_clarification_prompt(
         "- handoff_reason: string\n\n"
         "Rules:\n"
         "- Keep assistant_message concise and concrete.\n"
-        "- Prefer listing specific tool choices/defaults over vague questions.\n"
-        "- If a tool requires `data`, resolve it as a dataset name from Available datasets; do not ask the user to paste raw records.\n"
+        "- Prefer listing specific skill choices/defaults over vague questions.\n"
+        "- If a skill requires `data`, resolve it as a dataset name from Available datasets; do not ask the user to paste raw records.\n"
         "- If the user asks what datasets are available, list the available dataset names and ask them to choose one.\n"
         "- Do not ask the user for implementation knobs such as max_workers, concurrency, timeout, batch_size, or retries; choose sensible defaults.\n"
         "- For security_audit or checker-related tasks, explain available checker choices and recommended defaults.\n"
         "- If the user already said something like 'use defaults' or 'as you recommended', you should help user to decide and mark ready_to_execute=true.\n"
         "- For structured data filtering/extraction/export tasks, prefer user-facing slot names like `dataset_name`, `filter_field`, `filter_value`, `output_format`, `output_filename`.\n"
         "- Do not infer a security_audit intent from a dataset name like `security_audit_samples` alone.\n"
-        "- Do not invent internal-looking slot names such as `flag_field_name` unless that exact field name truly exists in the dataset schema or tool schema.\n"
+        "- Do not invent internal-looking slot names such as `flag_field_name` unless that exact field name truly exists in the dataset schema or skill instructions.\n"
         "- missing_items must be a plain list of slot names like ['dataset_name', 'checker_names']. Never include null, None, or empty strings. If all slots are resolved, return [].\n"
         "- resolved_slots keys must match the slot names used in missing_items exactly (e.g. 'dataset_name', not 'dataset' or 'data'). If a slot is not yet resolved, omit it from resolved_slots rather than setting it to null or empty string.\n"
         "- response_mode: use 'answer_then_ask' when you need to answer a user question AND ask a clarification question in the same turn; otherwise use 'ask_user'.\n\n"
@@ -3690,10 +3719,10 @@ def _build_clarification_prompt(
         f"Conversation transcript:\n{json.dumps(transcript, ensure_ascii=False)}\n\n"
         f"Conversation messages:\n{json.dumps(messages, ensure_ascii=False)}\n\n"
         f"Available datasets:\n{json.dumps(dataset_schemas, ensure_ascii=False)}\n\n"
-        f"Relevant tool shortlist:\n{json.dumps(tool_shortlist, ensure_ascii=False)}\n\n"
-        f"All tool schemas:\n{json.dumps(tool_schemas, ensure_ascii=False)}\n\n"
+        f"Relevant skill shortlist:\n{json.dumps(tool_shortlist, ensure_ascii=False)}\n\n"
+        f"Available skill planner views:\n{json.dumps(tool_schemas, ensure_ascii=False)}\n\n"
         f"Security audit hints:\n{json.dumps(security_hints or {}, ensure_ascii=False)}\n\n"
-        f"Relevant tool documentation excerpts:\n{json.dumps(tool_readmes, ensure_ascii=False)}"
+        f"Relevant skill documentation excerpts:\n{json.dumps(skill_docs, ensure_ascii=False)}"
     )
 
 
@@ -4091,7 +4120,7 @@ def _build_pilot_goal_clarification_prompt(
     dataset_schemas: dict[str, list[str]],
     relevant_tools: list[dict[str, Any]],
     allow_experimental_tools: bool,
-    tool_readmes: list[dict[str, str]],
+    skill_docs: list[dict[str, str]],
 ) -> str:
     return (
         "You are the Goal Clarification role for DataElf pilot mode.\n"
@@ -4113,7 +4142,7 @@ def _build_pilot_goal_clarification_prompt(
         f"Transcript:\n{json.dumps(transcript, ensure_ascii=False)}\n\n"
         f"Available datasets:\n{json.dumps(dataset_schemas, ensure_ascii=False)}\n\n"
         f"Relevant tools:\n{json.dumps(relevant_tools, ensure_ascii=False)}\n\n"
-        f"Relevant tool documentation excerpts:\n{json.dumps(tool_readmes, ensure_ascii=False)}\n\n"
+        f"Relevant skill documentation excerpts:\n{json.dumps(skill_docs, ensure_ascii=False)}\n\n"
         f"Experimental Python tools allowed: {allow_experimental_tools}\n"
     )
  
@@ -4788,7 +4817,6 @@ def _collect_tool_contexts_from_pipeline(
             except Exception:
                 module_code = ""
                 full_module_code = ""
-        readme_entries = load_tool_readme_entries([tool_name], max_len=readme_max_len)
         tool_contexts.append({
             "tool_name": tool_name,
             "description": schema.get("description", ""),
@@ -4796,7 +4824,7 @@ def _collect_tool_contexts_from_pipeline(
             "usage_example": schema.get("usage_example", ""),
             "source_file": module_path,
             "source_code": module_code,
-            "readme_excerpt": readme_entries[0]["content"] if readme_entries else "",
+            "readme_excerpt": "",
             "optimization_hints": _summarize_tool_optimization_hints(full_module_code or module_code),
         })
     return tool_contexts
@@ -5915,8 +5943,72 @@ def _tool_default_summary(schema: dict[str, Any]) -> dict[str, Any]:
 
 
 def _configured_tool_names(config: Any) -> set[str] | None:
-    tool_names = getattr(config, "tools", None) or []
+    tool_names = getattr(config, "skills", None) or []
     return set(tool_names) if tool_names else None
+
+
+def _configured_skill_names(config: Any) -> set[str] | None:
+    skill_names = getattr(config, "skills", None) or []
+    return set(skill_names) if skill_names else None
+
+
+def _visible_skill_views(config: Any, skill_registry: SkillRegistry) -> list[dict[str, Any]]:
+    allowed_skill_names = _configured_skill_names(config)
+    views = skill_registry.list_planner_views()
+    if allowed_skill_names is None:
+        return views
+    return [view for view in views if view.get("name") in allowed_skill_names]
+
+
+def _rank_skill_views(
+    task: str,
+    skill_registry: SkillRegistry,
+    allowed_skill_names: set[str] | None = None,
+) -> list[tuple[int, dict[str, Any]]]:
+    task_tokens = _tokenize_text(_task_text_for_analysis(task))
+    ranked: list[tuple[int, dict[str, Any]]] = []
+    for view in skill_registry.list_planner_views():
+        name = str(view.get("name", ""))
+        if allowed_skill_names is not None and name not in allowed_skill_names:
+            continue
+        corpus = " ".join([
+            name,
+            str(view.get("description", "")),
+            str(view.get("usage_summary", "")),
+            str(view.get("clarification_hints", "")),
+        ])
+        overlap = len(task_tokens & _tokenize_text(corpus))
+        if overlap > 0:
+            ranked.append((overlap, view))
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    return ranked
+
+
+def _select_relevant_skill_views(
+    task: str,
+    skill_registry: SkillRegistry,
+    limit: int = 4,
+    allowed_skill_names: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    ranked = _rank_skill_views(task, skill_registry, allowed_skill_names=allowed_skill_names)
+    shortlist = [view for _, view in ranked[:limit]]
+    if shortlist:
+        return shortlist
+    suppress_security_audit = (
+        _task_looks_like_structured_data_processing(task)
+        and not _mentions_security_audit_intent(task)
+    )
+    fallback: list[dict[str, Any]] = []
+    for view in skill_registry.list_planner_views():
+        name = str(view.get("name", ""))
+        if allowed_skill_names is not None and name not in allowed_skill_names:
+            continue
+        if suppress_security_audit and name.lower() == "security_audit":
+            continue
+        fallback.append(view)
+        if len(fallback) >= limit:
+            break
+    return fallback
 
 
 def _visible_tool_schemas(config: Any, registry: ToolRegistry) -> list[dict[str, Any]]:

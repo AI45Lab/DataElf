@@ -18,6 +18,8 @@ from config import (
 from database import create_database_strategy
 from llm import LLMTraceRecorder, OpenAIProvider, TracingLLMProvider
 from runtime import JobManager, RuntimeExecutor
+from runtime.skill_registry import SkillRegistry, builtin_skill_root
+from runtime.skill_runtime import SkillRuntime
 from tools import get_global_registry
 
 logger = logging.getLogger(__name__)
@@ -52,8 +54,12 @@ def bootstrap_environment(
 
     registry = get_global_registry()
     registry.clear()
-    _register_default_tools(registry, config_tools=cfg.tools)
-    _validate_config_tools(cfg.tools, registry)
+    _register_builtin_skill_backends(registry, enabled_skills=cfg.skills)
+
+    skill_search_paths = [builtin_skill_root(), *[Path(path) for path in cfg.skill_paths]]
+    skill_registry = SkillRegistry(skill_search_paths, enabled_skills=cfg.skills)
+    skill_registry.discover()
+    _validate_config_skills(cfg.skills, skill_registry, registry)
 
     asset_manager = AssetManager()
     asset_manager.register_stable_tools(registry)
@@ -65,6 +71,7 @@ def bootstrap_environment(
     executor = RuntimeExecutor(
         job_manager=job_manager,
         tool_registry=registry,
+        skill_runtime=SkillRuntime(skill_registry=skill_registry, tool_registry=registry),
         config=cfg,
         database=db,
         llm_provider=llm_provider,
@@ -77,6 +84,7 @@ def bootstrap_environment(
         "runtime_policy": runtime_policy,
         "database": db,
         "registry": registry,
+        "skill_registry": skill_registry,
         "job_manager": job_manager,
         "executor": executor,
         "asset_manager": asset_manager,
@@ -99,8 +107,8 @@ def collect_dataset_schemas(database: Any) -> dict[str, list[str]]:
     return dataset_schemas
 
 
-def _register_default_tools(registry: ToolRegistry, config_tools: list[str] | None = None) -> dict[str, str]:
-    """Register all built-in tools. Returns a dict of {tool_name: error} for tools that failed."""
+def _register_builtin_skill_backends(registry: ToolRegistry, enabled_skills: list[str] | None = None) -> dict[str, str]:
+    """Register built-in Python backends for enabled built-in skills."""
     _TOOL_MODULES: list[tuple[str, str, str]] = [
         ("tools.security_audit.tool", "SecurityAuditTool", "security_audit"),
         ("tools.scitools.bio.enzyme_acquire_tool", "EnzymeAcquireTool", "enzyme_acquire"),
@@ -110,10 +118,12 @@ def _register_default_tools(registry: ToolRegistry, config_tools: list[str] | No
         ("tools.trajectory_skill_extraction.skillrl_skill_extraction_tool", "SkillRLSkillExtractionTool", "skillrl_skill_extraction"),
     ]
 
-    config_set = set(config_tools or [])
+    enabled_set = set(enabled_skills or [])
     tool_errors: dict[str, str] = {}
 
     for module_name, class_name, tool_name in _TOOL_MODULES:
+        if enabled_set and tool_name not in enabled_set:
+            continue
         try:
             module = __import__(module_name, fromlist=[class_name])
             tool_cls = getattr(module, class_name)
@@ -121,27 +131,26 @@ def _register_default_tools(registry: ToolRegistry, config_tools: list[str] | No
             _safe_register(registry, tool)
         except Exception as e:
             tool_errors[class_name] = str(e)
-            # Only warn if this tool is explicitly requested in config
-            if tool_name in config_set:
-                logger.warning(f"Tool {class_name} ({tool_name}) failed to load: {e}")
+            if tool_name in enabled_set:
+                logger.warning(f"Built-in skill backend {class_name} ({tool_name}) failed to load: {e}")
 
     return tool_errors
 
 
-def _validate_config_tools(config_tools: list[str], registry: ToolRegistry) -> None:
-    """Validate that every tool listed in config.yaml is registered and its dependencies are met.
-
-    Raises RuntimeError with a clear message listing all missing tools and their errors.
-    """
-    if not config_tools:
+def _validate_config_skills(
+    config_skills: list[str],
+    skill_registry: SkillRegistry,
+    backend_registry: ToolRegistry,
+) -> None:
+    """Validate enabled skills and their built-in Python backends when required."""
+    if not config_skills:
         return
 
-    registered = set(registry.list_tools())
-    missing = [name for name in config_tools if name not in registered]
+    discovered = set(skill_registry.list_names())
+    missing = [name for name in config_skills if name not in discovered]
 
     if missing:
-        # Map tool names to their dependency groups for actionable install hints
-        _TOOL_DEPS: dict[str, str] = {
+        _SKILL_DEPS: dict[str, str] = {
             "data_scoring": 'pip install -e ".[scoring]"',
             "data_select": 'pip install -e ".[scoring]"',
             "enzyme_acquire": 'pip install -e ".[scitools]"',
@@ -149,19 +158,40 @@ def _validate_config_tools(config_tools: list[str], registry: ToolRegistry) -> N
         }
         dep_hints: list[str] = []
         for name in missing:
-            hint = _TOOL_DEPS.get(name)
+            hint = _SKILL_DEPS.get(name)
             if hint and hint not in dep_hints:
                 dep_hints.append(hint)
 
         msg = (
-            "Config declares tools that are not available:\n"
+            "Config declares skills that are not available:\n"
             + "\n".join(f"  - {name}" for name in missing)
         )
         if dep_hints:
             msg += "\n\nInstall the required dependency group(s):\n  " + "\n  ".join(dep_hints)
         else:
-            msg += "\n\nPlease install the required dependencies or remove these tools from your config."
+            msg += "\n\nPlease install the required dependencies or remove these skills from your config."
         raise RuntimeError(msg)
+
+    backend_missing = [
+        name
+        for name in config_skills
+        if name in _BUILTIN_SKILL_NAMES and backend_registry.get(name) is None
+    ]
+    if backend_missing:
+        raise RuntimeError(
+            "Built-in skill backend(s) are not available:\n"
+            + "\n".join(f"  - {name}" for name in backend_missing)
+        )
+
+
+_BUILTIN_SKILL_NAMES = {
+    "security_audit",
+    "enzyme_acquire",
+    "protein_analyzer",
+    "data_scoring",
+    "data_select",
+    "skillrl_skill_extraction",
+}
 
 
 def _build_llm_providers(cfg: Any, trace_recorder: LLMTraceRecorder) -> tuple[Any, Any]:

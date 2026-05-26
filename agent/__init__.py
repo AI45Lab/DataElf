@@ -8,8 +8,7 @@ from .prompt_builder import (
     PromptBuilder,
     build_agent_prompt,
     create_prompt_builder,
-    load_tool_readme_entries,
-    resolve_tool_readme_path,
+    load_skill_doc_entries,
 )
 
 __all__ = [
@@ -19,6 +18,5 @@ __all__ = [
     "PromptBuilder",
     "build_agent_prompt",
     "create_prompt_builder",
-    "load_tool_readme_entries",
-    "resolve_tool_readme_path",
+    "load_skill_doc_entries",
 ]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import json
 import sys
 import traceback
 from io import StringIO
@@ -10,7 +11,9 @@ from typing import Any
 from config import Config
 from database import DatabaseStrategy
 from llm.tracing import llm_trace_context
+from runtime.execution_plan import ExecutionPlanError, parse_execution_plan, resolve_value, validate_execution_plan
 from runtime.job_manager import Job, JobManager, JobStatus
+from runtime.skill_runtime import SkillRuntime
 from tools import ToolRegistry
 from exceptions import (
     DatasetNotFoundError,
@@ -62,6 +65,11 @@ class RuntimeEnvironment:
         self._artifacts: dict[str, Any] = {}
         self._metadata: dict[str, Any] = {}
         self._datasets: dict[str, Any] = {}
+        self._trace: dict[str, Any] = {
+            "level1_plan_trace": {},
+            "level2_skill_runtime_trace": [],
+            "level3_skill_internal_trace": [],
+        }
 
     def load_dataset(
         self,
@@ -110,7 +118,7 @@ class RuntimeEnvironment:
         if tool is None:
             raise ToolNotFoundError(
                 f"Tool '{tool_name}' not found. "
-                f"Available tools: {', '.join(registry.list_tools())}"
+                f"Available internal backends: {', '.join(registry.list_tools())}"
             )
 
         # Create context - use tool_llm if available, otherwise use agent's llm
@@ -173,6 +181,22 @@ class RuntimeEnvironment:
         # Return just the result field
         return tool_output.get("result") if isinstance(tool_output, dict) else tool_output
 
+    def invoke_skill(self, skill_runtime: SkillRuntime, skill_name: str, **kwargs: Any) -> Any:
+        self.logger.log_step(f"Invoking skill: {skill_name}")
+        envelope = skill_runtime.invoke(self, skill_name, kwargs)
+
+        for key, value in envelope.artifacts.items():
+            self._artifacts[f"{skill_name}.{key}"] = value
+        if envelope.metadata:
+            self._metadata[skill_name] = envelope.metadata
+        if envelope.metrics:
+            self._metadata[f"{skill_name}.metrics"] = envelope.metrics
+        if envelope.trace:
+            self._trace["level2_skill_runtime_trace"].append(envelope.trace)
+            if envelope.trace.get("stdout") or envelope.trace.get("stderr") or envelope.trace.get("metrics"):
+                self._trace["level3_skill_internal_trace"].append(envelope.trace)
+        return envelope.result
+
     def save_result(self, result: Any) -> None:
         # Save result to job result. Accessible via pilot result.
         self._result = result
@@ -229,6 +253,14 @@ class RuntimeEnvironment:
     def metadata(self) -> dict[str, Any]:
         return self._metadata.copy()
 
+    @property
+    def trace(self) -> dict[str, Any]:
+        return {
+            "level1_plan_trace": dict(self._trace.get("level1_plan_trace", {})),
+            "level2_skill_runtime_trace": list(self._trace.get("level2_skill_runtime_trace", [])),
+            "level3_skill_internal_trace": list(self._trace.get("level3_skill_internal_trace", [])),
+        }
+
 
 class RuntimeExecutor:
     def __init__(
@@ -236,6 +268,7 @@ class RuntimeExecutor:
         job_manager: JobManager,
         tool_registry: ToolRegistry,
         config: Config,
+        skill_runtime: SkillRuntime | None = None,
         database: DatabaseStrategy | None = None,
         llm_provider: Any = None,
         tool_llm_provider: Any = None,
@@ -243,12 +276,19 @@ class RuntimeExecutor:
 
         self.job_manager = job_manager
         self.tool_registry = tool_registry
+        if skill_runtime is None:
+            from runtime.skill_registry import SkillRegistry, builtin_skill_root
+
+            skill_registry = SkillRegistry([builtin_skill_root()])
+            skill_registry.discover()
+            skill_runtime = SkillRuntime(skill_registry=skill_registry, tool_registry=tool_registry)
+        self.skill_runtime = skill_runtime
         self.config = config
         self.database = database
         self.llm_provider = llm_provider
         self.tool_llm_provider = tool_llm_provider
 
-    def execute(self, job_id: str, pipeline: str) -> dict[str, Any]:
+    def execute(self, job_id: str, execution_plan: str | dict[str, Any]) -> dict[str, Any]:
         job = self.job_manager.get_job(job_id)
         if job is None:
             raise ValueError(f"Job not found: {job_id}")
@@ -279,50 +319,62 @@ class RuntimeExecutor:
         sys.stdout = StringIO()
         execution_response: dict[str, Any] | None = None
 
+        plan_text = execution_plan if isinstance(execution_plan, str) else json.dumps(execution_plan, ensure_ascii=False, indent=2)
+
         try:
-            exec_globals = {
-                "__builtins__": {
-                    "print": lambda *args, **kwargs: env.log_step(" ".join(str(a) for a in args)),
-                    "len": len,
-                    "str": str,
-                    "int": int,
-                    "float": float,
-                    "bool": bool,
-                    "isinstance": isinstance,
-                    "getattr": getattr,
-                    "hasattr": hasattr,
-                    "list": list,
-                    "dict": dict,
-                    "tuple": tuple,
-                    "set": set,
-                    "range": range,
-                    "enumerate": enumerate,
-                    "zip": zip,
-                    "sum": sum,
-                    "min": min,
-                    "max": max,
-                    "abs": abs,
-                    "round": round,
-                    "sorted": sorted,
-                    "map": map,
-                    "filter": filter,
-                    "Exception": Exception,
-                },
-                "load_dataset": env.load_dataset,
-                "run_tool": env.run_tool,
-                "save_result": env.save_result,
-                "write_file": env.write_file,
-                "write_db": env.write_db,
-                "log_step": env.log_step,
+            plan = parse_execution_plan(execution_plan)
+            validate_execution_plan(
+                plan.to_dict(),
+                available_skills=set(self.skill_runtime.skill_registry.list_names()),
+            )
+            variables: dict[str, Any] = {}
+            env._trace["level1_plan_trace"] = {
+                "execution_plan": plan.to_dict(),
+                "dataset_refs": [],
+                "selected_skills": [],
+                "result_refs": [],
+                "policy_decisions": [],
             }
 
-            # Execute pipeline
-            exec(pipeline, exec_globals)
+            for step in plan.steps:
+                raw_step = step.raw
+                op = step.op
+                if op == "load_dataset":
+                    data = env.load_dataset(
+                        raw_step["dataset"],
+                        filters=resolve_value(raw_step.get("filters"), variables),
+                        limit=resolve_value(raw_step.get("limit"), variables),
+                        columns=resolve_value(raw_step.get("columns"), variables),
+                    )
+                    variables[raw_step["output"]] = data
+                    env._trace["level1_plan_trace"]["dataset_refs"].append(raw_step["dataset"])
+                elif op == "invoke_skill":
+                    inputs = resolve_value(raw_step.get("input", {}), variables)
+                    result_value = env.invoke_skill(
+                        self.skill_runtime,
+                        raw_step["skill"],
+                        **inputs,
+                    )
+                    variables[raw_step["output"]] = result_value
+                    env._trace["level1_plan_trace"]["selected_skills"].append(raw_step["skill"])
+                elif op == "save_result":
+                    value = resolve_value(raw_step["input"], variables)
+                    env.save_result(value)
+                    env._trace["level1_plan_trace"]["result_refs"].append(raw_step["id"])
+                elif op == "write_file":
+                    value = resolve_value(raw_step["input"], variables)
+                    env.write_file(value, raw_step["path"])
+                elif op == "write_db":
+                    value = resolve_value(raw_step["input"], variables)
+                    env.write_db(value, raw_step["table"])
+                elif op == "log":
+                    env.log_step(raw_step["message"])
 
             # Get result and artifacts
             result = env.result
             artifacts = env.artifacts
             metadata = env.metadata
+            trace = env.trace
 
             # Update job with full output including artifacts
             output = {"result": result}
@@ -330,6 +382,7 @@ class RuntimeExecutor:
                 output["artifacts"] = artifacts
             if metadata:
                 output["metadata"] = metadata
+            output["trace"] = trace
 
             self.job_manager.update_result(job_id, output)
             self.job_manager.update_status(job_id, JobStatus.COMPLETED)
@@ -339,10 +392,11 @@ class RuntimeExecutor:
                 "result": result,
                 "artifacts": artifacts,
                 "metadata": metadata,
+                "trace": trace,
                 "error": None,
             }
 
-        except (DatasetNotFoundError, ToolNotFoundError, ToolParameterError, ToolExecutionError) as e:
+        except (DatasetNotFoundError, ToolNotFoundError, ToolParameterError, ToolExecutionError, ExecutionPlanError) as e:
             # Known pilot errors - provide clean error message
             error_msg = str(e)
             logger.error(f"Pipeline execution failed: {error_msg}")
@@ -353,6 +407,7 @@ class RuntimeExecutor:
                 "result": None,
                 "artifacts": {},
                 "metadata": {},
+                "trace": env.trace,
                 "error": error_msg,
             }
 
@@ -367,6 +422,7 @@ class RuntimeExecutor:
                 "result": None,
                 "artifacts": {},
                 "metadata": {},
+                "trace": env.trace,
                 "error": error_msg,
             }
 
@@ -379,12 +435,12 @@ class RuntimeExecutor:
             # Mark job completion and record last step duration
             logger.finish()
 
-            # Save pipeline to file for reference
+            # Save structured execution plan to file for reference
             pipeline_dir = Path("pipelines")
             pipeline_dir.mkdir(exist_ok=True)
-            pipeline_file = pipeline_dir / f"{job_id}.dsl"
+            pipeline_file = pipeline_dir / f"{job_id}.plan.json"
             with open(pipeline_file, "w") as f:
-                f.write(pipeline)
+                f.write(plan_text)
 
         if execution_response is None:
             execution_response = {
@@ -392,6 +448,7 @@ class RuntimeExecutor:
                 "result": None,
                 "artifacts": {},
                 "metadata": {},
+                "trace": env.trace,
                 "error": "Pipeline execution did not produce a response.",
             }
         execution_response.update(_execution_log_context(logger))

@@ -6,12 +6,12 @@
 
 # DataElf
 
-DataElf is an intelligent execution engine for large-scale data workflows. It turns natural-language goals into runnable pipelines, executes built-in tools automatically, and keeps security, traceability, and extensibility in the loop.
+DataElf is an intelligent execution engine for large-scale data workflows. It turns natural-language goals into structured execution plans, invokes skills automatically, and keeps security, traceability, and extensibility in the loop.
 
 The open-source edition is designed for teams that want one framework for data inspection, safety checks, scoring, selection, and domain-oriented tool orchestration without exposing private data-processing infrastructure.
 
 [Demo](#demo) |
-[Tools](#built-in-tools) |
+[Skills](#built-in-skills) |
 [Evaluation](#evaluation-results) |
 [Quick Start](#quick-start) |
 [CLI](#cli-overview) |
@@ -29,26 +29,26 @@ https://github.com/user-attachments/assets/dd9038dd-660e-46bf-a06d-cdb76b254f27
 
 ## What DataElf Does
 
-- Translate natural language into executable pipelines.
+- Translate natural language into validated JSON execution plans.
 - Run a single-pass workflow for clear, bounded tasks with lightweight clarification when needed.
 - Run a higher-autonomy pilot loop for harder tasks that require planning, execution, judging, repair, and asset derivation.
-- Preserve execution artifacts such as pipelines, logs, reports, and intermediate outputs for review.
+- Preserve execution artifacts such as plans, logs, reports, and intermediate outputs for review.
 - Support reusable stable workflow assets through approval and submission.
-- Let teams extend the tool layer with custom `BaseTool` implementations.
+- Let teams extend DataElf with AgentSkills-compatible skill packages.
 - Combine data-safety checks with broader data-processing workflows in one CLI-driven system.
 
-## Built-In Tools
+## Built-In Skills
 
-DataElf currently ships with these built-in tools:
+DataElf currently ships with these built-in skills:
 
-| Tool | Focus | Docs |
+| Skill | Focus | Docs |
 | --- | --- | --- |
-| `security_audit` | Safety and risk scanning for datasets | [security_audit_en.md](docs/tools/security_audit_en.md) |
-| `data_scoring` | Sample-level quality scoring | [data_scoring_en.md](docs/tools/data_scoring_en.md) |
-| `data_select` | Budget-aware or cluster-based data selection | [data_select_en.md](docs/tools/data_select_en.md) |
-| `enzyme_acquire` | Enzyme information retrieval workflows | [enzyme_acquire_en.md](docs/tools/enzyme_acquire_en.md) |
-| `protein_analyzer` | Protein analysis workflows | [protein_analyzer_en.md](docs/tools/protein_analyzer_en.md) |
-| `skillrl_skill_extraction` | Skill extraction from trajectory-style data | [skillrl_skill_extraction_en.md](docs/tools/skillrl_skill_extraction_en.md) |
+| `security_audit` | Safety and risk scanning for datasets | [SKILL.md](skills/security_audit/SKILL.md) |
+| `data_scoring` | Sample-level quality scoring | [SKILL.md](skills/data_scoring/SKILL.md) |
+| `data_select` | Budget-aware or cluster-based data selection | [SKILL.md](skills/data_select/SKILL.md) |
+| `enzyme_acquire` | Enzyme information retrieval workflows | [SKILL.md](skills/enzyme_acquire/SKILL.md) |
+| `protein_analyzer` | Protein analysis workflows | [SKILL.md](skills/protein_analyzer/SKILL.md) |
+| `skillrl_skill_extraction` | Skill extraction from trajectory-style data | [SKILL.md](skills/skillrl_skill_extraction/SKILL.md) |
 
 ## Evaluation Results
 
@@ -174,63 +174,53 @@ elf inspect <job_id|candidate_id|asset_id> [--json]
 
 ## Extending DataElf
 
-You can add your own tools by implementing `BaseTool`, wiring the tool into the registry, and listing it in `config.yaml`.
+You can add your own capability by contributing an AgentSkills-compatible skill package and listing it in `config.yaml`.
 
 Minimal example:
 
-```python
-from typing import Any
+```text
+local_skills/domain_risk_check/
+  SKILL.md
+  references/
+  scripts/
+  assets/
+```
 
-from tools import BaseTool, ToolContext
+```markdown
+---
+name: domain_risk_check
+description: Check domain-specific risky patterns in dataset records.
+allowed-tools:
+  - python
+---
 
+## Usage Instructions
 
-class DomainRiskCheckTool(BaseTool):
-    @property
-    def name(self) -> str:
-        return "domain_risk_check"
+Use this skill when the user asks for domain risk scanning.
 
-    @property
-    def description(self) -> str:
-        return "Check domain-specific risky patterns in dataset records."
+## Input Expectations
 
-    @property
-    def parameters(self) -> dict[str, Any]:
-        return {
-            "type": "object",
-            "properties": {
-                "data": {
-                    "type": "array",
-                    "items": {"type": "object"},
-                },
-                "mode": {
-                    "type": "string",
-                    "default": "strict",
-                },
-            },
-            "required": ["data"],
-        }
+- `data`: list of records.
+- `mode`: optional strictness mode.
 
-    def run(self, context: ToolContext, **kwargs: Any) -> dict[str, Any]:
-        data = kwargs.get("data", [])
-        mode = kwargs.get("mode", "strict")
-        checked = data
-        return {
-            "result": checked,
-            "metadata": {
-                "records_processed": len(data),
-                "mode": mode,
-            },
-            "artifacts": {
-                "report_md": "# Domain Risk Report\n",
-            },
-        }
+## Output Expectations
+
+Return structured findings, metadata, artifacts, metrics, and trace entries.
+```
+
+```yaml
+skills:
+  - domain_risk_check
+
+skill_paths:
+  - ./local_skills
 ```
 
 See the developer docs for details:
 
-- [Tool development guide](docs/tool_development_guide.md)
-- [Tool spec](docs/tool_spec.md)
-- [Pipeline DSL spec](docs/pipeline_dsl_spec.md)
+- [Skill package spec](docs/skill_spec.md)
+- [Execution plan spec](docs/execution_plan_spec.md)
+- [Internal backend notes](docs/tool_spec.md)
 
 ## Project Structure
 
@@ -241,7 +231,8 @@ DataElf/
 ├── agent/           # Agent adapters and prompt building
 ├── agentic/         # Pilot loop and asset lifecycle
 ├── runtime/         # Runtime execution layer
-├── tools/           # Built-in tools
+├── skills/          # Built-in AgentSkills packages
+├── tools/           # Internal Python backends for built-in skills
 ├── database/        # Open-source database strategies
 ├── config/          # Config loading
 ├── docs/            # User and developer documentation

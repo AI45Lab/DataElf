@@ -3,6 +3,9 @@ from pathlib import Path
 from config import Config
 from runtime import JobManager
 from runtime.executor import RuntimeEnvironment, RuntimeExecutor
+from runtime.execution_plan import PLAN_VERSION
+from runtime.skill_registry import SkillRegistry
+from runtime.skill_runtime import SkillRuntime
 from tools import BaseTool, ToolContext, get_global_registry
 
 
@@ -73,31 +76,39 @@ def test_runtime_executor_exposes_minimal_safe_builtins_for_pipeline_repairs(tmp
     job_manager = JobManager(jobs_dir=tmp_path / ".jobs")
     registry = get_global_registry()
     registry.clear()
+    skill_root = tmp_path / "skills" / "list_artifact_tool"
+    skill_root.mkdir(parents=True)
+    (skill_root / "SKILL.md").write_text(
+        "---\nname: list_artifact_tool\ndescription: Echo fixture.\n---\n\n## Usage Instructions\nEcho.",
+        encoding="utf-8",
+    )
+    registry.register(_ListArtifactTool())
+    skill_registry = SkillRegistry([tmp_path / "skills"], enabled_skills=["list_artifact_tool"])
+    skill_registry.discover()
     executor = RuntimeExecutor(
         job_manager=job_manager,
         tool_registry=registry,
+        skill_runtime=SkillRuntime(skill_registry, registry),
         config=cfg,
         database=None,
     )
 
-    job = job_manager.create_job("repair pipeline", mode="pilot")
-    output_file = tmp_path / "out.json"
-    pipeline = f'''
-value = "hello"
-if isinstance(value, str):
-    result = {{"ok": True, "path": "{output_file}"}}
-else:
-    result = {{"ok": False}}
-try:
-    missing = value.get("bad")
-except Exception:
-    missing = "fallback"
-result["missing"] = missing
-save_result(result)
-'''
+    job = job_manager.create_job("structured execution plan", mode="pilot")
+    plan = {
+        "version": PLAN_VERSION,
+        "steps": [
+            {
+                "id": "run_echo",
+                "op": "invoke_skill",
+                "skill": "list_artifact_tool",
+                "input": {"data": [{"id": 1}]},
+                "output": "result",
+            },
+            {"id": "save", "op": "save_result", "input": "$result"},
+        ],
+    }
 
-    result = executor.execute(job.job_id, pipeline)
+    result = executor.execute(job.job_id, plan)
 
     assert result["success"] is True
     assert result["result"]["ok"] is True
-    assert result["result"]["missing"] == "fallback"

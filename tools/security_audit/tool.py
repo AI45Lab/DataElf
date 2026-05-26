@@ -23,6 +23,7 @@ from .policy import (
     resolve_checker_plan,
     validate_checker_request,
     validate_resolved_checker_plan,
+    _requires_transformers_local_files_only,
 )
 
 
@@ -64,7 +65,8 @@ def _apply_runtime_policy_to_checker_configs(
     if runtime_policy.model_policy != "local_only":
         return
     for checker_config in checker_configs:
-        checker_config.params["local_files_only"] = True
+        if _requires_transformers_local_files_only(checker_config.name):
+            checker_config.params["local_files_only"] = True
 
 
 def _calc_security_score(risk_distribution: dict, risk_weights: dict) -> float:

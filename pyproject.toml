@@ -94,7 +94,11 @@ include = [
     "database",
     "config",
     "pilog",
+    "skills",
 ]
+
+[tool.setuptools.package-data]
+skills = ["*/SKILL.md", "*/references/*.md"]
 
 [tool.black]
 line-length = 100

@@ -59,6 +59,7 @@ def _run_internal(
         job_manager=env["job_manager"],
         executor=env["executor"],
         registry=env["registry"],
+        skill_registry=env["skill_registry"],
         llm_provider=env["llm_provider"],
     )
 
@@ -84,11 +85,11 @@ def _run_internal(
                     f"Turn {event.get('turn')} · model={event.get('model')}",
                 )
                 return
-            if stage == "pipeline_generation":
-                action("Pipeline Generation", f"Running model={event.get('model')}")
+            if stage == "execution_plan_generation":
+                action("Execution Plan Generation", f"Running model={event.get('model')}")
                 return
             if stage == "execution":
-                action("Execution", "Running pipeline")
+                action("Execution", "Running execution plan")
                 return
             if stage == "capability_gap_judge":
                 inspect("Capability Gap Judge", f"Running model={event.get('model')}")
@@ -111,13 +112,13 @@ def _run_internal(
                     f"status={llm.get('status')} · decision={event.get('status')}{extra}",
                 )
                 return
-            if stage == "pipeline_generation":
+            if stage == "execution_plan_generation":
                 llm = event.get("llm", {}) or {}
                 extra = ""
                 if llm.get("elapsed_seconds") is not None:
                     extra = f" elapsed={llm.get('elapsed_seconds')}s"
                 success(
-                    "Pipeline Generation",
+                    "Execution Plan Generation",
                     f"status={llm.get('status')} · model={llm.get('model')}{extra}",
                 )
                 return
@@ -156,8 +157,8 @@ def _run_internal(
         warn("Reason", cg["reason"])
         if cg.get("fix_hint"):
             insight("Fix", cg["fix_hint"])
-        if cg.get("type") == "tool_not_available":
-            warn("Missing Tools", ", ".join(cg.get("missing_tools", [])))
+        if cg.get("type") == "skill_not_available":
+            warn("Missing Skills", ", ".join(cg.get("missing_skills", [])))
         insight("Suggestion", "Switch to `elf pilot` for a longer autonomous loop")
         env["database"].close()
         return
@@ -192,7 +193,7 @@ def _run_internal(
             action("Resolved Task", clarification["resolved_task"])
 
     if (wait or verbose) and response.get("pipeline"):
-        section("🔧", "Generated Pipeline", color="blue")
+        section("🔧", "Generated Execution Plan", color="blue")
         click.echo(response["pipeline"])
         click.echo("")
 
