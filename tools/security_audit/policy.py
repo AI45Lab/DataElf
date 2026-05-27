@@ -67,7 +67,6 @@ _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS = [
             "HarmfulKeywordRule",
             "ToxicityKeywordRule",
             "BiasKeywordRule",
-            "PIILLMJudge",
             "PIINERDetector",
         ],
         "routing": {"mode": "all_samples"},
@@ -90,6 +89,7 @@ _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS = [
             "sycophancy",
         ],
         "checkers": [
+            "PIILLMJudge",
             "HarmfulContentLLMJudge",
             "ToxicityLLMJudge",
             "BiasLLMJudge",
@@ -758,19 +758,14 @@ def _resolve_llm_checker_plan(
     data_profile: dict[str, Any] | None,
 ) -> ResolvedCheckerPlan:
     if llm is None or not llm_model:
-        plan = _resolve_default_llm_progressive_workflow_plan(
+        return _resolve_deterministic_single_stage_plan(
             request=request,
             capability_set=capability_set,
             defaults_by_name=defaults_by_name,
+            resource_tier=resource_tier,
             source=source,
+            reason="llm_resolver_unavailable",
         )
-        plan.strategy = "deterministic"
-        plan.degradations.append({
-            "reason": "llm_resolver_unavailable" if llm is None else "llm_model_unavailable",
-            "from": "llm",
-            "to": "deterministic_progressive_workflow",
-        })
-        return plan
 
     prompt = build_llm_resolver_prompt(
         request=request,
@@ -803,45 +798,52 @@ def _resolve_llm_checker_plan(
         )
     except Exception as exc:
         if logger is not None and hasattr(logger, "warning"):
-            logger.warning(f"SecurityAuditTool: LLM resolver failed, falling back to deterministic progressive workflow: {exc}")
-        plan = _resolve_default_llm_progressive_workflow_plan(
+            logger.warning(f"SecurityAuditTool: LLM resolver failed, falling back to deterministic single-stage plan: {exc}")
+        return _resolve_deterministic_single_stage_plan(
             request=request,
             capability_set=capability_set,
             defaults_by_name=defaults_by_name,
+            resource_tier=resource_tier,
             source=source,
+            reason="llm_resolver_failed",
         )
-        plan.strategy = "deterministic"
-        plan.degradations.append({
-            "reason": "llm_resolver_failed",
-            "from": "llm",
-            "to": "deterministic",
-        })
-        return plan
 
 
-def _resolve_default_llm_progressive_workflow_plan(
+def _resolve_deterministic_single_stage_plan(
     *,
     request: CheckerRequest,
     capability_set: CheckerCapabilitySet,
     defaults_by_name: dict[str, CheckerConfig],
+    resource_tier: str,
     source: str,
+    reason: str,
 ) -> ResolvedCheckerPlan:
-    stages, names, skipped, degradations = build_progressive_workflow_stages(capability_set)
-    checker_configs, config_skipped = _checker_configs_from_names(
+    names, degradations = _recommend_checker_names(
+        request=request,
+        capability_set=capability_set,
+        default_configs=list(defaults_by_name.values()),
+        resource_tier=resource_tier,
+    )
+    checker_configs, skipped = _checker_configs_from_names(
         names=names,
         defaults_by_name=defaults_by_name,
         capability_set=capability_set,
     )
-    return ResolvedCheckerPlan(
-        strategy="llm",
-        checker_configs=checker_configs,
-        skipped_checkers=_dedupe_skip_records(skipped + config_skipped),
-        degradations=degradations,
-        source=source,
-        objective=_default_progressive_workflow_objective(stages),
-        stages=stages,
+    return _resolved_plan(
         request=request,
         capability_set=capability_set,
+        strategy="deterministic",
+        checker_configs=checker_configs,
+        skipped_checkers=skipped,
+        degradations=[
+            {
+                "reason": reason,
+                "from": "llm",
+                "to": "deterministic_single_stage",
+            },
+            *degradations,
+        ],
+        source=source,
     )
 
 
