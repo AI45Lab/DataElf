@@ -65,6 +65,14 @@ class RunCoordinator:
         job_id: str | None = None,
         event_handler: Callable[[dict[str, Any]], None] | None = None,
     ) -> dict[str, Any]:
+        # Run-mode clarification is temporarily disabled.
+        return {
+            "status": "not_requested",
+            "clarification_turns": 0,
+            "clarification_transcript": [],
+            "resolved_task": task,
+            "resolved_slots": {},
+        }
         if self.llm_provider is None or not ask_user:
             return {
                 "status": "not_requested",
