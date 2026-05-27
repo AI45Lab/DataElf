@@ -69,8 +69,28 @@
 | `data` | `list[dict]` | 是 | — | 待审计的数据集记录列表 |
 | `checker_selection_mode` | `str` | 否 | `default` | checker 选择意图：`explicit`、`recommend` 或 `default` |
 | `checker_names` | `list[str]` | 否 | `[]` | `explicit` 模式使用的 Checker 类名列表；未传 `checker_selection_mode` 但传了本字段时，按 `explicit` 处理，见 [Checkers](#checkers) |
-| `checker_preferences` | `str` | 否 | `""` | `recommend` 模式使用的自然语言偏好，例如低成本、快速、高准确率或覆盖更强 |
+| `audit_intent` | `str` | 否 | `""` | `recommend` 模式使用的自然语言审计意图，可描述风险聚焦、检测目标、审计范围，以及低成本、快速、高准确率、强覆盖等约束 |
 | `max_workers` | `int` | 否 | `4` | 并行执行的线程数 |
+
+## Resolver
+
+Resolver 负责把 agent 传入的 checker 选择意图解析成可执行的审计计划。它的职责包括：在当前 `capability_set` 边界内选择 checker、组织审计阶段、设计样本路由策略，并在目标无法完全满足时记录确定性的降级原因。
+
+当前支持三类解析路径：
+
+- `explicit`：用户显式指定 `checker_names` 时，按确定性逻辑启用这些 checker，并过滤掉当前运行策略不允许的项。
+- `default`：用户未提出推荐意图时，按默认配置解析 checker。
+- `recommend`：用户希望工具根据自然语言审计意图自动选择和编排 checker 时，进入 LLM resolver。LLM resolver 会结合 `audit_intent`、运行策略和 capability set 生成计划；如果 LLM 不可用或输出不可解析，则降级到确定性 fallback，并在 `degradations` 中记录原因。
+
+LLM resolver 以渐进式风险审计流程作为默认计划模板。`review` 不是必经阶段，而是由上游结果条件触发的复核阶段。
+
+| 阶段 | 目标 | 典型 checker / 能力 | 路由意图 |
+|------|------|--------------------|----------|
+| `quick_scan` | 先用低成本方式做全量预筛，发现 PII、密钥、明显有害/毒性/偏见等表层风险 | `PIIRule`, `SecretRule`, keyword rules, `PIILLMJudge`, `PIINERDetector` | 默认全量运行 |
+| `semantic_scan` | 对有害、毒性、偏见、越狱、提示注入、标签翻转、事实偏离等语义风险进行判断 | LLM judge 系列 checker | 可全量、抽样或按字段适用性路由 |
+| `deep_scan` | 在资源允许时运行高成本专项深扫，覆盖后门、越狱、提示注入、有害内容、毒性等需要专有模型增强判断的风险 | `GraCeFulBackdoorDefender`, `HarmfulContentClassifier`, `ToxicityClassifier`, `JailbreakClassifier`, `PromptInjectionClassifier`等 | 抽样、高风险分区、上游命中样本或用户指定范围优先 |
+
+这个流程只是默认模板，不是固定规则。对于只覆盖部分风险的需求，LLM 可以裁剪无关阶段或 checker；对于低成本、快速预览、超大规模数据等需求，LLM 可以调整 routing，例如抽样、只深扫高风险样本或优先扫描特定字段。
 
 
 
@@ -89,7 +109,7 @@ result:
       total: int               # 检测该风险的样本总数
       flagged: int             # 命中数
     harmful: {total: int, flagged: int}
-    # ... 其他风险类型（共 14 种）
+    # ... 其他风险类型（共 13 种）
   checker_stats:               # 每个 checker 的执行统计
     PIIRule:
       total: int               # 成功执行数
@@ -101,33 +121,32 @@ metadata:
   task_name: str               # 审计任务名称
   checker_names: list[str]     # 本次运行使用的 checker 列表
   runtime_policy:              # 本次运行使用的部署运行策略
-    network_mode: str          # 网络模式：online / offline
-    resource_tier: str         # 资源档位：light / standard / full
+    network_mode: online | offline  # 网络模式
+    resource_tier: light | standard | full # 资源档位
   request:                     # 归一化后的 checker 选择请求
-    checker_selection_mode: str # checker 选择模式：explicit / recommend / default
+    checker_selection_mode: explicit | recommend | default # checker 选择模式
     checker_names: list[str]   # 用户显式指定的 checker 列表；非 explicit 时通常为空
-    checker_preferences: str   # recommend 模式下的自然语言偏好
+    audit_intent: str          # recommend 模式下的自然语言审计意图，包括风险聚焦、检测目标、范围和成本/质量约束
   capability_set:              # 根据运行策略计算出的本次可用 checker 边界
     allowed_checker_names: list[str]  # 本次允许运行的 checker 名称
     blocked_checkers:          # 本次被策略排除的 checker 及原因
       - name: str              # 被排除的 checker 名称
         reasons: list[str]     # 排除原因代码列表
   resolved_plan:               # 最终解析出的执行计划
-    schema_version: security_audit.resolved_plan.v1  # 执行计划结构版本
-    strategy: deterministic | llm  # 计划解析策略；当前实现使用 deterministic 规则
+    schema_version: security_audit.resolved_plan.v1 # 执行计划结构版本
+    strategy: deterministic | llm  # 计划解析策略；recommend 模式下 llm 可产出渐进式风险审计流程计划
     source: explicit | default | recommend | fallback  # 计划来源
-    stages:                    # 执行阶段列表；当前版本仍为单阶段
-      - id: stage_1            # 阶段唯一标识
-        name: single_stage     # 阶段名称
-        type: single_stage     # 阶段类型
+    objective: dict            # llm 解析出的审计目标、覆盖风险和优化偏好
+    stages:                    # 解析出的阶段列表；llm 策略可返回多阶段计划
+      - id: str                # 阶段唯一标识，例如 stage_1
+        name: str              # 阶段名称，例如 single_stage / quick_scan
+        type: str              # 阶段类型，例如 single_stage / semantic_scan
         checkers: list[str]    # 该阶段运行的 checker 列表
-        input_scope:           # 该阶段输入样本范围
-          type: all_samples    # 输入范围类型；all_samples 表示全部样本
-          source_stage_id: null # 多阶段场景下的上游阶段 ID；单阶段为 null
         routing:               # 阶段路由策略
-          mode: all            # all 表示对输入范围内全部样本运行
-    skipped_checkers: list     # 解析计划时被跳过的 checker 及原因
-    degradations: list         # 推荐或规划过程中发生的降级记录
+          mode: all_samples | field_applicable | uncertain | sample | high_risk_partition # 路由模式
+          source_stage_id: str | null # 依赖上游阶段结果时填写真实阶段 ID，例如 stage_2；单阶段为 null
+    skipped_checkers: list[dict] # 解析计划时被跳过的 checker 及原因
+    degradations: list[dict]   # 推荐或规划过程中发生的降级记录
   execution:                   # 实际执行参数
     max_workers: int           # 并行 worker 数
   create_time: str             # 任务开始时间（ISO 格式）
@@ -262,6 +281,7 @@ save_result(audit)
 | `PIINERDetector` | `pii` | Microsoft presidio NER 模型 | PII泄露 |
 | `JailbreakClassifier` | `jailbreak` | `allenai/WildGuard`| 越狱提示 |
 | `PromptInjectionClassifier` | `prompt_injection` | `leolee99/PIGuard` | 提示注入 |
+| `CrossModelRiskReviewer` | `jailbreak`, `prompt_injection`, `harmful`, `toxicity` | Llama Guard, PIGuard, WildGuard, Qwen-Guard-Gen | 多模型交叉复核 |
 
 ### Heuristic Checkers
 
@@ -340,7 +360,7 @@ model_paths:
 |----------|---------------------|--------------|-----|----------|--------------------|--------------|
 | `light` | 不需要 | 不需要 | 不需要 | 低依赖 | all rule-based checkers：`PIIRule`, `SecretRule`, `ToxicityKeywordRule`, `HarmfulKeywordRule`, `BiasKeywordRule` | 批量扫描；快速预筛；发现显式 PII、密钥、明显有害/毒性/偏见关键词。 |
 | `standard` | 需要 | 可选，允许 CPU 可运行模型 | 不需要 | 需要 LLM provider；启用 `PIINERDetector` 时需要 NER 相关依赖 | `light` 全部 checker + all LLM-as-a-judge checkers + `PIINERDetector` | `light` 模式下的所有策略；隐私识别增强；语义安全审计；常规入库前审计。 |
-| `full` | 需要 | 需要，需配置重模型路径或缓存 | 建议使用 | 需要 `torch`、`transformers` 及对应模型依赖 | all checkers：`standard` 全部 checker + `HarmfulContentClassifier`, `ToxicityClassifier`, `BiasClassifier`, `JailbreakClassifier`, `PromptInjectionClassifier`, `GraCeFulBackdoorDefender` | `standard` 模式下的所有策略；高召回率审计；专用模型复核；后门检测；benchmark。 |
+| `full` | 需要 | 需要，需配置重模型路径或缓存 | 建议使用 | 需要 `torch`、`transformers` 及对应模型依赖 | all checkers：`standard` 全部 checker + `HarmfulContentClassifier`, `ToxicityClassifier`, `BiasClassifier`, `JailbreakClassifier`, `PromptInjectionClassifier`, `CrossModelRiskReviewer`, `GraCeFulBackdoorDefender` | `standard` 模式下的所有策略；高召回率审计；专用模型复核；后门检测；benchmark。 |
 
 ---
 

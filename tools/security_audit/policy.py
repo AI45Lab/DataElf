@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -46,12 +47,152 @@ _HEAVY_MODEL_CHECKERS = [
     "BiasClassifier",
     "JailbreakClassifier",
     "PromptInjectionClassifier",
+    "CrossModelRiskReviewer",
     "GraCeFulBackdoorDefender",
 ]
 
-_HEAVY_CHECKERS = set(_HEAVY_MODEL_CHECKERS)
-
 _RESOURCE_TIER_ORDER = {"light": 0, "standard": 1, "full": 2}
+
+_RESOLVE_STRATEGIES = {"deterministic", "llm"}
+
+_PROGRESSIVE_WORKFLOW_STAGE_CHECKERS = [
+    {
+        "id": "stage_1",
+        "name": "quick_scan",
+        "type": "quick_scan",
+        "risk_focus": ["pii", "secret", "harmful", "toxicity", "bias"],
+        "checkers": [
+            "PIIRule",
+            "SecretRule",
+            "HarmfulKeywordRule",
+            "ToxicityKeywordRule",
+            "BiasKeywordRule",
+            "PIILLMJudge",
+            "PIINERDetector",
+        ],
+        "routing": {"mode": "all_samples"},
+        "purpose": "Run cheap full-scan checks for direct leakage and obvious surface risks before semantic review.",
+    },
+    {
+        "id": "stage_2",
+        "name": "semantic_scan",
+        "type": "semantic_scan",
+        "risk_focus": [
+            "harmful",
+            "toxicity",
+            "bias",
+            "prompt_injection",
+            "jailbreak",
+            "instruction_mismatch",
+            "label_flipping",
+            "factual_inconsistency",
+            "self_contradiction",
+            "sycophancy",
+        ],
+        "checkers": [
+            "HarmfulContentLLMJudge",
+            "ToxicityLLMJudge",
+            "BiasLLMJudge",
+            "PromptInjectionLLMJudge",
+            "JailbreakLLMJudge",
+            "InstructionMismatchLLMJudge",
+            "DPOLabelFlipLLMJudge",
+            "FactualInconsistancyLLMJudge",
+            "SelfContradictionLLMJudge",
+            "SycophancyLLMJudge",
+        ],
+        "routing": {
+            "mode": "field_applicable",
+        },
+        "purpose": "Find semantic safety, poisoning, alignment bypass, and dataset-label risks.",
+    },
+    {
+        "id": "stage_3",
+        "name": "deep_scan",
+        "type": "deep_scan",
+        "risk_focus": [
+            "backdoor",
+            "harmful",
+            "toxicity",
+            "bias",
+            "jailbreak",
+            "prompt_injection",
+        ],
+        "checkers": [
+            "GraCeFulBackdoorDefender",
+            "HarmfulContentClassifier",
+            "ToxicityClassifier",
+            "BiasClassifier",
+            "JailbreakClassifier",
+            "PromptInjectionClassifier",
+        ],
+        "routing": {
+            "mode": "high_risk_partition",
+            "source_stage_id": "stage_2",
+        },
+        "purpose": "Run higher-cost specialist model checks when resources allow it, prioritizing sampled data, high-risk partitions, and upstream flagged samples.",
+    },
+    # TODO: Add a fourth review stage with CrossModelRiskReviewer for high-risk, low-confidence, near-threshold, or conflicting findings from earlier stages.
+    # {
+    #     "id": "stage_4",
+    #     "name": "review",
+    #     "type": "review",
+    #     "risk_focus": ["cross_model_review", "uncertainty_review"],
+    #     "checkers": ["CrossModelRiskReviewer"],
+    #     "routing": {
+    #         "mode": "uncertain",
+    #         "source_stage_id": "stage_3",
+    #     },
+    #     "purpose": "Conditionally review high-risk, low-confidence, near-threshold, or conflicting findings with CrossModelRiskReviewer.",
+    # },
+]
+
+LLM_RESOLVER_OUTPUT_SCHEMA: dict[str, Any] = {
+    "objective": {
+        "goal": "string",
+        "covered_risk_types": ["string"],
+        "optimization": ["low_cost|fast|high_recall|high_precision|coverage|compliance"],
+    },
+    "stages": [
+        {
+            "id": "stage_number",
+            "name": "string",
+            "type": "quick_scan|semantic_scan|deep_scan|review",
+            "checkers": ["CheckerClassName"],
+            "routing": {
+                "mode": "all_samples|field_applicable|uncertain|sample|high_risk_partition",
+                "source_stage_id": "string|null",
+                "rules": ["string"],
+            },
+            "purpose": "string",
+        }
+    ],
+}
+
+LLM_RESOLVER_PROMPT_TEMPLATE = """You are the SecurityAudit checker-plan resolver.
+Resolve the user's audit intent into an executable JSON plan.
+
+Hard constraints:
+- Select checkers only from allowed_checker_names.
+- Never invent checker names.
+- The local resolver owns schema_version, strategy, and source; do not output them.
+- The Progressive Risk Audit Workflow is the default full-risk workflow:
+  1. quick_scan: cheap full-scan checks for direct leakage and obvious surface risks, then
+  2. semantic_scan: semantic and alignment risks with LLM judges, with risk-based routing to balance cost and coverage, then
+  3. deep_scan: higher-cost specialist model checks for risks such as backdoors, jailbreaks, prompt injection, harmful content, and toxicity, then
+  4. review: optional conditional review for high-risk, low-confidence, near-threshold, or conflicting findings with CrossModelRiskReviewer when it is allowed.
+- For partial-risk requests, remove irrelevant stages or checkers from the workflow.
+- If a requested target cannot be satisfied by the allowed capability set, omit unavailable checkers from stages; the local resolver will derive skipped_checkers and degradations deterministically.
+- Prefer low-cost routing and sampling when the user asks for fast, low-cost, preview, or very large-scale audits.
+- Return JSON only. Do not wrap it in Markdown.
+
+Output schema:
+{output_schema}
+
+Resolver input:
+{resolver_input}
+"""
+
 
 _CHECKER_MIN_RESOURCE_TIERS = {
     **{name: "light" for name in _RULE_BASED_CHECKERS},
@@ -87,8 +228,8 @@ _WEIGHT_SUFFIXES = (".safetensors", ".bin")
 class CheckerRequest:
     selection_mode: str = "default"
     checker_names: list[str] = field(default_factory=list)
-    checker_preferences: str = ""
-    strategy: str = "single_stage"
+    audit_intent: str = ""
+    strategy: str = "llm"
     raw: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -150,15 +291,14 @@ class ResolvedCheckerPlan:
     checker_configs: list[CheckerConfig]
     skipped_checkers: list[dict[str, str]] = field(default_factory=list)
     degradations: list[dict[str, str]] = field(default_factory=list)
+    objective: dict[str, Any] = field(default_factory=dict)
     stages: list[dict[str, Any]] = field(default_factory=list)
     request: CheckerRequest | None = None
     capability_set: CheckerCapabilitySet | None = None
 
 
 def build_checker_request(kwargs: dict, tool_defaults: dict) -> CheckerRequest:
-    # TODO: (resource_tier) Let security_audit strategies accept explicit
-    # strategy names once funnel policies are implemented.
-    strategy = str(kwargs.get("strategy") or tool_defaults.get("strategy") or "single_stage")
+    strategy = str(kwargs.get("strategy") or tool_defaults.get("strategy") or "llm")
     raw = dict(kwargs)
     raw_checker_names = kwargs.get("checker_names")
     has_checker_names = "checker_names" in kwargs
@@ -169,15 +309,15 @@ def build_checker_request(kwargs: dict, tool_defaults: dict) -> CheckerRequest:
         selection_mode = "explicit" if has_checker_names else "default"
 
     checker_names = raw_checker_names if isinstance(raw_checker_names, list) else []
-    raw_checker_preferences = kwargs.get("checker_preferences")
-    checker_preferences = raw_checker_preferences if isinstance(raw_checker_preferences, str) else ""
+    raw_audit_intent = kwargs.get("audit_intent")
+    audit_intent = raw_audit_intent if isinstance(raw_audit_intent, str) else ""
     if selection_mode == "default":
-        checker_preferences = ""
+        audit_intent = ""
 
     return CheckerRequest(
         selection_mode=selection_mode,
         checker_names=_unique_checker_names(checker_names),
-        checker_preferences=checker_preferences,
+        audit_intent=audit_intent,
         strategy=strategy,
         raw=raw,
     )
@@ -213,11 +353,14 @@ def validate_checker_request(
             ),
         ))
 
-    if not isinstance(request.strategy, str) or not request.strategy.strip():
+    if request.strategy not in _RESOLVE_STRATEGIES:
         issues.append(PreflightIssue(
             level="error",
             code="invalid_security_audit_strategy",
-            message="security_audit strategy must be a non-empty string.",
+            message=(
+                "security_audit strategy must be one of "
+                f"{sorted(_RESOLVE_STRATEGIES)}, got {request.strategy!r}."
+            ),
         ))
 
     raw_checker_names = request.raw.get("checker_names")
@@ -232,13 +375,13 @@ def validate_checker_request(
 
     if (
         request.selection_mode != "default"
-        and "checker_preferences" in request.raw
-        and not isinstance(request.raw.get("checker_preferences"), str)
+        and "audit_intent" in request.raw
+        and not isinstance(request.raw.get("audit_intent"), str)
     ):
         issues.append(PreflightIssue(
             level="error",
-            code="invalid_checker_preferences",
-            message="checker_preferences must be a string.",
+            code="invalid_audit_intent",
+            message="audit_intent must be a string.",
         ))
 
     if request.selection_mode != "explicit":
@@ -322,6 +465,10 @@ def resolve_checker_plan(
     capability_set: CheckerCapabilitySet,
     tool_defaults: dict,
     resource_tier: str,
+    llm: Any | None = None,
+    llm_model: str = "",
+    logger: Any | None = None,
+    data_profile: dict[str, Any] | None = None,
 ) -> ResolvedCheckerPlan:
     default_configs = load_default_checker_configs(tool_defaults)
     defaults_by_name = {config.name: config for config in default_configs}
@@ -339,6 +486,20 @@ def resolve_checker_plan(
             checker_configs=checker_configs,
             skipped_checkers=skipped,
             source="explicit",
+        )
+
+    if request.selection_mode == "recommend" and request.strategy == "llm":
+        return _resolve_llm_checker_plan(
+            request=request,
+            capability_set=capability_set,
+            defaults_by_name=defaults_by_name,
+            tool_defaults=tool_defaults,
+            resource_tier=resource_tier,
+            source=request.selection_mode,
+            llm=llm,
+            llm_model=llm_model,
+            logger=logger,
+            data_profile=data_profile,
         )
 
     if request.selection_mode == "recommend":
@@ -525,7 +686,7 @@ def checker_request_metadata(request: CheckerRequest) -> dict[str, Any]:
     return {
         "checker_selection_mode": request.selection_mode,
         "checker_names": list(request.checker_names),
-        "checker_preferences": request.checker_preferences,
+        "audit_intent": request.audit_intent,
     }
 
 
@@ -541,6 +702,7 @@ def resolved_plan_metadata(plan: ResolvedCheckerPlan) -> dict[str, Any]:
         "schema_version": "security_audit.resolved_plan.v1",
         "strategy": plan.strategy,
         "source": plan.source,
+        "objective": dict(plan.objective),
         "stages": list(plan.stages),
         "skipped_checkers": list(plan.skipped_checkers),
         "degradations": list(plan.degradations),
@@ -576,13 +738,412 @@ def _single_stage(checker_names: list[str]) -> dict[str, Any]:
         "name": "single_stage",
         "type": "single_stage",
         "checkers": list(checker_names),
-        "input_scope": {
-            "type": "all_samples",
-            "source_stage_id": None,
-        },
         "routing": {
-            "mode": "all",
+            "mode": "all_samples",
         },
+    }
+
+
+def _resolve_llm_checker_plan(
+    *,
+    request: CheckerRequest,
+    capability_set: CheckerCapabilitySet,
+    defaults_by_name: dict[str, CheckerConfig],
+    tool_defaults: dict,
+    resource_tier: str,
+    source: str,
+    llm: Any | None,
+    llm_model: str,
+    logger: Any | None,
+    data_profile: dict[str, Any] | None,
+) -> ResolvedCheckerPlan:
+    if llm is None or not llm_model:
+        plan = _resolve_default_llm_progressive_workflow_plan(
+            request=request,
+            capability_set=capability_set,
+            defaults_by_name=defaults_by_name,
+            source=source,
+        )
+        plan.strategy = "deterministic"
+        plan.degradations.append({
+            "reason": "llm_resolver_unavailable" if llm is None else "llm_model_unavailable",
+            "from": "llm",
+            "to": "deterministic_progressive_workflow",
+        })
+        return plan
+
+    prompt = build_llm_resolver_prompt(
+        request=request,
+        capability_set=capability_set,
+        resource_tier=resource_tier,
+        tool_defaults=tool_defaults,
+        data_profile=data_profile,
+    )
+    try:
+        if hasattr(llm, "generate_json"):
+            raw_plan = llm.generate_json(
+                llm_model,
+                prompt,
+                temperature=0.0,
+            )
+        else:
+            content = llm.generate(
+                llm_model,
+                prompt,
+                system_prompt="You must respond with valid JSON only.",
+                temperature=0.0,
+            )
+            raw_plan = _load_json_object(content)
+        return _resolved_plan_from_llm_output(
+            raw_plan=raw_plan,
+            request=request,
+            capability_set=capability_set,
+            defaults_by_name=defaults_by_name,
+            source=source,
+        )
+    except Exception as exc:
+        if logger is not None and hasattr(logger, "warning"):
+            logger.warning(f"SecurityAuditTool: LLM resolver failed, falling back to deterministic progressive workflow: {exc}")
+        plan = _resolve_default_llm_progressive_workflow_plan(
+            request=request,
+            capability_set=capability_set,
+            defaults_by_name=defaults_by_name,
+            source=source,
+        )
+        plan.strategy = "deterministic"
+        plan.degradations.append({
+            "reason": "llm_resolver_failed",
+            "from": "llm",
+            "to": "deterministic",
+        })
+        return plan
+
+
+def _resolve_default_llm_progressive_workflow_plan(
+    *,
+    request: CheckerRequest,
+    capability_set: CheckerCapabilitySet,
+    defaults_by_name: dict[str, CheckerConfig],
+    source: str,
+) -> ResolvedCheckerPlan:
+    stages, names, skipped, degradations = build_progressive_workflow_stages(capability_set)
+    checker_configs, config_skipped = _checker_configs_from_names(
+        names=names,
+        defaults_by_name=defaults_by_name,
+        capability_set=capability_set,
+    )
+    return ResolvedCheckerPlan(
+        strategy="llm",
+        checker_configs=checker_configs,
+        skipped_checkers=_dedupe_skip_records(skipped + config_skipped),
+        degradations=degradations,
+        source=source,
+        objective=_default_progressive_workflow_objective(stages),
+        stages=stages,
+        request=request,
+        capability_set=capability_set,
+    )
+
+
+def _resolved_plan_from_llm_output(
+    *,
+    raw_plan: dict[str, Any],
+    request: CheckerRequest,
+    capability_set: CheckerCapabilitySet,
+    defaults_by_name: dict[str, CheckerConfig],
+    source: str,
+) -> ResolvedCheckerPlan:
+    if not isinstance(raw_plan, dict):
+        raise ValueError("LLM resolver output must be a JSON object.")
+
+    raw_stages = raw_plan.get("stages")
+    if not isinstance(raw_stages, list) or not raw_stages:
+        raise ValueError("LLM resolver output must include a non-empty stages list.")
+
+    stages: list[dict[str, Any]] = []
+    selected_names: list[str] = []
+    skipped: list[dict[str, str]] = []
+    degradations: list[dict[str, str]] = []
+
+    for index, raw_stage in enumerate(raw_stages, start=1):
+        if not isinstance(raw_stage, dict):
+            degradations.append({
+                "reason": "llm_stage_not_object",
+                "from": f"stage_{index}",
+                "to": "skip_stage",
+            })
+            continue
+        stage, stage_names, stage_skipped, stage_degradation = _normalize_llm_stage(
+            raw_stage=raw_stage,
+            capability_set=capability_set,
+            index=index,
+        )
+        stages.append(stage)
+        selected_names.extend(stage_names)
+        skipped.extend(stage_skipped)
+        if stage_degradation:
+            degradations.append(stage_degradation)
+
+    selected_names = _unique_in_order(selected_names)
+    if not selected_names:
+        raise ValueError("LLM resolver selected no allowed checkers.")
+
+    checker_configs, config_skipped = _checker_configs_from_names(
+        names=selected_names,
+        defaults_by_name=defaults_by_name,
+        capability_set=capability_set,
+    )
+
+    return ResolvedCheckerPlan(
+        strategy="llm",
+        checker_configs=checker_configs,
+        skipped_checkers=_dedupe_skip_records(skipped + config_skipped),
+        degradations=_dedupe_skip_records(degradations),
+        source=source,
+        objective=_normalize_objective(raw_plan.get("objective"), stages),
+        stages=stages,
+        request=request,
+        capability_set=capability_set,
+    )
+
+
+def _load_json_object(content: str) -> dict[str, Any]:
+    cleaned = str(content or "").strip()
+    if cleaned.startswith("```json"):
+        cleaned = cleaned.split("```json", 1)[1].split("```", 1)[0].strip()
+    elif cleaned.startswith("```"):
+        cleaned = cleaned.split("```", 1)[1].split("```", 1)[0].strip()
+    parsed = json.loads(cleaned)
+    if not isinstance(parsed, dict):
+        raise ValueError("LLM resolver output must be a JSON object.")
+    return parsed
+
+
+def _normalize_llm_stage(
+    *,
+    raw_stage: dict[str, Any],
+    capability_set: CheckerCapabilitySet,
+    index: int,
+) -> tuple[dict[str, Any], list[str], list[dict[str, str]], dict[str, str] | None]:
+    stage_id = _clean_stage_id(raw_stage.get("id"), index)
+    raw_checker_names = raw_stage.get("checkers")
+    checker_names = raw_checker_names if isinstance(raw_checker_names, list) else []
+    allowed_stage_names: list[str] = []
+    skipped: list[dict[str, str]] = []
+
+    for raw_name in checker_names:
+        if not isinstance(raw_name, str) or not raw_name.strip():
+            skipped.append({"name": str(raw_name), "reason": "invalid_checker_name"})
+            continue
+        name = raw_name.strip()
+        capability = capability_set.get(name)
+        if capability and capability.allowed:
+            allowed_stage_names.append(name)
+            continue
+        skipped.append({
+            "name": name,
+            "reason": capability.blocked_reason if capability else "unknown_checker",
+        })
+
+    allowed_stage_names = _unique_in_order(allowed_stage_names)
+    degradation = None
+    if not allowed_stage_names and (checker_names or stage_id != "review"):
+        degradation = {
+            "reason": f"llm_stage_{stage_id}_has_no_allowed_checkers",
+            "from": stage_id,
+            "to": "skip_stage",
+        }
+
+    stage = {
+        "id": stage_id,
+        "name": str(raw_stage.get("name") or stage_id),
+        "type": str(raw_stage.get("type") or stage_id),
+        "risk_focus": _coerce_string_list(raw_stage.get("risk_focus")),
+        "checkers": allowed_stage_names,
+        "routing": _normalize_routing(raw_stage.get("routing")),
+        "purpose": str(raw_stage.get("purpose") or ""),
+    }
+    return stage, allowed_stage_names, skipped, degradation
+
+
+
+def _normalize_objective(raw_objective: Any, stages: list[dict[str, Any]]) -> dict[str, Any]:
+    if not isinstance(raw_objective, dict):
+        return _default_progressive_workflow_objective(stages)
+    return {
+        "goal": str(raw_objective.get("goal") or "security_audit"),
+        "covered_risk_types": _coerce_string_list(
+            raw_objective.get("covered_risk_types")
+        ) or _unique_in_order([
+            risk
+            for stage in stages
+            for risk in stage.get("risk_focus", [])
+        ]),
+        "optimization": _coerce_string_list(raw_objective.get("optimization")),
+    }
+
+
+def _default_progressive_workflow_objective(stages: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "goal": "full_risk_coverage",
+        "covered_risk_types": _unique_in_order([
+            risk
+            for stage in stages
+            for risk in stage.get("risk_focus", [])
+        ]),
+        "optimization": ["coverage"],
+    }
+
+
+def _normalize_routing(raw_routing: Any) -> dict[str, Any]:
+    routing = dict(raw_routing) if isinstance(raw_routing, dict) else {}
+    routing["mode"] = str(routing.get("mode") or "all_samples")
+    if routing.get("source_stage_id"):
+        routing["source_stage_id"] = str(routing["source_stage_id"])
+    if "rules" in routing and not isinstance(routing["rules"], list):
+        routing["rules"] = [str(routing["rules"])]
+    return routing
+
+
+def _clean_stage_id(value: Any, index: int) -> str:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return f"stage_{index}"
+
+
+def _coerce_string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    items: list[str] = []
+    for item in value:
+        if isinstance(item, str) and item.strip():
+            items.append(item.strip())
+    return _unique_in_order(items)
+
+
+
+def build_progressive_workflow_stages(
+    capability_set: CheckerCapabilitySet,
+) -> tuple[list[dict[str, Any]], list[str], list[dict[str, str]], list[dict[str, str]]]:
+    stages: list[dict[str, Any]] = []
+    selected_names: list[str] = []
+    skipped: list[dict[str, str]] = []
+    degradations: list[dict[str, str]] = []
+
+    for template in _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS:
+        stage, stage_names, stage_skipped, stage_degradation = build_progressive_workflow_stage(
+            template=template,
+            capability_set=capability_set,
+        )
+        stages.append(stage)
+        selected_names.extend(stage_names)
+        skipped.extend(stage_skipped)
+        if stage_degradation:
+            degradations.append(stage_degradation)
+
+    return stages, _unique_in_order(selected_names), _dedupe_skip_records(skipped), degradations
+
+
+def build_progressive_workflow_stage(
+    *,
+    template: dict[str, Any],
+    capability_set: CheckerCapabilitySet,
+) -> tuple[dict[str, Any], list[str], list[dict[str, str]], dict[str, str] | None]:
+    allowed_stage_names: list[str] = []
+    skipped: list[dict[str, str]] = []
+
+    for name in template["checkers"]:
+        capability = capability_set.get(name)
+        if capability and capability.allowed:
+            allowed_stage_names.append(name)
+            continue
+        skipped.append({
+            "name": name,
+            "reason": capability.blocked_reason if capability else "unknown_checker",
+        })
+
+    degradation = None
+    if not allowed_stage_names and template["checkers"]:
+        degradation = {
+            "reason": f"progressive_workflow_stage_{template['id']}_has_no_allowed_checkers",
+            "from": template["id"],
+            "to": "skip_stage",
+        }
+
+    stage = {
+        "id": template["id"],
+        "name": template["name"],
+        "type": template["type"],
+        "risk_focus": list(template["risk_focus"]),
+        "checkers": allowed_stage_names,
+        "routing": dict(template["routing"]),
+        "purpose": template["purpose"],
+    }
+    return stage, allowed_stage_names, skipped, degradation
+
+
+def _unique_in_order(names: list[str]) -> list[str]:
+    unique: list[str] = []
+    seen: set[str] = set()
+    for name in names:
+        if name in seen:
+            continue
+        seen.add(name)
+        unique.append(name)
+    return unique
+
+
+def _dedupe_skip_records(records: list[dict[str, str]]) -> list[dict[str, str]]:
+    deduped: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for record in records:
+        name = record.get("name", "")
+        reason = record.get("reason", "")
+        key = (name, reason)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(record)
+    return deduped
+
+
+def build_llm_resolver_prompt(
+    *,
+    request: CheckerRequest,
+    capability_set: CheckerCapabilitySet,
+    resource_tier: str,
+    tool_defaults: dict,
+    data_profile: dict[str, Any] | None = None,
+) -> str:
+    resolver_input = {
+        "request": checker_request_metadata(request),
+        "runtime_policy": {"resource_tier": resource_tier},
+        "data_profile": data_profile or {},
+        "capability_set": {
+            "allowed_checker_names": capability_set.allowed_names(),
+            "blocked_checkers": capability_set.blocked_metadata(),
+            "allowed_checkers": [
+                _checker_card_for_prompt(capability)
+                for capability in capability_set.capabilities.values()
+                if capability.allowed
+            ],
+        },
+        "risk_weights": tool_defaults.get("risk_weights", {}),
+        "progressive_workflow_reference": _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS,
+    }
+    return LLM_RESOLVER_PROMPT_TEMPLATE.format(
+        output_schema=json.dumps(LLM_RESOLVER_OUTPUT_SCHEMA, ensure_ascii=False, indent=2),
+        resolver_input=json.dumps(resolver_input, ensure_ascii=False, indent=2),
+    )
+
+
+def _checker_card_for_prompt(capability: CheckerCapability) -> dict[str, Any]:
+    return {
+        "name": capability.name,
+        "checker_type": capability.checker_type,
+        "risk_type": capability.risk_type,
+        "required_tier": capability.required_tier,
+        "params": capability.params,
     }
 
 
@@ -621,17 +1182,17 @@ def _recommend_checker_names(
     resource_tier: str,
 ) -> tuple[list[str], list[dict[str, str]]]:
     allowed = set(capability_set.allowed_names())
-    preference = request.checker_preferences.lower()
+    intent = request.audit_intent.lower()
 
     fast_markers = ("fast", "quick", "low cost", "low-cost", "cheap", "light", "成本", "快速", "低成本")
     broad_markers = ("accurate", "accuracy", "coverage", "strong", "full", "全面", "准确", "覆盖")
 
-    if any(marker in preference for marker in fast_markers):
+    if any(marker in intent for marker in fast_markers):
         names = [name for name in _RULE_BASED_CHECKERS if name in allowed]
         if names:
             return names, []
 
-    if any(marker in preference for marker in broad_markers):
+    if any(marker in intent for marker in broad_markers):
         names = [
             name for name in _coverage_checker_names_for_resource_tier(resource_tier)
             if name in allowed

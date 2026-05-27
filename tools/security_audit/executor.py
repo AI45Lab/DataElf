@@ -301,7 +301,10 @@ class Executor:
                     risk_type=checker.risk_type,
                     details={"error": str(e)},
                 )
-            sr.results.append(result)
+            if isinstance(result, list):
+                sr.results.extend(result)
+            else:
+                sr.results.append(result)
         return sr
 
     def _aggregate(self, report: TaskReport, sample_reports: List[SampleReport]) -> None:

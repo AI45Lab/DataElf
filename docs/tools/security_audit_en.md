@@ -69,8 +69,29 @@ Example input sample:
 | `data` | `list[dict]` | Yes | — | List of dataset records to audit |
 | `checker_selection_mode` | `str` | No | `default` | Checker selection intent: `explicit`, `recommend`, or `default` |
 | `checker_names` | `list[str]` | No | `[]` | Checker class names for `explicit` mode. If provided without `checker_selection_mode`, the request is treated as `explicit`; see [Checkers](#checkers) |
-| `checker_preferences` | `str` | No | `""` | Natural-language preferences for `recommend` mode, such as low cost, fast, high accuracy, or stronger coverage |
+| `audit_intent` | `str` | No | `""` | Natural-language audit intent for `recommend` mode, including target risks, audit scope, and constraints such as low cost, speed, high accuracy, or stronger coverage |
 | `max_workers` | `int` | No | `4` | Number of parallel worker threads |
+
+
+## Resolver
+
+The resolver turns the checker-selection intent passed by the agent into an executable audit plan. Its responsibilities include selecting checkers within the current `capability_set`, organizing audit stages, designing sample routing, and recording deterministic degradations when a target cannot be fully satisfied.
+
+The tool currently supports three resolution paths:
+
+- `explicit`: when the user provides `checker_names`, the tool deterministically enables those checkers and filters out entries disallowed by the current runtime policy.
+- `default`: when no recommendation intent is provided, the tool resolves checkers from the configured default set.
+- `recommend`: when the user asks the tool to select and orchestrate checkers from a natural-language audit intent, the request enters the LLM resolver. The LLM resolver uses `audit_intent`, runtime policy, and the capability set to generate a plan. If the LLM is unavailable or returns an invalid plan, the tool falls back to a deterministic plan and records the reason in `degradations`.
+
+The LLM resolver uses a baseline Progressive Risk Audit Workflow as its default plan template. `review` is not a mandatory stage; it is conditionally triggered by upstream results.
+
+| Stage | Goal | Typical checkers / capabilities | Routing intent |
+|-------|------|----------------------------------|----------------|
+| `quick_scan` | Run low-cost full-scan checks first to catch PII, secrets, obvious harmful/toxic/bias signals, and other surface risks | `PIIRule`, `SecretRule`, keyword rules, `PIILLMJudge`, `PIINERDetector` | Usually all samples |
+| `semantic_scan` | Judge semantic risks such as harmful content, toxicity, bias, jailbreaks, prompt injection, label flipping, factual inconsistency, and instruction mismatch | LLM judge checkers | All samples, sampled data, or field-applicable routed samples |
+| `deep_scan` | Run higher-cost specialist scans when resources allow, covering risks that benefit from dedicated models such as backdoors, jailbreaks, prompt injection, harmful content, and toxicity | `GraCeFulBackdoorDefender`, `HarmfulContentClassifier`, `ToxicityClassifier`, `JailbreakClassifier`, `PromptInjectionClassifier`, etc. | Sampled data, high-risk partitions, upstream flagged samples, or user-specified scopes |
+
+This workflow is a default template, not a fixed rule. For partial-risk requests, the LLM may remove irrelevant stages or checkers. For low-cost previews, fast audits, or very large datasets, it may adjust routing, such as sampling, deep-scanning only high-risk samples, or prioritizing specific fields.
 
 
 
@@ -89,7 +110,7 @@ result:
       total: int               # Total samples inspected for this risk
       flagged: int             # Number of hits
     harmful: {total: int, flagged: int}
-    # ... other risk types (14 in total)
+    # ... other risk types (13 in total)
   checker_stats:               # Execution statistics per checker
     PIIRule:
       total: int               # Successfully executed count
@@ -101,35 +122,35 @@ metadata:
   task_name: str               # Audit task name
   checker_names: list[str]     # Checkers used in this run
   runtime_policy:              # Deployment runtime policy used for this run
-    network_mode: str          # Network mode: online / offline
-    resource_tier: str         # Resource tier: light / standard / full
+    network_mode: online | offline # Network mode
+    resource_tier: light | standard | full # Resource tier
   request:                     # Normalized checker selection request
-    checker_selection_mode: str # Checker selection mode: explicit / recommend / default
+    checker_selection_mode: explicit | recommend | default # Checker selection mode
     checker_names: list[str]   # User-specified checkers; usually empty outside explicit mode
-    checker_preferences: str   # Natural-language preferences for recommend mode
+    audit_intent: str          # Natural-language audit intent for recommend mode
   capability_set:              # Checker availability boundary for this run
     allowed_checker_names: list[str]  # Checker names allowed by runtime policy
     blocked_checkers:          # Checkers blocked by policy and their reasons
       - name: str              # Blocked checker name
         reasons: list[str]     # Block reason codes
   resolved_plan:               # Final resolved execution plan
-    schema_version: security_audit.resolved_plan.v1  # Execution plan schema version
-    strategy: deterministic | llm  # Plan resolution strategy; current implementation uses deterministic rules
+    schema_version: security_audit.resolved_plan.v1 # Execution plan schema version
+    strategy: deterministic | llm  # Plan resolution strategy; recommend mode may produce an LLM-resolved multi-stage plan
     source: explicit | default | recommend | fallback  # Plan source
-    stages:                    # Execution stages; current version runs one stage
-      - id: stage_1            # Unique stage id
-        name: single_stage     # Stage name
-        type: single_stage     # Stage type
+    objective: dict            # Audit goal, covered risks, and optimization intent resolved from the plan
+    stages:                    # Execution stages; LLM plans may contain multiple routed stages
+      - id: str                # Unique stage id, e.g. stage_1
+        name: str              # Stage name, e.g. single_stage / quick_scan
+        type: str              # Stage type, e.g. single_stage / semantic_scan
         checkers: list[str]    # Checkers executed in this stage
-        input_scope:           # Input sample scope for this stage
-          type: all_samples    # Scope type; all_samples means all input samples
-          source_stage_id: null # Upstream stage id for multi-stage plans; null for single stage
-        routing:               # Stage routing policy
-          mode: all            # all means run on every sample in the input scope
-    skipped_checkers: list     # Checkers skipped during plan resolution and their reasons
-    degradations: list         # Degradation records from recommendation or planning
+        routing:               # Stage routing policy and the single source of truth for sample selection
+          mode: all_samples | field_applicable | uncertain | sample | high_risk_partition # Routing mode
+          source_stage_id: str | null # Real upstream stage id when routing from prior results, e.g. stage_2; null for single stage
+    skipped_checkers: list[dict] # Checkers skipped during plan resolution and their reasons
+    degradations: list[dict]   # Degradation records from recommendation or planning
   execution:                   # Actual execution parameters
     max_workers: int           # Number of parallel workers
+    stages: list[dict]         # Multi-stage execution stats, including per-stage input count, checkers, and skip reasons
   create_time: str             # Task start time (ISO format)
   finish_time: str             # Task finish time (ISO format)
   checker_stats:               # Execution statistics per checker
