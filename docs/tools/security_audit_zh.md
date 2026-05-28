@@ -93,6 +93,29 @@ LLM resolver 以渐进式风险审计流程作为默认计划模板。`review` �
 这个流程只是默认模板，不是固定规则。对于只覆盖部分风险的需求，LLM 可以裁剪无关阶段或 checker；对于低成本、快速预览、超大规模数据等需求，LLM 可以调整 routing，例如抽样、只深扫高风险样本或优先扫描特定字段。
 
 
+### Routing 模式
+
+`routing` 负责决定每个 stage 实际处理哪些样本。它的价值是把审计从“所有 checker 全量扫所有样本”变成“按风险、字段、成本和上游结果动态分发样本”，从而在成本可控的前提下提升覆盖率、召回率和判断可信度。
+
+| 模式 | 说明 | 典型场景 |
+|------|------|----------|
+| `all_samples` | 全量运行该 stage 的 checker。 | 低成本 rule-based 预筛，或需要覆盖全部样本的语义审计。 |
+| `field_applicable` | 只处理字段或数据类型满足条件的样本。 | DPO label flipping 只跑 `chosen_response` / `rejected_response`，factual consistency 只跑有 `context` 的样本，instruction mismatch / sycophancy / self contradiction 只跑有 `response` 的样本。 |
+| `sample` | 在满足字段条件的样本中抽样运行，可通过 `sample_rate` 或 `sample_size` 控制规模。 | 低成本预览、超大规模数据快速估计风险、昂贵 checker 控成本。 |
+| `uncertain` | 基于上游 stage 的结果做二次路由，只复核满足规则的样本。 | 高召回二扫、边界样本复核、低置信度样本加严、执行失败或内容过滤样本补偿。 |
+
+`uncertain` 模式常用 `rules`：
+
+| 规则 | 说明 |
+|------|------|
+| `near_threshold` | 只复核分数接近判定阈值的边界样本，避免临界风险被误放或误杀。 |
+| `low_confidence` | 只复核 checker 置信度较低的样本，用更强判断补足不确定结论。 |
+| `conflicting` | 只复核多个 checker 结论不一致的样本，用于仲裁冲突、提升最终可信度。 |
+| `error` | 只复核上游 checker 执行失败的样本，避免因为工具异常造成漏检。 |
+| `content_filter` | 只复核触发内容过滤的样本，避免高风险内容因 LLM 拒答或过滤而缺少审计结论。 |
+| `unflagged` | 只复核上游未命中的样本，适合高召回二扫，尽量捞回漏检风险。 |
+
+
 
 ## Output
 
@@ -143,8 +166,15 @@ metadata:
         type: str              # 阶段类型，例如 single_stage / semantic_scan
         checkers: list[str]    # 该阶段运行的 checker 列表
         routing:               # 阶段路由策略
-          mode: all_samples | field_applicable | uncertain | sample | high_risk_partition # 路由模式
+          mode: all_samples | field_applicable | uncertain | sample # 路由模式
           source_stage_id: str | null # 依赖上游阶段结果时填写真实阶段 ID，例如 stage_2；单阶段为 null
+          rules: list[str]     # uncertain 模式下的复核规则，例如 near_threshold / low_confidence / conflicting / error / content_filter / unflagged
+          dataset_types: list[str] # 可选，按数据集类型路由，例如 dpo / sft / rl / benchmark
+          required_fields: list[str] # 可选，按真实 DataSample 字段路由，例如 response / context / chosen_response / rejected_response
+          sample_rate: float   # 可选，sample 模式下的抽样比例，范围 0.0-1.0
+          sample_size: int     # 可选，sample 模式下的最大抽样数量
+          threshold: float     # 可选，near_threshold 使用的判定阈值，默认通常为 0.5
+          threshold_margin: float # 可选，near_threshold 的阈值邻域，例如 0.1
     skipped_checkers: list[dict] # 解析计划时被跳过的 checker 及原因
     degradations: list[dict]   # 推荐或规划过程中发生的降级记录
   execution:                   # 实际执行参数
@@ -281,7 +311,6 @@ save_result(audit)
 | `PIINERDetector` | `pii` | Microsoft presidio NER 模型 | PII泄露 |
 | `JailbreakClassifier` | `jailbreak` | `allenai/WildGuard`| 越狱提示 |
 | `PromptInjectionClassifier` | `prompt_injection` | `leolee99/PIGuard` | 提示注入 |
-| `CrossModelRiskReviewer` | `jailbreak`, `prompt_injection`, `harmful`, `toxicity` | Llama Guard, PIGuard, WildGuard, Qwen-Guard-Gen | 多模型交叉复核 |
 
 ### Heuristic Checkers
 
@@ -360,7 +389,7 @@ model_paths:
 |----------|---------------------|--------------|-----|----------|--------------------|--------------|
 | `light` | 不需要 | 不需要 | 不需要 | 低依赖 | all rule-based checkers：`PIIRule`, `SecretRule`, `ToxicityKeywordRule`, `HarmfulKeywordRule`, `BiasKeywordRule` | 批量扫描；快速预筛；发现显式 PII、密钥、明显有害/毒性/偏见关键词。 |
 | `standard` | 需要 | 可选，允许 CPU 可运行模型 | 不需要 | 需要 LLM provider；启用 `PIINERDetector` 时需要 NER 相关依赖 | `light` 全部 checker + all LLM-as-a-judge checkers + `PIINERDetector` | `light` 模式下的所有策略；隐私识别增强；语义安全审计；常规入库前审计。 |
-| `full` | 需要 | 需要，需配置重模型路径或缓存 | 建议使用 | 需要 `torch`、`transformers` 及对应模型依赖 | all checkers：`standard` 全部 checker + `HarmfulContentClassifier`, `ToxicityClassifier`, `BiasClassifier`, `JailbreakClassifier`, `PromptInjectionClassifier`, `CrossModelRiskReviewer`, `GraCeFulBackdoorDefender` | `standard` 模式下的所有策略；高召回率审计；专用模型复核；后门检测；benchmark。 |
+| `full` | 需要 | 需要，需配置重模型路径或缓存 | 建议使用 | 需要 `torch`、`transformers` 及对应模型依赖 | all checkers：`standard` 全部 checker + `HarmfulContentClassifier`, `ToxicityClassifier`, `BiasClassifier`, `JailbreakClassifier`, `PromptInjectionClassifier`, `GraCeFulBackdoorDefender` | `standard` 模式下的所有策略；高召回率审计；专用模型复核；后门检测；benchmark。 |
 
 ---
 

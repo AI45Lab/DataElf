@@ -94,6 +94,29 @@ The LLM resolver uses a baseline Progressive Risk Audit Workflow as its default 
 This workflow is a default template, not a fixed rule. For partial-risk requests, the LLM may remove irrelevant stages or checkers. For low-cost previews, fast audits, or very large datasets, it may adjust routing, such as sampling, deep-scanning only high-risk samples, or prioritizing specific fields.
 
 
+### Routing Modes
+
+`routing` decides which samples each stage actually processes. Its main value is changing the audit from "run every checker over every sample" into "route samples dynamically by risk, field availability, cost, and upstream results", improving coverage, recall, and decision reliability under a controlled budget.
+
+| Mode | Description | Typical Use Case |
+|------|-------------|------------------|
+| `all_samples` | Run the stage checkers over all samples. | Low-cost rule-based prescreening, or semantic audits that must cover every sample. |
+| `field_applicable` | Only process samples whose fields or dataset type satisfy the checker requirements. | DPO label flipping only runs on `chosen_response` / `rejected_response`; factual consistency only runs when `context` is present; instruction mismatch / sycophancy / self contradiction only run when `response` is present. |
+| `sample` | Run on a sampled subset of applicable samples, controlled by `sample_rate` or `sample_size`. | Low-cost previews, fast risk estimation on very large datasets, or cost control for expensive checkers. |
+| `uncertain` | Route samples from an upstream stage for second-pass review when they match specific rules. | High-recall second scans, boundary-case review, stricter checks for low-confidence results, and compensation for execution errors or content filtering. |
+
+Common `rules` for `uncertain` routing:
+
+| Rule | Description |
+|------|-------------|
+| `near_threshold` | Review samples whose score is close to the decision threshold, avoiding missed or over-blocked borderline risks. |
+| `low_confidence` | Review samples where the checker confidence is low, using a stronger judgment to compensate for uncertainty. |
+| `conflicting` | Review samples where multiple checkers disagree, acting as an arbitration step to improve final reliability. |
+| `error` | Review samples where the upstream checker failed, avoiding false safety caused by tool errors. |
+| `content_filter` | Review samples that triggered content filtering, avoiding missing conclusions when an LLM refuses or filters high-risk content. |
+| `unflagged` | Review samples not flagged by the upstream stage, useful for high-recall second-pass scans that try to recover false negatives. |
+
+
 
 ## Output
 
@@ -144,8 +167,15 @@ metadata:
         type: str              # Stage type, e.g. single_stage / semantic_scan
         checkers: list[str]    # Checkers executed in this stage
         routing:               # Stage routing policy and the single source of truth for sample selection
-          mode: all_samples | field_applicable | uncertain | sample | high_risk_partition # Routing mode
+          mode: all_samples | field_applicable | uncertain | sample # Routing mode
           source_stage_id: str | null # Real upstream stage id when routing from prior results, e.g. stage_2; null for single stage
+          rules: list[str]     # Review rules for uncertain mode, e.g. near_threshold / low_confidence / conflicting / error / content_filter / unflagged
+          dataset_types: list[str] # Optional dataset-type routing, e.g. dpo / sft / rl / benchmark
+          required_fields: list[str] # Optional routing by real DataSample fields, e.g. response / context / chosen_response / rejected_response
+          sample_rate: float   # Optional sampling ratio for sample mode, from 0.0 to 1.0
+          sample_size: int     # Optional maximum sample count for sample mode
+          threshold: float     # Optional decision threshold used by near_threshold, usually 0.5 by default
+          threshold_margin: float # Optional threshold neighborhood for near_threshold, e.g. 0.1
     skipped_checkers: list[dict] # Checkers skipped during plan resolution and their reasons
     degradations: list[dict]   # Degradation records from recommendation or planning
   execution:                   # Actual execution parameters

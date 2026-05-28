@@ -47,7 +47,6 @@ _HEAVY_MODEL_CHECKERS = [
     "BiasClassifier",
     "JailbreakClassifier",
     "PromptInjectionClassifier",
-    "CrossModelRiskReviewer",
     "GraCeFulBackdoorDefender",
 ]
 
@@ -55,10 +54,49 @@ _RESOURCE_TIER_ORDER = {"light": 0, "standard": 1, "full": 2}
 
 _RESOLVE_STRATEGIES = {"deterministic", "llm"}
 
+_ROUTING_MODES = {"all_samples", "field_applicable", "uncertain", "sample"}
+_ROUTING_RULES = {
+    "near_threshold",
+    "conflicting",
+    "low_confidence",
+    "error",
+    "content_filter",
+    "unflagged",
+}
+_ROUTING_FIELDS = {
+    "messages",
+    "response",
+    "chosen_response",
+    "rejected_response",
+    "context",
+    "ground_truth_answer",
+    "reference_answer",
+}
+_ROUTING_DATASET_TYPES = {"sft", "rl", "dpo", "benchmark"}
+
+_ROUTING_KEYS = {
+    "mode",
+    "source_stage_id",
+    "rules",
+    "rule",
+    "dataset_types",
+    "dataset_type",
+    "required_fields",
+    "fields",
+    "sample_rate",
+    "rate",
+    "sample_size",
+    "max_samples",
+    "limit",
+    "threshold",
+    "threshold_margin",
+    "margin",
+}
+
 _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS = [
     {
         "id": "stage_1",
-        "name": "quick_scan",
+        "name": "quick_surface_scan",
         "type": "quick_scan",
         "risk_focus": ["pii", "secret", "harmful", "toxicity", "bias"],
         "checkers": [
@@ -70,23 +108,19 @@ _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS = [
             "PIINERDetector",
         ],
         "routing": {"mode": "all_samples"},
-        "purpose": "Run cheap full-scan checks for direct leakage and obvious surface risks before semantic review.",
+        "purpose": "Optional low-cost pre-screen for fast or budget-constrained audits; skip this stage when the user prioritizes high precision and high recall over cost.",
     },
     {
         "id": "stage_2",
-        "name": "semantic_scan",
+        "name": "semantic_safety_scan",
         "type": "semantic_scan",
         "risk_focus": [
+            "pii",
             "harmful",
             "toxicity",
             "bias",
             "prompt_injection",
             "jailbreak",
-            "instruction_mismatch",
-            "label_flipping",
-            "factual_inconsistency",
-            "self_contradiction",
-            "sycophancy",
         ],
         "checkers": [
             "PIILLMJudge",
@@ -95,31 +129,98 @@ _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS = [
             "BiasLLMJudge",
             "PromptInjectionLLMJudge",
             "JailbreakLLMJudge",
-            "InstructionMismatchLLMJudge",
-            "DPOLabelFlipLLMJudge",
-            "FactualInconsistancyLLMJudge",
-            "SelfContradictionLLMJudge",
-            "SycophancyLLMJudge",
         ],
-        "routing": {
-            "mode": "field_applicable",
-        },
-        "purpose": "Find semantic safety, poisoning, alignment bypass, and dataset-label risks.",
+        "routing": {"mode": "all_samples"},
+        "purpose": "Review semantic safety and alignment-bypass risks on samples with auditable text.",
     },
     {
         "id": "stage_3",
-        "name": "deep_scan",
+        "name": "instruction_following_scan",
+        "type": "semantic_scan",
+        "risk_focus": ["instruction_mismatch"],
+        "checkers": ["InstructionMismatchLLMJudge"],
+        "routing": {
+            "mode": "field_applicable",
+            "required_fields": ["response"],
+        },
+        "purpose": "Audit whether responses follow instructions only when both instructions/messages and a response are present.",
+    },
+    {
+        "id": "stage_4",
+        "name": "self_contradiction_scan",
+        "type": "semantic_scan",
+        "risk_focus": ["self_contradiction"],
+        "checkers": ["SelfContradictionLLMJudge"],
+        "routing": {
+            "mode": "field_applicable",
+            "required_fields": ["response"],
+        },
+        "purpose": "Audit internal response contradictions only on samples that contain a model response or assistant message.",
+    },
+    {
+        "id": "stage_5",
+        "name": "sycophancy_scan",
+        "type": "semantic_scan",
+        "risk_focus": ["sycophancy"],
+        "checkers": ["SycophancyLLMJudge"],
+        "routing": {
+            "mode": "field_applicable",
+            "required_fields": ["response"],
+        },
+        "purpose": "Audit sycophancy only when user messages and a model response are available.",
+    },
+    {
+        "id": "stage_6",
+        "name": "dpo_pairwise_scan",
+        "type": "semantic_scan",
+        "risk_focus": ["label_flipping"],
+        "checkers": ["DPOLabelFlipLLMJudge"],
+        "routing": {
+            "mode": "field_applicable",
+            "dataset_types": ["dpo"],
+            "required_fields": ["chosen_response", "rejected_response"],
+        },
+        "purpose": "Audit DPO preference pairs independently from general semantic stages because the checker requires chosen and rejected responses.",
+    },
+    {
+        "id": "stage_7",
+        "name": "factual_consistency_scan",
+        "type": "semantic_scan",
+        "risk_focus": ["factual_inconsistency"],
+        "checkers": ["FactualInconsistancyLLMJudge"],
+        "routing": {
+            "mode": "field_applicable",
+            "required_fields": ["context"],
+        },
+        "purpose": "Audit factual consistency only when trusted context and a response are present.",
+    },
+    {
+        "id": "stage_8",
+        "name": "backdoor_scan",
         "type": "deep_scan",
         "risk_focus": [
-            "backdoor",
+            "backdoor"
+        ],
+        "checkers": [
+            "GraCeFulBackdoorDefender"
+        ],
+        "routing": {
+            "mode": "all_samples",
+        },
+        "purpose": "Scan backdoors.",
+    },
+    {
+        "id": "stage_9",
+        "name": "risk_review",
+        "type": "deep_scan",
+        "risk_focus": [
+            "jailbreak",
+            "prompt_injection",
             "harmful",
             "toxicity",
             "bias",
-            "jailbreak",
-            "prompt_injection",
         ],
         "checkers": [
-            "GraCeFulBackdoorDefender",
             "HarmfulContentClassifier",
             "ToxicityClassifier",
             "BiasClassifier",
@@ -127,24 +228,12 @@ _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS = [
             "PromptInjectionClassifier",
         ],
         "routing": {
-            "mode": "high_risk_partition",
+            "mode": "uncertain",
             "source_stage_id": "stage_2",
+            "rules": ["error", "content_filter", "near_threshold", "low_confidence"],
         },
-        "purpose": "Run higher-cost specialist model checks when resources allow it, prioritizing sampled data, high-risk partitions, and upstream flagged samples.",
-    },
-    # TODO: Add a fourth review stage with CrossModelRiskReviewer for high-risk, low-confidence, near-threshold, or conflicting findings from earlier stages.
-    # {
-    #     "id": "stage_4",
-    #     "name": "review",
-    #     "type": "review",
-    #     "risk_focus": ["cross_model_review", "uncertainty_review"],
-    #     "checkers": ["CrossModelRiskReviewer"],
-    #     "routing": {
-    #         "mode": "uncertain",
-    #         "source_stage_id": "stage_3",
-    #     },
-    #     "purpose": "Conditionally review high-risk, low-confidence, near-threshold, or conflicting findings with CrossModelRiskReviewer.",
-    # },
+        "purpose": "Review samples flagged for potential risks.",
+    }
 ]
 
 LLM_RESOLVER_OUTPUT_SCHEMA: dict[str, Any] = {
@@ -157,12 +246,19 @@ LLM_RESOLVER_OUTPUT_SCHEMA: dict[str, Any] = {
         {
             "id": "stage_number",
             "name": "string",
-            "type": "quick_scan|semantic_scan|deep_scan|review",
+            "type": "quick_scan|semantic_scan|deep_scan",
+            "risk_focus": ["risk_type_name"],
             "checkers": ["CheckerClassName"],
             "routing": {
-                "mode": "all_samples|field_applicable|uncertain|sample|high_risk_partition",
+                "mode": "all_samples|field_applicable|uncertain|sample",
                 "source_stage_id": "string|null",
-                "rules": ["string"],
+                "rules": ["near_threshold|conflicting|low_confidence|error|content_filter|unflagged"],
+                "dataset_types": ["sft|rl|dpo|benchmark"],
+                "required_fields": ["messages|response|chosen_response|rejected_response|context|ground_truth_answer|reference_answer"],
+                "sample_rate": "optional number",
+                "sample_size": "optional number",
+                "threshold": "optional number",
+                "threshold_margin": "optional number",
             },
             "purpose": "string",
         }
@@ -176,14 +272,29 @@ Hard constraints:
 - Select checkers only from allowed_checker_names.
 - Never invent checker names.
 - The local resolver owns schema_version, strategy, and source; do not output them.
-- The Progressive Risk Audit Workflow is the default full-risk workflow:
-  1. quick_scan: cheap full-scan checks for direct leakage and obvious surface risks, then
-  2. semantic_scan: semantic and alignment risks with LLM judges, with risk-based routing to balance cost and coverage, then
-  3. deep_scan: higher-cost specialist model checks for risks such as backdoors, jailbreaks, prompt injection, harmful content, and toxicity, then
-  4. review: optional conditional review for high-risk, low-confidence, near-threshold, or conflicting findings with CrossModelRiskReviewer when it is allowed.
+- Do not force a fixed three-stage plan. The stage list is a flexible execution plan; use as many or as few stages as the audit intent requires.
+- Prefer a non-empty risk_focus list for every stage. Put risk names in stage.risk_focus.
+- Prefer not to reuse the same checker in multiple stages. Later stages should usually use stronger or more specialized checkers rather than rerunning earlier cheap/checker stages.
+- A review stage must use checker(s) for the same risk type that have not already appeared earlier in the plan, and those checker(s) should be stronger or more specialized than the upstream checker(s). If no unused stronger/specialized checker is available for that risk type, skip the review stage instead of rerunning earlier checker(s).
+- Build funnel-style plans only when they match the user intent. For fast or low-cost audits, cheap rule-based checks can run first. For high-precision and high-recall audits, skip low-precision/low-recall rule-based quick_scan stages and start from stronger LLM judges or model/guard checkers. Later stages should use stronger or more specialized checkers, not repeat earlier checkers.
+- A stage should group checkers that share similar cost, data applicability, and routing. Split checkers into separate stages when they need different dataset types, required fields, upstream source stages, sampling, or review rules.
+- Treat the Progressive Risk Audit Workflow as a menu of reusable stage patterns, not a required sequence. You may remove, reorder, merge, or split patterns as long as dependencies are valid. In particular, quick_scan is optional and should be omitted when it does not improve the requested precision/recall objective.
+- Field-specific checks should usually be independent stages with explicit routing, but required_fields may only contain real DataSample fields. Examples: DPOLabelFlipLLMJudge uses dataset_types=["dpo"] and required_fields=["chosen_response", "rejected_response"]; FactualInconsistancyLLMJudge uses required_fields=["context"]; InstructionMismatchLLMJudge and SycophancyLLMJudge use required_fields=["response"]. Do not output virtual field names.
 - For partial-risk requests, remove irrelevant stages or checkers from the workflow.
 - If a requested target cannot be satisfied by the allowed capability set, omit unavailable checkers from stages; the local resolver will derive skipped_checkers and degradations deterministically.
-- Prefer low-cost routing and sampling when the user asks for fast, low-cost, preview, or very large-scale audits.
+- Prefer low-cost routing, sampling, and rule-based checkers only when the user asks for fast, low-cost, preview, or very large-scale audits. Do not include rule-based checkers by default for high-precision high-recall audits unless they are explicitly requested or provide unique coverage such as secrets.
+
+Routing guidance:
+- routing may only contain these keys: mode, source_stage_id, rules, dataset_types, required_fields, sample_rate, sample_size, threshold, threshold_margin.
+- Do not put risk_types or checker_names inside routing; use stage.risk_focus and stage.checkers instead.
+- Use mode=all_samples only for checks that should run over every sample. Rule-based all-sample quick scans are mainly for fast/low-cost pre-screening, not mandatory for high-precision high-recall plans.
+- Use mode=field_applicable for checks that require specific real DataSample fields or dataset types; add required_fields and dataset_types when known.
+- Use mode=sample for low-cost previews over applicable samples, or for expensive specialist checks when cost control is requested; set sample_rate or sample_size only with mode=sample.
+- Use mode=uncertain only for a later review/recall stage with unused stronger/specialized checker(s) for the same risk type as the source stage. For high-precision review, use rules such as ["near_threshold", "conflicting", "low_confidence"], usually with threshold=0.5 and threshold_margin=0.1. For high-recall second-pass scanning, use rules=["unflagged"] to route samples not flagged by the source stage to a stronger checker. If all suitable checkers for that risk type have already been used or are unavailable, omit the uncertain review stage.
+- source_stage_id must reference an earlier stage id in your output.
+- Omit optional routing keys when they are not needed; do not output null values for sample_rate, sample_size, threshold, or threshold_margin.
+- Do not mix unflagged with near_threshold/low_confidence/conflicting unless the user explicitly asks for both high recall and boundary-case review.
+
 - Return JSON only. Do not wrap it in Markdown.
 
 Output schema:
@@ -587,7 +698,26 @@ def validate_resolved_checker_plan(
 
     enabled_names = {config.name for config in enabled_configs}
     stage_names: set[str] = set()
+    seen_stage_ids: set[str] = set()
     for stage in plan.stages:
+        stage_id = str(stage.get("id") or "")
+        if not stage_id.strip():
+            issues.append(PreflightIssue(
+                level="error",
+                code="invalid_stage_id",
+                message="Resolved stages must have a non-empty id.",
+            ))
+        elif stage_id in seen_stage_ids:
+            issues.append(PreflightIssue(
+                level="error",
+                code="duplicate_stage_id",
+                message=f"Resolved stage id `{stage_id}` is duplicated.",
+            ))
+
+        issues.extend(_validate_stage_routing(stage=stage, prior_stage_ids=seen_stage_ids))
+        if stage_id.strip():
+            seen_stage_ids.add(stage_id)
+
         stage_checkers = stage.get("checkers", [])
         if not isinstance(stage_checkers, list):
             issues.append(PreflightIssue(
@@ -679,6 +809,177 @@ def validate_resolved_checker_plan(
                         "when deployment.network_mode=offline."
                     ),
                 ))
+    return issues
+
+
+def _validate_stage_routing(
+    *,
+    stage: dict[str, Any],
+    prior_stage_ids: set[str],
+) -> list[PreflightIssue]:
+    issues: list[PreflightIssue] = []
+    stage_id = str(stage.get("id") or "")
+    routing = stage.get("routing") if isinstance(stage.get("routing"), dict) else {}
+    for key in routing:
+        if key not in _ROUTING_KEYS:
+            issues.append(PreflightIssue(
+                level="error",
+                code="unsupported_stage_routing_key",
+                message=(
+                    f"Resolved stage {stage_id!r} routing contains unsupported key {key!r}. "
+                    f"Allowed keys: {sorted(_ROUTING_KEYS)}."
+                ),
+            ))
+
+    mode = str(routing.get("mode") or "all_samples").strip()
+
+    if mode not in _ROUTING_MODES:
+        issues.append(PreflightIssue(
+            level="error",
+            code="invalid_stage_routing_mode",
+            message=(
+                f"Resolved stage `{stage_id}` has unsupported routing.mode `{mode}`. "
+                f"Allowed modes: {sorted(_ROUTING_MODES)}."
+            ),
+        ))
+
+    source_stage_id = routing.get("source_stage_id")
+    if mode == "uncertain":
+        if not source_stage_id:
+            issues.append(PreflightIssue(
+                level="error",
+                code="missing_stage_routing_source",
+                message=f"Resolved stage `{stage_id}` uses routing.mode='uncertain' but has no source_stage_id.",
+            ))
+        elif str(source_stage_id) not in prior_stage_ids:
+            issues.append(PreflightIssue(
+                level="error",
+                code="invalid_stage_routing_source",
+                message=(
+                    f"Resolved stage `{stage_id}` references source_stage_id `{source_stage_id}`, "
+                    "which is not an earlier stage id."
+                ),
+            ))
+    elif source_stage_id and str(source_stage_id) not in prior_stage_ids:
+        issues.append(PreflightIssue(
+            level="error",
+            code="invalid_stage_routing_source",
+            message=(
+                f"Resolved stage `{stage_id}` references source_stage_id `{source_stage_id}`, "
+                "which is not an earlier stage id."
+            ),
+        ))
+
+    for field in _routing_string_values(routing.get("required_fields") or routing.get("fields")):
+        if field not in _ROUTING_FIELDS:
+            issues.append(PreflightIssue(
+                level="error",
+                code="invalid_stage_routing_field",
+                message=(
+                    f"Resolved stage `{stage_id}` has unsupported required field `{field}`. "
+                    f"Allowed fields: {sorted(_ROUTING_FIELDS)}."
+                ),
+            ))
+
+    for dataset_type in _routing_string_values(routing.get("dataset_types") or routing.get("dataset_type")):
+        if dataset_type not in _ROUTING_DATASET_TYPES:
+            issues.append(PreflightIssue(
+                level="error",
+                code="invalid_stage_routing_dataset_type",
+                message=(
+                    f"Resolved stage `{stage_id}` has unsupported dataset type `{dataset_type}`. "
+                    f"Allowed dataset types: {sorted(_ROUTING_DATASET_TYPES)}."
+                ),
+            ))
+
+    for rule in _routing_string_values(routing.get("rules") or routing.get("rule")):
+        if rule not in _ROUTING_RULES:
+            issues.append(PreflightIssue(
+                level="error",
+                code="invalid_stage_routing_rule",
+                message=(
+                    f"Resolved stage `{stage_id}` has unsupported routing rule `{rule}`. "
+                    f"Allowed rules: {sorted(_ROUTING_RULES)}."
+                ),
+            ))
+
+    issues.extend(_validate_stage_routing_number(
+        stage_id=stage_id,
+        routing=routing,
+        keys=("sample_rate", "rate"),
+        minimum=0.0,
+        maximum=1.0,
+        integer=False,
+    ))
+    issues.extend(_validate_stage_routing_number(
+        stage_id=stage_id,
+        routing=routing,
+        keys=("sample_size", "max_samples", "limit"),
+        minimum=0.0,
+        maximum=None,
+        integer=True,
+    ))
+    issues.extend(_validate_stage_routing_number(
+        stage_id=stage_id,
+        routing=routing,
+        keys=("threshold",),
+        minimum=0.0,
+        maximum=1.0,
+        integer=False,
+    ))
+    issues.extend(_validate_stage_routing_number(
+        stage_id=stage_id,
+        routing=routing,
+        keys=("threshold_margin", "margin"),
+        minimum=0.0,
+        maximum=1.0,
+        integer=False,
+    ))
+    return issues
+
+
+def _routing_string_values(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [item.strip().lower().replace("-", "_") for item in value.split(",") if item.strip()]
+    if isinstance(value, list):
+        return [str(item).strip().lower().replace("-", "_") for item in value if str(item).strip()]
+    return [str(value).strip().lower().replace("-", "_")]
+
+
+def _validate_stage_routing_number(
+    *,
+    stage_id: str,
+    routing: dict[str, Any],
+    keys: tuple[str, ...],
+    minimum: float,
+    maximum: float | None,
+    integer: bool,
+) -> list[PreflightIssue]:
+    issues: list[PreflightIssue] = []
+    for key in keys:
+        if key not in routing:
+            continue
+        raw_value = routing.get(key)
+        if raw_value is None:
+            continue
+        try:
+            value = int(raw_value) if integer else float(raw_value)
+        except (TypeError, ValueError):
+            issues.append(PreflightIssue(
+                level="error",
+                code="invalid_stage_routing_number",
+                message=f"Resolved stage `{stage_id}` routing.{key} must be numeric, got {raw_value!r}.",
+            ))
+            continue
+        if value < minimum or (maximum is not None and value > maximum):
+            upper = f" and <= {maximum}" if maximum is not None else ""
+            issues.append(PreflightIssue(
+                level="error",
+                code="stage_routing_number_out_of_range",
+                message=f"Resolved stage `{stage_id}` routing.{key} must be >= {minimum}{upper}, got {raw_value!r}.",
+            ))
     return issues
 
 
@@ -956,17 +1257,30 @@ def _normalize_llm_stage(
             "to": "skip_stage",
         }
 
+    risk_focus = _coerce_string_list(raw_stage.get("risk_focus"))
+    if not risk_focus:
+        risk_focus = _risk_focus_from_checker_names(allowed_stage_names)
+
     stage = {
         "id": stage_id,
         "name": str(raw_stage.get("name") or stage_id),
         "type": str(raw_stage.get("type") or stage_id),
-        "risk_focus": _coerce_string_list(raw_stage.get("risk_focus")),
+        "risk_focus": risk_focus,
         "checkers": allowed_stage_names,
         "routing": _normalize_routing(raw_stage.get("routing")),
         "purpose": str(raw_stage.get("purpose") or ""),
     }
     return stage, allowed_stage_names, skipped, degradation
 
+
+
+def _risk_focus_from_checker_names(checker_names: list[str]) -> list[str]:
+    risks: list[str] = []
+    for checker_name in checker_names:
+        risk_type = _risk_type(checker_name)
+        if risk_type:
+            risks.append(risk_type)
+    return _unique_in_order(risks)
 
 
 def _normalize_objective(raw_objective: Any, stages: list[dict[str, Any]]) -> dict[str, Any]:
@@ -1131,7 +1445,7 @@ def build_llm_resolver_prompt(
             ],
         },
         "risk_weights": tool_defaults.get("risk_weights", {}),
-        "progressive_workflow_reference": _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS,
+        "stage_pattern_reference": _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS,
     }
     return LLM_RESOLVER_PROMPT_TEMPLATE.format(
         output_schema=json.dumps(LLM_RESOLVER_OUTPUT_SCHEMA, ensure_ascii=False, indent=2),

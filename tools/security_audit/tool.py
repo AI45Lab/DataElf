@@ -16,9 +16,10 @@ from typing import Any
 from config import apply_runtime_environment, build_runtime_policy, handle_preflight_issues
 from tools.base_tool import BaseTool, ToolContext
 from .config import AuditConfig, CheckerConfig, ExecutorConfig, LLMConfig
+from .checker.registry import CheckerRegistry
 from .executor import Executor, _build_report_md
 from .loader import load_samples
-from .result import SampleReport, TaskReport
+from .result import CheckResult, SampleReport, TaskReport
 from .schema import DataSample
 from .policy import (
     ResolvedCheckerPlan,
@@ -70,6 +71,18 @@ _LOCAL_FILES_ONLY_CHECKERS = {
     "PromptInjectionClassifier",
     "BiasClassifier",
     "GraCeFulBackdoorDefender",
+}
+
+_CHECKER_REQUIRED_FIELDS = {
+    "DPOLabelFlipLLMJudge": {"chosen_response", "rejected_response"},
+    "FactualInconsistancyLLMJudge": {"context"},
+    "InstructionMismatchLLMJudge": {"response"},
+    "SycophancyLLMJudge": {"response"},
+    "GraCeFulBackdoorDefender": {"response"},
+}
+
+_CHECKER_REQUIRED_DATASET_TYPES = {
+    "DPOLabelFlipLLMJudge": {"dpo"},
 }
 
 
@@ -353,6 +366,7 @@ class SecurityAuditTool(BaseTool):
 
             stage_samples = self._select_stage_samples(
                 stage=stage,
+                stage_checker_configs=stage_checker_configs,
                 all_samples=samples,
                 samples_by_id=samples_by_id,
                 stage_reports_by_id=stage_reports_by_id,
@@ -487,56 +501,268 @@ class SecurityAuditTool(BaseTool):
         self,
         *,
         stage: dict[str, Any],
+        stage_checker_configs: list[CheckerConfig],
         all_samples: list[DataSample],
         samples_by_id: dict[str, DataSample],
         stage_reports_by_id: dict[str, dict[str, SampleReport]],
     ) -> list[DataSample]:
         routing = stage.get("routing") if isinstance(stage.get("routing"), dict) else {}
         mode = str(routing.get("mode") or "all_samples")
-        if mode in {"all_samples", "field_applicable"}:
+
+        if mode == "all_samples":
             return list(all_samples)
 
-        if mode == "uncertain":
-            return self._samples_flagged_by_source_stage(
+        if mode == "field_applicable":
+            return self._field_applicable_samples(
+                samples=list(all_samples),
+                checker_configs=stage_checker_configs,
                 routing=routing,
-                samples_by_id=samples_by_id,
-                stage_reports_by_id=stage_reports_by_id,
             )
 
         if mode == "sample":
-            return self._sample_routed_samples(list(all_samples), routing)
+            routed = self._field_applicable_samples(
+                samples=list(all_samples),
+                checker_configs=stage_checker_configs,
+                routing=routing,
+            )
+            return self._sample_routed_samples(routed, routing)
 
-        if mode == "high_risk_partition":
-            flagged = self._samples_flagged_by_source_stage(
+        if mode == "uncertain":
+            return self._samples_by_source_stage_rules(
                 routing=routing,
                 samples_by_id=samples_by_id,
                 stage_reports_by_id=stage_reports_by_id,
+                default_rules={"near_threshold", "low_confidence", "conflicting"},
             )
-            flagged_by_id = {sample.id for sample in flagged}
-            background = [sample for sample in all_samples if sample.id not in flagged_by_id]
-            return flagged + self._sample_routed_samples(background, routing)
 
-        return list(all_samples)
+        raise ValueError(f"Unsupported security_audit routing mode: {mode!r}")
 
-    def _samples_flagged_by_source_stage(
+    def _field_applicable_samples(
+        self,
+        *,
+        samples: list[DataSample],
+        checker_configs: list[CheckerConfig],
+        routing: dict[str, Any],
+    ) -> list[DataSample]:
+        if not samples:
+            return []
+
+        required_fields = set(self._routing_string_list(routing, "required_fields", "fields"))
+        dataset_types = set(self._routing_string_list(routing, "dataset_types", "dataset_type"))
+        applicable_mode = str(routing.get("applicable_mode") or "any_checker")
+
+        if dataset_types:
+            samples = [s for s in samples if str(s.dataset_type).lower() in dataset_types]
+
+        if required_fields:
+            samples = [s for s in samples if self._sample_has_required_fields(s, required_fields)]
+
+        if not checker_configs or applicable_mode == "none":
+            return samples
+
+        if applicable_mode == "all_checkers":
+            return [
+                sample for sample in samples
+                if all(self._checker_applicable_to_sample(config.name, sample) for config in checker_configs)
+            ]
+
+        return [
+            sample for sample in samples
+            if any(self._checker_applicable_to_sample(config.name, sample) for config in checker_configs)
+        ]
+
+    def _checker_applicable_to_sample(self, checker_name: str, sample: DataSample) -> bool:
+        dataset_types = _CHECKER_REQUIRED_DATASET_TYPES.get(checker_name)
+        if dataset_types and str(sample.dataset_type).lower() not in dataset_types:
+            return False
+
+        try:
+            checker_cls = CheckerRegistry.get(checker_name)
+        except KeyError:
+            return False
+
+        supported_formats = getattr(checker_cls, "supported_formats", None)
+        if supported_formats and sample.dataset_type not in supported_formats:
+            return False
+
+        required_fields = _CHECKER_REQUIRED_FIELDS.get(checker_name)
+        if required_fields:
+            return self._sample_has_required_fields(sample, required_fields)
+
+        return bool(sample.get_all_text_fields())
+
+    def _sample_has_required_fields(self, sample: DataSample, required_fields: set[str]) -> bool:
+        for field in required_fields:
+            normalized = str(field).strip().lower()
+            if normalized == "messages":
+                if not any(message.get_text_parts() for message in sample.messages):
+                    return False
+            elif normalized == "context":
+                if not self._has_text_value(sample.context):
+                    return False
+            elif normalized in {"response", "chosen_response", "rejected_response"}:
+                struct = getattr(sample, normalized, None)
+                if not struct or not self._has_text_value(getattr(struct, "content", None)):
+                    return False
+            else:
+                if not self._has_text_value(getattr(sample, normalized, None)):
+                    return False
+        return True
+
+    def _has_text_value(self, value: Any) -> bool:
+        if isinstance(value, str):
+            return bool(value.strip())
+        if isinstance(value, list):
+            return any(self._has_text_value(item) for item in value)
+        return value is not None
+
+    def _samples_by_source_stage_rules(
         self,
         *,
         routing: dict[str, Any],
         samples_by_id: dict[str, DataSample],
         stage_reports_by_id: dict[str, dict[str, SampleReport]],
+        default_rules: set[str],
     ) -> list[DataSample]:
-        source_stage_id = routing.get("source_stage_id")
-        source_reports = stage_reports_by_id.get(str(source_stage_id or ""))
-        if source_reports is None and stage_reports_by_id:
-            latest_stage_id = next(reversed(stage_reports_by_id))
-            source_reports = stage_reports_by_id[latest_stage_id]
+        source_reports = self._source_stage_reports(routing, stage_reports_by_id)
         if not source_reports:
             return []
-        return [
-            samples_by_id[sample_id]
-            for sample_id, sample_report in source_reports.items()
-            if sample_report.flagged and sample_id in samples_by_id
-        ]
+
+        rules = set(self._routing_string_list(routing, "rules", "rule")) or default_rules
+        risk_types = set(self._routing_string_list(routing, "risk_types", "risk_type"))
+        checker_names = set(self._routing_string_list(routing, "checker_names", "checkers"))
+
+        selected: list[DataSample] = []
+        for sample_id, sample_report in source_reports.items():
+            if sample_id not in samples_by_id:
+                continue
+            results = [
+                result for result in sample_report.results
+                if self._result_matches_filters(result, risk_types, checker_names)
+            ]
+            if self._sample_report_matches_routing_rules(sample_report, results, rules, routing):
+                selected.append(samples_by_id[sample_id])
+        return selected
+
+    def _source_stage_reports(
+        self,
+        routing: dict[str, Any],
+        stage_reports_by_id: dict[str, dict[str, SampleReport]],
+    ) -> dict[str, SampleReport] | None:
+        source_stage_id = routing.get("source_stage_id")
+        if source_stage_id:
+            return stage_reports_by_id.get(str(source_stage_id))
+        if stage_reports_by_id:
+            latest_stage_id = next(reversed(stage_reports_by_id))
+            return stage_reports_by_id[latest_stage_id]
+        return None
+
+    def _result_matches_filters(
+        self,
+        result: CheckResult,
+        risk_types: set[str],
+        checker_names: set[str],
+    ) -> bool:
+        risk_value = getattr(result.risk_type, "value", str(result.risk_type))
+        if risk_types and str(risk_value).lower() not in risk_types:
+            return False
+        if checker_names and result.checker_name.lower() not in checker_names:
+            return False
+        return True
+
+    def _sample_report_matches_routing_rules(
+        self,
+        sample_report: SampleReport,
+        results: list[CheckResult],
+        rules: set[str],
+        routing: dict[str, Any],
+    ) -> bool:
+        if not results:
+            return False
+
+        if "flagged" in rules and any(result.flagged for result in results):
+            return True
+        if "unflagged" in rules and any(result.success for result in results) and not any(result.flagged for result in results):
+            return True
+        if "error" in rules and any(not result.success for result in results):
+            return True
+        if "content_filter" in rules and any(result.details.get("content_filter_triggered") for result in results):
+            return True
+        if "near_threshold" in rules and self._has_near_threshold_result(results, routing):
+            return True
+        if "low_confidence" in rules and self._has_low_confidence_result(results, routing):
+            return True
+        if "conflicting" in rules and self._has_conflicting_results(results):
+            return True
+        return False
+
+    def _has_near_threshold_result(
+        self,
+        results: list[CheckResult],
+        routing: dict[str, Any],
+    ) -> bool:
+        threshold = self._routing_float(routing, "threshold", default=0.5)
+        margin = self._routing_float(routing, "threshold_margin", "margin", default=0.1)
+        return any(
+            result.success and abs(float(result.score) - threshold) <= margin
+            for result in results
+        )
+
+    def _has_low_confidence_result(
+        self,
+        results: list[CheckResult],
+        routing: dict[str, Any],
+    ) -> bool:
+        max_confidence = self._routing_float(routing, "max_confidence", "confidence_threshold", default=0.7)
+        for result in results:
+            confidence = result.details.get("confidence")
+            if confidence is None:
+                confidence = result.details.get("confidence_score")
+            try:
+                if float(confidence) <= max_confidence:
+                    return True
+            except (TypeError, ValueError):
+                continue
+        return False
+
+    def _has_conflicting_results(self, results: list[CheckResult]) -> bool:
+        by_risk: dict[str, set[bool]] = {}
+        for result in results:
+            if not result.success:
+                continue
+            risk_value = getattr(result.risk_type, "value", str(result.risk_type))
+            by_risk.setdefault(str(risk_value), set()).add(bool(result.flagged))
+        return any(len(flags) > 1 for flags in by_risk.values())
+
+    def _routing_string_list(self, routing: dict[str, Any], *keys: str) -> list[str]:
+        for key in keys:
+            value = routing.get(key)
+            if value is None:
+                continue
+            if isinstance(value, str):
+                return [self._normalize_routing_token(item) for item in value.split(",") if item.strip()]
+            if isinstance(value, list):
+                return [self._normalize_routing_token(item) for item in value if str(item).strip()]
+            return [self._normalize_routing_token(value)]
+        return []
+
+    def _normalize_routing_token(self, value: Any) -> str:
+        return str(value).strip().lower().replace("-", "_")
+
+    def _routing_float(
+        self,
+        routing: dict[str, Any],
+        *keys: str,
+        default: float,
+    ) -> float:
+        for key in keys:
+            if key not in routing:
+                continue
+            try:
+                return float(routing[key])
+            except (TypeError, ValueError):
+                return default
+        return default
 
     def _sample_routed_samples(
         self,
