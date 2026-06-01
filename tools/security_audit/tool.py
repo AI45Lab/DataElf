@@ -290,7 +290,7 @@ class SecurityAuditTool(BaseTool):
             context.log(f"SecurityAuditTool: using user-specified checkers: {checker_names}")
         elif plan.source == "default":
             context.log(
-                f"SecurityAuditTool: using checkers from default.yaml: {checker_names}. "
+                f"SecurityAuditTool: using configured default checkers: {checker_names}. "
             )
         elif plan.source == "recommend":
             context.log(
@@ -298,7 +298,8 @@ class SecurityAuditTool(BaseTool):
             )
         else:
             context.log(
-                f"SecurityAuditTool: using {plan.strategy} defaults: {checker_names}"
+                f"SecurityAuditTool: checker_selection_mode=default but tools/security_audit/default.yaml was not loaded; using resource-tier defaults: {checker_names}. To use your configured defaults, add or update tools/security_audit/default.yaml and set required_security_audit_tool: true in config.yaml.",
+                "warning",
             )
 
         for skipped in plan.skipped_checkers:
