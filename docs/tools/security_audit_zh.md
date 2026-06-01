@@ -93,7 +93,7 @@ LLM resolver 以渐进式风险审计流程作为默认计划模板。`review` �
 这个流程只是默认模板，不是固定规则。对于只覆盖部分风险的需求，LLM 可以裁剪无关阶段或 checker；对于低成本、快速预览、超大规模数据等需求，LLM 可以调整 routing，例如抽样、只深扫高风险样本或优先扫描特定字段。
 
 
-### Routing 模式
+### Routing Modes
 
 `routing` 负责决定每个 stage 实际处理哪些样本。它的价值是把审计从“所有 checker 全量扫所有样本”变成“按风险、字段、成本和上游结果动态分发样本”，从而在成本可控的前提下提升覆盖率、召回率和判断可信度。
 
@@ -102,7 +102,7 @@ LLM resolver 以渐进式风险审计流程作为默认计划模板。`review` �
 | `all_samples` | 全量运行该 stage 的 checker。 | 低成本 rule-based 预筛，或需要覆盖全部样本的语义审计。 |
 | `field_applicable` | 只处理字段或数据类型满足条件的样本。 | DPO label flipping 只跑 `chosen_response` / `rejected_response`，factual consistency 只跑有 `context` 的样本，instruction mismatch / sycophancy / self contradiction 只跑有 `response` 的样本。 |
 | `sample` | 在满足字段条件的样本中抽样运行，可通过 `sample_rate` 或 `sample_size` 控制规模。 | 低成本预览、超大规模数据快速估计风险、昂贵 checker 控成本。 |
-| `uncertain` | 基于上游 stage 的结果做二次路由，只复核满足规则的样本。 | 高召回二扫、边界样本复核、低置信度样本加严、执行失败或内容过滤样本补偿。 |
+| `uncertain` | 基于上游 stage 的结果做二次路由，只复核满足规则的样本。 | 高召回二扫、边界样本复核、低置信度样本加严、执行失败样本补偿。 |
 
 `uncertain` 模式常用 `rules`：
 
@@ -213,49 +213,67 @@ results:                       # 每个 checker 针对本条样本的原始结�
 
 ## Example
 
-### Pipeline DSL 示例 1：用户在需求中未显式指定启用哪些checker
+### Pipeline DSL 示例 1：`default` 模式，使用默认 checker 配置
 ```python
 
 log_step("Load dataset")
 
 data = load_dataset("dataset")
 
-log_step("Run security audit")
+log_step("Run security audit with default checkers")
 
 audit = run_tool(
     "security_audit",
-    data=data
+    data=data,
+    checker_selection_mode="default"
 )
 
 save_result(audit)
 
 ```
 
-### Pipeline DSL 示例 2：用户在需求中显式指定了启用哪些checker
+### Pipeline DSL 示例 2：`explicit` 模式，用户显式指定启用哪些 checker
 ```python
 
 log_step("Load dataset")
 
 data = load_dataset("dataset")
 
-log_step("Run security audit with all LLM-based checkers")
+log_step("Run security audit with HarmfulContentLLMJudge")
 
 audit = run_tool(
     "security_audit",
     data=data,
+    checker_selection_mode="explicit",
     checker_names=[
         "HarmfulContentLLMJudge",
-        "BiasLLMJudge",
-        "ToxicityLLMJudge",
-        "PIILLMJudge",
-        "JailbreakLLMJudge",
-        "PromptInjectionLLMJudge",
-        "SelfContradictionLLMJudge",
-        "InstructionMismatchLLMJudge",
-        "FactualInconsistancyLLMJudge",
-        "SycophancyLLMJudge",
-        "DPOLabelFlipLLMJudge",
     ]
+)
+
+save_result(audit)
+
+```
+
+### Pipeline DSL 示例 3：`recommend` 模式，根据审计意图推荐 checker
+```python
+
+log_step("Load dataset")
+
+data = load_dataset("dataset")
+
+log_step("Run security audit with recommended checkers")
+
+audit = run_tool(
+    "security_audit",
+    data=data,
+    checker_selection_mode="recommend",
+    audit_intent=(
+        "Run a high-recall pre-release security audit for mixed "
+        "SFT and DPO training data. Focus on harmful content, "
+        "PII, secret leakage, prompt injection, jailbreaks. "
+        "Start with a fast prescreen, then semantically review high-risk "
+        "or uncertain samples."
+    )
 )
 
 save_result(audit)

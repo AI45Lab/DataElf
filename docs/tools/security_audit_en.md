@@ -103,7 +103,7 @@ This workflow is a default template, not a fixed rule. For partial-risk requests
 | `all_samples` | Run the stage checkers over all samples. | Low-cost rule-based prescreening, or semantic audits that must cover every sample. |
 | `field_applicable` | Only process samples whose fields or dataset type satisfy the checker requirements. | DPO label flipping only runs on `chosen_response` / `rejected_response`; factual consistency only runs when `context` is present; instruction mismatch / sycophancy / self contradiction only run when `response` is present. |
 | `sample` | Run on a sampled subset of applicable samples, controlled by `sample_rate` or `sample_size`. | Low-cost previews, fast risk estimation on very large datasets, or cost control for expensive checkers. |
-| `uncertain` | Route samples from an upstream stage for second-pass review when they match specific rules. | High-recall second scans, boundary-case review, stricter checks for low-confidence results, and compensation for execution errors or content filtering. |
+| `uncertain` | Route samples from an upstream stage for second-pass review when they match specific rules. | High-recall second scans, boundary-case review, stricter checks for low-confidence results, and compensation for execution errors. |
 
 Common `rules` for `uncertain` routing:
 
@@ -220,49 +220,68 @@ results:                       # Raw result from each checker for this sample
 
 ## Example
 
-### Pipeline DSL Example 1: No checkers explicitly specified by the user
+### Pipeline DSL Example 1: `default` mode, use the default checker configuration
 ```python
 
 log_step("Load dataset")
 
 data = load_dataset("dataset")
 
-log_step("Run security audit")
+log_step("Run security audit with default checkers")
 
 audit = run_tool(
     "security_audit",
-    data=data
+    data=data,
+    checker_selection_mode="default"
 )
 
 save_result(audit)
 
 ```
 
-### Pipeline DSL Example 2: Checkers explicitly specified by the user
+### Pipeline DSL Example 2: `explicit` mode, explicitly specify enabled checkers
+
 ```python
 
 log_step("Load dataset")
 
 data = load_dataset("dataset")
 
-log_step("Run security audit with all LLM-based checkers")
+log_step("Run security audit with HarmfulContentLLMJudge")
 
 audit = run_tool(
     "security_audit",
     data=data,
+    checker_selection_mode="explicit",
     checker_names=[
         "HarmfulContentLLMJudge",
-        "BiasLLMJudge",
-        "ToxicityLLMJudge",
-        "PIILLMJudge",
-        "JailbreakLLMJudge",
-        "PromptInjectionLLMJudge",
-        "SelfContradictionLLMJudge",
-        "InstructionMismatchLLMJudge",
-        "FactualInconsistancyLLMJudge",
-        "SycophancyLLMJudge",
-        "DPOLabelFlipLLMJudge",
     ]
+)
+
+save_result(audit)
+
+```
+
+### Pipeline DSL Example 3: `recommend` mode, recommend checkers from the audit intent
+```python
+
+log_step("Load dataset")
+
+data = load_dataset("dataset")
+
+log_step("Run security audit with recommended checkers")
+
+audit = run_tool(
+    "security_audit",
+    data=data,
+    checker_selection_mode="recommend",
+    audit_intent=(
+        "Run a high-recall pre-release security audit for mixed "
+        "SFT and DPO training data. Focus on harmful content, "
+        "PII, secret leakage, prompt injection, jailbreaks. "
+        "Start with a fast prescreen, then semantically review high-risk "
+        "or uncertain samples."
+    )
 )
 
 save_result(audit)
