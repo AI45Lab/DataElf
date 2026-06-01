@@ -37,6 +37,32 @@ class HarmfulContentClassifier(ModelBasedChecker):
     Uses Llama Guard's chat-template-based moderation to classify whether
     a conversation contains harmful content across 14 hazard categories.
     """
+    planner_metadata = {
+        "description": (
+            "Model-based checker for harmful content moderation. "
+            "Uses Llama Guard to classify conversations across MLCommons hazard categories."
+        ),
+        "required_fields": [],
+        "method": {
+            "type": "model_based",
+            "pipeline": [
+                "lazy-load the configured Llama Guard model and tokenizer",
+                "convert sample messages and assistant output into chat-template format",
+                "compute unsafe probability and generate hazard category labels",
+                "flag when unsafe probability meets the configured threshold",
+            ],
+        },
+        "cost_profile": {
+            "cost": "high",
+            "latency": "high",
+            "execution": "per_sample",
+            "requires_llm": False,
+        },
+        "quality_profile": {
+            "precision": "high",
+            "recall": "high",
+        },
+    }
 
     def __init__(
         self,

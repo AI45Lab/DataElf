@@ -98,6 +98,32 @@ class SelfContradictionLLMJudge(LLMJudgeChecker):
 
     Score = number_of_contradictions / total_claims  (0 = fully consistent).
     """
+    planner_metadata = {
+        "description": (
+            "LLM-as-a-Judge checker for self-contradiction in assistant responses. "
+            "Detects mutually inconsistent factual claims inside a single response."
+        ),
+        "required_fields": ["response"],
+        "method": {
+            "type": "llm_judge",
+            "pipeline": [
+                "extract the assistant response from response, chosen_response, or assistant messages",
+                "extract explicit factual claims from the response",
+                "judge whether any claim pairs contradict each other",
+                "score by the fraction of contradictory claims with square-root scaling",
+            ],
+        },
+        "cost_profile": {
+            "cost": "medium",
+            "latency": "medium",
+            "execution": "per_sample",
+            "requires_llm": True,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "medium",
+        },
+    }
 
     def check(self, sample: DataSample) -> CheckResult:
         base = dict(checker_name=self.name, risk_type=self.risk_type)

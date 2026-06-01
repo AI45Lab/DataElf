@@ -83,6 +83,33 @@ class PromptInjectionLLMJudge(LLMJudgeChecker):
     Sends user-role message text to an LLM with a scoring prompt adapted from
     the rebuff project. The LLM returns a 0.0–1.0 injection likelihood score.
     """
+    planner_metadata = {
+        "description": (
+            "LLM-as-a-Judge checker for prompt injection attempts. "
+            "Scores user messages for attempts to override instructions, redirect behavior, "
+            "or induce unsafe tool or policy bypasses."
+        ),
+        "required_fields": ["messages"],
+        "method": {
+            "type": "llm_judge",
+            "pipeline": [
+                "collect all user-role message text",
+                "ask an LLM judge for a prompt-injection likelihood score from 0.0 to 1.0",
+                "retry with a minimal prompt if the full prompt triggers a content filter",
+                "flag when the score meets the prompt injection threshold",
+            ],
+        },
+        "cost_profile": {
+            "cost": "low",
+            "latency": "medium",
+            "execution": "per_sample",
+            "requires_llm": True,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "medium",
+        },
+    }
 
     def check(self, sample: DataSample) -> CheckResult:
         base = dict(checker_name=self.name, risk_type=self.risk_type)

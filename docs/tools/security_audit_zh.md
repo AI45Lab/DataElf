@@ -170,7 +170,6 @@ metadata:
           source_stage_id: str | null # 依赖上游阶段结果时填写真实阶段 ID，例如 stage_2；单阶段为 null
           rules: list[str]     # uncertain 模式下的复核规则，例如 near_threshold / low_confidence / conflicting / error / content_filter / unflagged
           dataset_types: list[str] # 可选，按数据集类型路由，例如 dpo / sft / rl / benchmark
-          required_fields: list[str] # 可选，按真实 DataSample 字段路由，例如 response / context / chosen_response / rejected_response
           sample_rate: float   # 可选，sample 模式下的抽样比例，范围 0.0-1.0
           sample_size: int     # 可选，sample 模式下的最大抽样数量
           threshold: float     # 可选，near_threshold 使用的判定阈值，默认通常为 0.5

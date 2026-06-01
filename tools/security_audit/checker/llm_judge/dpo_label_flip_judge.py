@@ -202,6 +202,33 @@ class DPOLabelFlipLLMJudge(LLMJudgeChecker):
     Step 1 — Score each response independently on quality dimensions (0/1).
     Step 2 — When quality scores are tied, run a direct pairwise comparison.
     """
+    planner_metadata = {
+        "description": (
+            "LLM-as-a-Judge checker for DPO label flipping. "
+            "Detects cases where the rejected response appears preferable to the chosen response."
+        ),
+        "required_fields": ["chosen_response", "rejected_response"],
+        "method": {
+            "type": "llm_judge",
+            "pipeline": [
+                "skip non-DPO samples",
+                "extract the instruction plus chosen and rejected responses",
+                "score each response independently for training quality",
+                "run pairwise comparison when independent scores are tied",
+                "flag hard flips and pairwise flips where rejected is preferred",
+            ],
+        },
+        "cost_profile": {
+            "cost": "high",
+            "latency": "high",
+            "execution": "per_sample",
+            "requires_llm": True,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "medium",
+        },
+    }
 
     def check(self, sample: DataSample) -> CheckResult:
         base = dict(checker_name=self.name, risk_type=self.risk_type)

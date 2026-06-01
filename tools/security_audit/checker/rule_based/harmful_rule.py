@@ -15,6 +15,32 @@ class HarmfulKeywordRule(RuleBasedChecker):
     Score 1.0 on hit, 0.0 otherwise.
     using field_name + dataset_type.
     """
+    planner_metadata = {
+        "description": (
+            "Rule-based checker for harmful content. "
+            "Scans all text fields against English and Chinese harmful-content keyword wordlists."
+        ),
+        "required_fields": [],
+        "method": {
+            "type": "rule_based",
+            "pipeline": [
+                "load harmful-content keyword wordlists",
+                "scan every text field in the sample for keyword hits",
+                "collect field-level keyword evidence",
+                "flag the sample when at least one harmful keyword is found",
+            ],
+        },
+        "cost_profile": {
+            "cost": "low",
+            "latency": "low",
+            "execution": "per_sample",
+            "requires_llm": False,
+        },
+        "quality_profile": {
+            "precision": "low",
+            "recall": "low",
+        },
+    }
 
     def __init__(self):
         super().__init__()

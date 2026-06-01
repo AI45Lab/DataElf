@@ -24,6 +24,33 @@ class SecretRule(RuleBasedChecker):
     Loads patterns from resources/patterns/secret_patterns.json.
     Score 1.0 on hit, 0.0 otherwise.
     """
+    planner_metadata = {
+        "description": (
+            "Rule-based checker for credential and secret leakage. "
+            "Scans all text fields for known token, key, private-key, JWT, "
+            "and generic API credential patterns."
+        ),
+        "required_fields": [],
+        "method": {
+            "type": "rule_based",
+            "pipeline": [
+                "load secret regex patterns from secret_patterns.json",
+                "scan every text field in the sample for credential-like matches",
+                "return matched pattern evidence while omitting compiled regex objects",
+                "flag the sample when at least one secret pattern is found",
+            ],
+        },
+        "cost_profile": {
+            "cost": "low",
+            "latency": "low",
+            "execution": "per_sample",
+            "requires_llm": False,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "low",
+        },
+    }
 
     def __init__(self):
         super().__init__()

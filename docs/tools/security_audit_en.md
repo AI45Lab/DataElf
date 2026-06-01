@@ -171,7 +171,6 @@ metadata:
           source_stage_id: str | null # Real upstream stage id when routing from prior results, e.g. stage_2; null for single stage
           rules: list[str]     # Review rules for uncertain mode, e.g. near_threshold / low_confidence / conflicting / error / content_filter / unflagged
           dataset_types: list[str] # Optional dataset-type routing, e.g. dpo / sft / rl / benchmark
-          required_fields: list[str] # Optional routing by real DataSample fields, e.g. response / context / chosen_response / rejected_response
           sample_rate: float   # Optional sampling ratio for sample mode, from 0.0 to 1.0
           sample_size: int     # Optional maximum sample count for sample mode
           threshold: float     # Optional decision threshold used by near_threshold, usually 0.5 by default

@@ -73,14 +73,6 @@ _LOCAL_FILES_ONLY_CHECKERS = {
     "GraCeFulBackdoorDefender",
 }
 
-_CHECKER_REQUIRED_FIELDS = {
-    "DPOLabelFlipLLMJudge": {"chosen_response", "rejected_response"},
-    "FactualInconsistancyLLMJudge": {"context"},
-    "InstructionMismatchLLMJudge": {"response"},
-    "SycophancyLLMJudge": {"response"},
-    "GraCeFulBackdoorDefender": {"response"},
-}
-
 _CHECKER_REQUIRED_DATASET_TYPES = {
     "DPOLabelFlipLLMJudge": {"dpo"},
 }
@@ -249,7 +241,7 @@ class SecurityAuditTool(BaseTool):
             context_config=context.config,
         )
 
-        # TODO:Step 2.3: Resolve the execution plan within the capability set.
+        # Step 2.3: Resolve the execution plan within the capability set.
         agent_cfg = context.config.get("agent")
         tool_llm_cfg = context.config.get("tool_llm", {})
         llm_model: str = (
@@ -586,11 +578,21 @@ class SecurityAuditTool(BaseTool):
         if supported_formats and sample.dataset_type not in supported_formats:
             return False
 
-        required_fields = _CHECKER_REQUIRED_FIELDS.get(checker_name)
+        required_fields = self._checker_required_fields(checker_name, checker_cls)
         if required_fields:
             return self._sample_has_required_fields(sample, required_fields)
 
         return bool(sample.get_all_text_fields())
+
+    def _checker_required_fields(self, checker_name: str, checker_cls: Any) -> set[str]:
+        metadata = getattr(checker_cls, "planner_metadata", None)
+        if isinstance(metadata, dict) and "required_fields" in metadata:
+            return {
+                self._normalize_routing_token(field)
+                for field in metadata.get("required_fields") or []
+                if str(field).strip()
+            }
+        return set()
 
     def _sample_has_required_fields(self, sample: DataSample, required_fields: set[str]) -> bool:
         for field in required_fields:

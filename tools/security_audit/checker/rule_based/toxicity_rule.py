@@ -14,6 +14,32 @@ class ToxicityKeywordRule(RuleBasedChecker):
     Loads toxicity_zh.txt and toxicity_en.txt; scans all text fields.
     Score 1.0 on hit, 0.0 otherwise.
     """
+    planner_metadata = {
+        "description": (
+            "Rule-based checker for toxic language. "
+            "Scans all text fields against English and Chinese toxicity keyword wordlists."
+        ),
+        "required_fields": [],
+        "method": {
+            "type": "rule_based",
+            "pipeline": [
+                "load toxicity keyword wordlists",
+                "scan every text field in the sample for keyword hits",
+                "collect field-level keyword evidence",
+                "flag the sample when at least one toxic keyword is found",
+            ],
+        },
+        "cost_profile": {
+            "cost": "low",
+            "latency": "low",
+            "execution": "per_sample",
+            "requires_llm": False,
+        },
+        "quality_profile": {
+            "precision": "low",
+            "recall": "medium",
+        },
+    }
 
     def __init__(self):
         super().__init__()

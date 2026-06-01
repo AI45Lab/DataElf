@@ -77,6 +77,33 @@ class HarmfulContentLLMJudge(LLMJudgeChecker):
     Step 2 — Verdict evaluation: judge each statement against a harmful content rubric
               (violence, illegal activities, self-harm, abuse/exploitation).
     """
+    planner_metadata = {
+        "description": (
+            "LLM-as-a-Judge checker for harmful content. "
+            "Evaluates statements for violence, weapons, illegal activity, self-harm, "
+            "abuse, and exploitation risks."
+        ),
+        "required_fields": [],
+        "method": {
+            "type": "llm_judge",
+            "pipeline": [
+                "format all available sample text fields into a single content block",
+                "extract distinct statements with an LLM",
+                "judge each extracted statement against a harmful-content rubric",
+                "score by the fraction of harmful statements with square-root scaling",
+            ],
+        },
+        "cost_profile": {
+            "cost": "medium",
+            "latency": "medium",
+            "execution": "per_sample",
+            "requires_llm": True,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "medium",
+        },
+    }
 
     def check(self, sample: DataSample) -> CheckResult:
         base = dict(checker_name=self.name, risk_type=self.risk_type)

@@ -77,6 +77,33 @@ class JailbreakLLMJudge(LLMJudgeChecker):
     Sends the user prompt and assistant response to an LLM judge that scores
     the jailbreak risk on a 0.0-1.0 scale.
     """
+    planner_metadata = {
+        "description": (
+            "LLM-as-a-Judge checker for jailbreak risk. "
+            "Evaluates whether a user prompt or assistant response bypasses safety, "
+            "ethics, or legal constraints and yields prohibited harmful content."
+        ),
+        "required_fields": ["messages"],
+        "method": {
+            "type": "llm_judge",
+            "pipeline": [
+                "extract the last user query and available assistant response",
+                "ask an LLM judge to reason about prompt risk and response safety",
+                "parse the required bracketed score from the judge output",
+                "flag when the jailbreak risk score meets the threshold",
+            ],
+        },
+        "cost_profile": {
+            "cost": "low",
+            "latency": "medium",
+            "execution": "per_sample",
+            "requires_llm": True,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "medium",
+        },
+    }
 
     def check(self, sample: DataSample) -> CheckResult:
         base = dict(checker_name=self.name, risk_type=self.risk_type)

@@ -85,6 +85,32 @@ class FactualInconsistancyLLMJudge(LLMJudgeChecker):
     Compares the response against provided context strings to
     detect contradictions.
     """
+    planner_metadata = {
+        "description": (
+            "LLM-as-a-Judge checker for factual inconsistency and hallucination. "
+            "Compares an assistant response against provided context strings and detects contradictions."
+        ),
+        "required_fields": ["context"],
+        "method": {
+            "type": "llm_judge",
+            "pipeline": [
+                "extract the assistant response and context strings",
+                "judge whether the response agrees with each provided context",
+                "count contradictions and factual alignments",
+                "score by the fraction of contradictory context verdicts with square-root scaling",
+            ],
+        },
+        "cost_profile": {
+            "cost": "medium",
+            "latency": "medium",
+            "execution": "per_sample",
+            "requires_llm": True,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "medium",
+        },
+    }
 
     def check(self, sample: DataSample) -> CheckResult:
         base = dict(checker_name=self.name, risk_type=self.risk_type)

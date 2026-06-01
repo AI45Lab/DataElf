@@ -24,6 +24,34 @@ class GraCeFulBackdoorDefender(HeuristicChecker):
 
     Reference: https://arxiv.org/abs/2412.02454
     """
+    planner_metadata = {
+        "description": (
+            "Heuristic checker for backdoor or poisoned data detection. "
+            "Uses the GraCeFul gradient-based clustering pipeline to identify minority "
+            "samples with suspicious gradient-frequency behavior."
+        ),
+        "required_fields": ["response"],
+        "method": {
+            "type": "heuristic",
+            "pipeline": [
+                "build context/target pairs from each sample in a batch",
+                "load the configured victim language model",
+                "compute target-parameter gradients and DCT frequency features",
+                "reduce feature dimensionality with PCA",
+                "cluster samples and flag the minority cluster as suspicious",
+            ],
+        },
+        "cost_profile": {
+            "cost": "high",
+            "latency": "high",
+            "execution": "batch",
+            "requires_llm": False,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "medium",
+        },
+    }
 
     def __init__(
         self,

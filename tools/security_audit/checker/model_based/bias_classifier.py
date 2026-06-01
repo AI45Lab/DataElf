@@ -24,6 +24,32 @@ class BiasClassifier(ModelBasedChecker):
     Detects 11 bias categories: racial, religious, gender, age, nationality,
     sexuality, socioeconomic, political, disability, physical, other.
     """
+    planner_metadata = {
+        "description": (
+            "Model-based checker for biased language. "
+            "Uses a ModernBERT multi-label classifier to detect bias categories such as "
+            "racial, gender, religious, political, disability, and socioeconomic bias."
+        ),
+        "required_fields": [],
+        "method": {
+            "type": "model_based",
+            "pipeline": [
+                "score each text field except DPO rejected_response",
+                "collect categories whose score meets the configured threshold",
+                "flag when any field has a bias score above threshold",
+            ],
+        },
+        "cost_profile": {
+            "cost": "medium",
+            "latency": "medium",
+            "execution": "per_sample",
+            "requires_llm": False,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "medium",
+        },
+    }
 
     def __init__(
         self,

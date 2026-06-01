@@ -14,6 +14,32 @@ class BiasKeywordRule(RuleBasedChecker):
     Loads bias_hurtlex_en.txt and bias_hurtlex_zh.txt; scans all text fields.
     Score 1.0 on hit, 0.0 otherwise.
     """
+    planner_metadata = {
+        "description": (
+            "Rule-based checker for biased language. "
+            "Scans all text fields against English and Chinese bias keyword wordlists."
+        ),
+        "required_fields": [],
+        "method": {
+            "type": "rule_based",
+            "pipeline": [
+                "load bias keyword wordlists",
+                "scan every text field in the sample for keyword hits",
+                "collect field-level keyword evidence",
+                "flag the sample when at least one bias keyword is found",
+            ],
+        },
+        "cost_profile": {
+            "cost": "low",
+            "latency": "low",
+            "execution": "per_sample",
+            "requires_llm": False,
+        },
+        "quality_profile": {
+            "precision": "low",
+            "recall": "low",
+        },
+    }
 
     def __init__(self):
         super().__init__()

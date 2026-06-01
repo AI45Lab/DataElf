@@ -137,6 +137,33 @@ class InstructionMismatchLLMJudge(LLMJudgeChecker):
       - user messages that contain explicit instructions/requirements
     """
 
+    planner_metadata = {
+        "description": (
+            "LLM-as-a-Judge checker for instruction mismatch (prompt alignment)."
+            "Checks whether an assistant response follows explicit, benign system "
+            "and user instructions, including concrete requirements and prohibitions."
+        ),
+        "required_fields": ["messages", "response"],
+        "method": {
+            "type": "llm_judge",
+            "pipeline": [
+                "extract explicit benign instructions from system/user messages",
+                "judge each extracted instruction against the assistant response",
+                "score by the fraction of violated instructions with square-root scaling",
+            ],
+        },
+        "cost_profile": {
+            "cost": "medium",
+            "latency": "medium",
+            "execution": "per_sample",
+            "requires_llm": True,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "medium",
+        },
+    }
+
     def check(self, sample: DataSample) -> CheckResult:
         base = dict(checker_name=self.name, risk_type=self.risk_type)
 

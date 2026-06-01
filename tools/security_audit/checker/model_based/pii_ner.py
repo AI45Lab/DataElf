@@ -13,6 +13,32 @@ from ...result import CheckResult, RiskType
 class PIINERDetector(ModelBasedChecker):
     """PII detector based on Microsoft Presidio (regex + spaCy NER).
     """
+    planner_metadata = {
+        "description": (
+            "Model-based checker for personally identifiable information (PII). "
+            "Uses Microsoft Presidio and spaCy NER to detect entity-level privacy leaks."
+        ),
+        "required_fields": [],
+        "method": {
+            "type": "model_based",
+            "pipeline": [
+                "initialize Presidio analyzer and anonymizer for the configured language",
+                "analyze every text field for supported PII entities",
+                "filter entity detections by confidence threshold",
+                "flag when at least one PII entity is detected and provide redacted evidence",
+            ],
+        },
+        "cost_profile": {
+            "cost": "low",
+            "latency": "medium",
+            "execution": "per_sample",
+            "requires_llm": False,
+        },
+        "quality_profile": {
+            "precision": "high",
+            "recall": "medium",
+        },
+    }
 
     def __init__(
         self,

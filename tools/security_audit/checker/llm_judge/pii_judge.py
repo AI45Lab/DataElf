@@ -63,6 +63,33 @@ class PIILLMJudge(LLMJudgeChecker):
     Step 2 — Verdict evaluation: judge each statement for actual PII/privacy
               violations (names, contact info, IDs, financial/medical data, etc.).
     """
+    planner_metadata = {
+        "description": (
+            "LLM-as-a-Judge checker for PII and privacy leakage. "
+            "Evaluates text for personal identifiers, contact data, government IDs, "
+            "financial or medical records, and confidential personal information."
+        ),
+        "required_fields": [],
+        "method": {
+            "type": "llm_judge",
+            "pipeline": [
+                "format all available sample text fields into a single content block",
+                "extract statements that may contain PII or privacy-sensitive content",
+                "judge each extracted statement for actual PII/privacy leakage",
+                "score by the fraction of confirmed PII statements with square-root scaling",
+            ],
+        },
+        "cost_profile": {
+            "cost": "medium",
+            "latency": "medium",
+            "execution": "per_sample",
+            "requires_llm": True,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "medium",
+        },
+    }
 
     def check(self, sample: DataSample) -> CheckResult:
         base = dict(checker_name=self.name, risk_type=self.risk_type)

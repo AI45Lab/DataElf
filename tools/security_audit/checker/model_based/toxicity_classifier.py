@@ -19,6 +19,33 @@ TOXICITY_LABELS = [
 class ToxicityClassifier(ModelBasedChecker):
     """Toxicity classifier based on the detoxify library (Unitary).
     """
+    planner_metadata = {
+        "description": (
+            "Model-based checker for toxic language. "
+            "Uses Detoxify to score toxicity, severe toxicity, obscenity, threats, "
+            "insults, identity attacks, and sexual explicitness across sample text fields."
+        ),
+        "required_fields": [],
+        "method": {
+            "type": "model_based",
+            "pipeline": [
+                "lazy-load the configured Detoxify model variant",
+                "score each text field except DPO rejected_response",
+                "select the highest toxicity label score across fields",
+                "flag when the highest score meets the configured threshold",
+            ],
+        },
+        "cost_profile": {
+            "cost": "medium",
+            "latency": "medium",
+            "execution": "per_sample",
+            "requires_llm": False,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "medium",
+        },
+    }
 
     def __init__(
         self,

@@ -81,6 +81,33 @@ class BiasLLMJudge(LLMJudgeChecker):
         using the four-category rubric in BiasTemplate (gender, political,
         racial/ethnic, geographical).
     """
+    planner_metadata = {
+        "description": (
+            "LLM-as-a-Judge checker for biased language. "
+            "Evaluates statements for gender, political, racial or ethnic, "
+            "and geographical bias."
+        ),
+        "required_fields": [],
+        "method": {
+            "type": "llm_judge",
+            "pipeline": [
+                "format all available sample text fields into a single content block",
+                "extract distinct statements with an LLM",
+                "judge each extracted statement against a bias rubric",
+                "score by the fraction of biased statements with square-root scaling",
+            ],
+        },
+        "cost_profile": {
+            "cost": "medium",
+            "latency": "medium",
+            "execution": "per_sample",
+            "requires_llm": True,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "medium",
+        },
+    }
 
     def check(self, sample: DataSample) -> CheckResult:
         base = dict(checker_name=self.name, risk_type=self.risk_type)

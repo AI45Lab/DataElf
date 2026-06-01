@@ -51,6 +51,33 @@ class PIIRule(RuleBasedChecker):
     Credit card numbers are Luhn-validated; CN ID cards use checksum validation.
     Score 1.0 on hit, 0.0 otherwise.
     """
+    planner_metadata = {
+        "description": (
+            "Rule-based checker for personally identifiable information (PII). "
+            "Scans all text fields for known PII regex patterns, including emails, "
+            "phone numbers, credit cards, government IDs, and China-specific identifiers."
+        ),
+        "required_fields": [],
+        "method": {
+            "type": "rule_based",
+            "pipeline": [
+                "load PII regex patterns from pii_patterns.json",
+                "scan every text field in the sample for matching patterns",
+                "validate sensitive identifiers with checksum rules when configured",
+                "flag the sample when at least one validated PII match is found",
+            ],
+        },
+        "cost_profile": {
+            "cost": "low",
+            "latency": "low",
+            "execution": "per_sample",
+            "requires_llm": False,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "low",
+        },
+    }
 
     def __init__(self):
         super().__init__()

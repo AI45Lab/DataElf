@@ -88,6 +88,32 @@ class JailbreakClassifier(ModelBasedChecker):
       2. Response refusal — whether the assistant refused the request.
       3. Harmful response — whether the assistant's reply itself is harmful.
     """
+    planner_metadata = {
+        "description": (
+            "Model-based checker for jailbreak and harmful request/response behavior. "
+            "Uses WildGuard to judge harmful requests, refusals, and harmful responses."
+        ),
+        "required_fields": ["messages"],
+        "method": {
+            "type": "model_based",
+            "pipeline": [
+                "lazy-load the configured WildGuard causal language model",
+                "extract the last user query and available assistant response",
+                "generate WildGuard safety labels for request harm, refusal, and response harm",
+                "flag harmful request/response combinations according to parsed labels",
+            ],
+        },
+        "cost_profile": {
+            "cost": "high",
+            "latency": "high",
+            "execution": "per_sample",
+            "requires_llm": False,
+        },
+        "quality_profile": {
+            "precision": "high",
+            "recall": "medium",
+        },
+    }
 
     def __init__(
         self,

@@ -141,7 +141,6 @@ _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS = [
         "checkers": ["InstructionMismatchLLMJudge"],
         "routing": {
             "mode": "field_applicable",
-            "required_fields": ["response"],
         },
         "purpose": "Audit whether responses follow instructions only when both instructions/messages and a response are present.",
     },
@@ -153,7 +152,6 @@ _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS = [
         "checkers": ["SelfContradictionLLMJudge"],
         "routing": {
             "mode": "field_applicable",
-            "required_fields": ["response"],
         },
         "purpose": "Audit internal response contradictions only on samples that contain a model response or assistant message.",
     },
@@ -165,7 +163,6 @@ _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS = [
         "checkers": ["SycophancyLLMJudge"],
         "routing": {
             "mode": "field_applicable",
-            "required_fields": ["response"],
         },
         "purpose": "Audit sycophancy only when user messages and a model response are available.",
     },
@@ -178,7 +175,6 @@ _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS = [
         "routing": {
             "mode": "field_applicable",
             "dataset_types": ["dpo"],
-            "required_fields": ["chosen_response", "rejected_response"],
         },
         "purpose": "Audit DPO preference pairs independently from general semantic stages because the checker requires chosen and rejected responses.",
     },
@@ -190,7 +186,6 @@ _PROGRESSIVE_WORKFLOW_STAGE_CHECKERS = [
         "checkers": ["FactualInconsistancyLLMJudge"],
         "routing": {
             "mode": "field_applicable",
-            "required_fields": ["context"],
         },
         "purpose": "Audit factual consistency only when trusted context and a response are present.",
     },
@@ -249,16 +244,15 @@ LLM_RESOLVER_OUTPUT_SCHEMA: dict[str, Any] = {
             "type": "quick_scan|semantic_scan|deep_scan",
             "risk_focus": ["risk_type_name"],
             "checkers": ["CheckerClassName"],
-            "routing": {
-                "mode": "all_samples|field_applicable|uncertain|sample",
-                "source_stage_id": "string|null",
-                "rules": ["near_threshold|conflicting|low_confidence|error|content_filter|unflagged"],
-                "dataset_types": ["sft|rl|dpo|benchmark"],
-                "required_fields": ["messages|response|chosen_response|rejected_response|context|ground_truth_answer|reference_answer"],
-                "sample_rate": "optional number",
-                "sample_size": "optional number",
-                "threshold": "optional number",
-                "threshold_margin": "optional number",
+        "routing": {
+            "mode": "all_samples|field_applicable|uncertain|sample",
+            "source_stage_id": "string|null",
+            "rules": ["near_threshold|conflicting|low_confidence|error|content_filter|unflagged"],
+            "dataset_types": ["sft|rl|dpo|benchmark"],
+            "sample_rate": "optional number",
+            "sample_size": "optional number",
+            "threshold": "optional number",
+            "threshold_margin": "optional number",
             },
             "purpose": "string",
         }
@@ -279,16 +273,16 @@ Hard constraints:
 - Build funnel-style plans only when they match the user intent. For fast or low-cost audits, cheap rule-based checks can run first. For high-precision and high-recall audits, skip low-precision/low-recall rule-based quick_scan stages and start from stronger LLM judges or model/guard checkers. Later stages should use stronger or more specialized checkers, not repeat earlier checkers.
 - A stage should group checkers that share similar cost, data applicability, and routing. Split checkers into separate stages when they need different dataset types, required fields, upstream source stages, sampling, or review rules.
 - Treat the Progressive Risk Audit Workflow as a menu of reusable stage patterns, not a required sequence. You may remove, reorder, merge, or split patterns as long as dependencies are valid. In particular, quick_scan is optional and should be omitted when it does not improve the requested precision/recall objective.
-- Field-specific checks should usually be independent stages with explicit routing, but required_fields may only contain real DataSample fields. Examples: DPOLabelFlipLLMJudge uses dataset_types=["dpo"] and required_fields=["chosen_response", "rejected_response"]; FactualInconsistancyLLMJudge uses required_fields=["context"]; InstructionMismatchLLMJudge and SycophancyLLMJudge use required_fields=["response"]. Do not output virtual field names.
+- Field-specific checks should usually be independent stages with explicit routing. For routing.mode="field_applicable", the local resolver reads each selected checker's required_fields from its checker card and filters samples per checker; do not output routing.required_fields or infer field names yourself.
 - For partial-risk requests, remove irrelevant stages or checkers from the workflow.
 - If a requested target cannot be satisfied by the allowed capability set, omit unavailable checkers from stages; the local resolver will derive skipped_checkers and degradations deterministically.
 - Prefer low-cost routing, sampling, and rule-based checkers only when the user asks for fast, low-cost, preview, or very large-scale audits. Do not include rule-based checkers by default for high-precision high-recall audits unless they are explicitly requested or provide unique coverage such as secrets.
 
 Routing guidance:
-- routing may only contain these keys: mode, source_stage_id, rules, dataset_types, required_fields, sample_rate, sample_size, threshold, threshold_margin.
+- routing may only contain these keys: mode, source_stage_id, rules, dataset_types, sample_rate, sample_size, threshold, threshold_margin.
 - Do not put risk_types or checker_names inside routing; use stage.risk_focus and stage.checkers instead.
 - Use mode=all_samples only for checks that should run over every sample. Rule-based all-sample quick scans are mainly for fast/low-cost pre-screening, not mandatory for high-precision high-recall plans.
-- Use mode=field_applicable for checks that require specific real DataSample fields or dataset types; add required_fields and dataset_types when known.
+- Use mode=field_applicable for checks that require specific real DataSample fields or dataset types; add dataset_types when known, but leave field requirements to the local checker-card logic.
 - Use mode=sample for low-cost previews over applicable samples, or for expensive specialist checks when cost control is requested; set sample_rate or sample_size only with mode=sample.
 - Use mode=uncertain only for a later review/recall stage with unused stronger/specialized checker(s) for the same risk type as the source stage. For high-precision review, use rules such as ["near_threshold", "conflicting", "low_confidence"], usually with threshold=0.5 and threshold_margin=0.1. For high-recall second-pass scanning, use rules=["unflagged"] to route samples not flagged by the source stage to a stronger checker. If all suitable checkers for that risk type have already been used or are unavailable, omit the uncertain review stage.
 - source_stage_id must reference an earlier stage id in your output.
@@ -1460,7 +1454,17 @@ def _checker_card_for_prompt(capability: CheckerCapability) -> dict[str, Any]:
         "risk_type": capability.risk_type,
         "required_tier": capability.required_tier,
         "params": capability.params,
+        **_checker_planner_metadata(capability.name),
     }
+
+
+def _checker_planner_metadata(checker_name: str) -> dict[str, Any]:
+    try:
+        checker_cls = CheckerRegistry.get(checker_name)
+    except KeyError:
+        return {}
+    metadata = getattr(checker_cls, "planner_metadata", None)
+    return dict(metadata) if isinstance(metadata, dict) else {}
 
 
 def _checker_configs_from_names(

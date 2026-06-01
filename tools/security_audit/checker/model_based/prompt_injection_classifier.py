@@ -16,6 +16,32 @@ _INJECTION_LABEL = "injection"
 class PromptInjectionClassifier(ModelBasedChecker):
     """Prompt injection classifier based on PIGuard (DeBERTa v3-base).
     """
+    planner_metadata = {
+        "description": (
+            "Model-based checker for prompt injection attempts. "
+            "Uses PIGuard to classify system and user input as benign or injection."
+        ),
+        "required_fields": ["messages"],
+        "method": {
+            "type": "model_based",
+            "pipeline": [
+                "lazy-load the configured PIGuard sequence classifier",
+                "collect system and user message text as injection source material",
+                "run text classification and extract the injection probability",
+                "flag when the injection score meets the configured threshold",
+            ],
+        },
+        "cost_profile": {
+            "cost": "high",
+            "latency": "medium",
+            "execution": "per_sample",
+            "requires_llm": False,
+        },
+        "quality_profile": {
+            "precision": "medium",
+            "recall": "medium",
+        },
+    }
 
     def __init__(
         self,
