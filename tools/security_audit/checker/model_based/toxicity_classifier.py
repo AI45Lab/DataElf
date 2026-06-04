@@ -15,6 +15,37 @@ TOXICITY_LABELS = [
 ]
 
 
+class _DetoxifyPredictor:
+    def __init__(self, model, tokenizer, class_names, device):
+        self.model = model
+        self.tokenizer = tokenizer
+        self.class_names = class_names
+        self.device = device
+        self.model.to(self.device)
+
+    def predict(self, text):
+        import torch
+
+        self.model.eval()
+        with torch.no_grad():
+            inputs = self.tokenizer(
+                text, return_tensors="pt", truncation=True, padding=True
+            ).to(self.device)
+            out = self.model(**inputs)[0]
+            scores = torch.sigmoid(out).cpu().detach().numpy()
+
+        results = {}
+        for i, class_name in enumerate(self.class_names):
+            if isinstance(text, str):
+                results[class_name] = scores[0][i]
+            else:
+                results[class_name] = [
+                    scores[example_i][i].tolist()
+                    for example_i in range(len(scores))
+                ]
+        return results
+
+
 @CheckerRegistry.register(RiskType.TOXICITY, tags=["model"])
 class ToxicityClassifier(ModelBasedChecker):
     """Toxicity classifier based on the detoxify library (Unitary).
@@ -52,17 +83,23 @@ class ToxicityClassifier(ModelBasedChecker):
         model_type: str = "unbiased",
         threshold: float = 0.5,
         device: str = "auto",
+        checkpoint: Optional[str] = None,
+        huggingface_config_path: Optional[str] = None,
     ):
         """
         Args:
             model_type: detoxify model variant — "original", "unbiased", or "multilingual".
             threshold: score above which the text is flagged as toxic.
             device: "auto", "cuda", or "cpu".
+            checkpoint: optional local Detoxify checkpoint path for offline loading.
+            huggingface_config_path: optional local HF config/tokenizer directory for offline loading.
         """
         super().__init__()
         self.model_type = model_type
         self.threshold = threshold
         self._device = device
+        self.checkpoint = checkpoint
+        self.huggingface_config_path = huggingface_config_path
         self.model = None
 
     def load_model(self):
@@ -78,7 +115,10 @@ class ToxicityClassifier(ModelBasedChecker):
                 device = self._device
 
             self._log.info(f"ToxicityClassifier: loading detoxify model '{self.model_type}' on {device} ...")
-            self.model = Detoxify(self.model_type, device=device)
+            if self.checkpoint is not None:
+                self.model = self._load_local_detoxify_model(device)
+            else:
+                self.model = Detoxify(self.model_type, device=device)
             self._log.info("ToxicityClassifier: model loaded.")
         except ImportError:
             raise ImportError(
@@ -87,6 +127,48 @@ class ToxicityClassifier(ModelBasedChecker):
             )
         except Exception as e:
             raise RuntimeError(f"ToxicityClassifier: failed to load model '{self.model_type}': {e}") from e
+
+    def _load_local_detoxify_model(self, device: str):
+        import torch
+        import transformers
+
+        loaded = torch.load(self.checkpoint, map_location=device)
+        if "config" not in loaded or "state_dict" not in loaded:
+            raise ValueError(
+                "Detoxify checkpoint needs to contain both config and state_dict"
+            )
+
+        class_names = loaded["config"]["dataset"]["args"]["classes"]
+        rename = {
+            "toxic": "toxicity",
+            "identity_hate": "identity_attack",
+            "severe_toxic": "severe_toxicity",
+        }
+        class_names = [rename.get(class_name, class_name) for class_name in class_names]
+
+        arch_args = loaded["config"]["arch"]["args"]
+        model_class = getattr(transformers, arch_args["model_name"])
+        tokenizer_class = getattr(transformers, arch_args["tokenizer_name"])
+        model_source = self.huggingface_config_path or arch_args["model_type"]
+        local_files_only = self.huggingface_config_path is not None
+
+        config = model_class.config_class.from_pretrained(
+            model_source,
+            num_labels=arch_args["num_classes"],
+            local_files_only=local_files_only,
+        )
+        model = model_class.from_pretrained(
+            pretrained_model_name_or_path=None,
+            config=config,
+            state_dict=loaded["state_dict"],
+            local_files_only=local_files_only,
+        )
+        tokenizer = tokenizer_class.from_pretrained(
+            model_source,
+            local_files_only=local_files_only,
+        )
+
+        return _DetoxifyPredictor(model, tokenizer, class_names, device)
 
     def check(self, sample: DataSample) -> CheckResult:
         base = dict(checker_name=self.name, risk_type=self.risk_type)

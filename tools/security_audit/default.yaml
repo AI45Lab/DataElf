@@ -35,7 +35,13 @@ checkers:
   - name: PromptInjectionClassifier
     enabled: false
     params:
-      model_name_or_path: leolee99/PIGuard
+      model_name_or_path: /mnt/shared-storage-user/chenbei/.data/leolee99/PIGuard
+  - name: ToxicityClassifier
+    enabled: false
+    params:
+      model_type: unbiased
+      checkpoint: /mnt/shared-storage-user/chenbei/.data/detoxify/toxic_debiased-c7548aa0.ckpt
+      huggingface_config_path: /mnt/shared-storage-user/chenbei/.data/detoxify/models--roberta-base/snapshots/e2da8e2f811d1448a5b465c236feacd80ffbac7b
   - name: HarmfulContentClassifier
     enabled: false
     params:
@@ -43,7 +49,7 @@ checkers:
   - name: BiasClassifier
     enabled: false
     params:
-      model_name_or_path: cirimus/modernbert-large-bias-type-classifier
+      model_name_or_path: /mnt/shared-storage-user/chenbei/.data/cirimus/modernbert-large-bias-type-classifier
   - name: GraCeFulBackdoorDefender
     enabled: false
     params:
