@@ -60,8 +60,13 @@ def _normalize_output(text: str) -> str:
     )
     # ▁ is the SentencePiece word-start marker → space
     text = text.replace("▁", " ")
-    # Remove spaces that were inserted between sub-word letter tokens
-    text = re.sub(r"(?<=[a-zA-Z]) (?=[a-zA-Z])", "", text)
+    # Remove spaces inserted between single-letter subword tokens without
+    # collapsing normal label words such as "Harmful request".
+    text = re.sub(
+        r"\b(?:[A-Za-z] ){2,}[A-Za-z]\b",
+        lambda m: m.group(0).replace(" ", ""),
+        text,
+    )
     # Collapse remaining runs of spaces
     text = re.sub(r" {2,}", " ", text)
     return text.strip()

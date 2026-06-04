@@ -82,7 +82,7 @@ class HarmfulContentClassifier(ModelBasedChecker):
         """
         super().__init__()
         self.model_name_or_path = model_name_or_path
-        self.device = device
+        self._device = device
         self.dtype = getattr(torch, dtype, torch.bfloat16)
         self.threshold = threshold
         self.local_files_only = local_files_only
@@ -92,10 +92,14 @@ class HarmfulContentClassifier(ModelBasedChecker):
         self._unsafe_token_id = None
 
     def load_model(self):
+        if self._device == "auto":
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            self.device = self._device
         if self.model is not None:
             return
         try:
-            self._log.info("HarmfulContentClassifier: loading Llama Guard model ...")
+            self._log.info(f"HarmfulContentClassifier: loading Llama Guard model on device {self.device} ...")
             self._tokenizer = AutoTokenizer.from_pretrained(
                 self.model_name_or_path,
                 local_files_only=self.local_files_only,

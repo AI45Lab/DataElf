@@ -46,17 +46,20 @@ class SampleReport(BaseModel):
         CheckResult). Unchecked categories are omitted from scores and flags.
 
         Each category score is the max score across all checkers for that category.
-        flag_threshold: categories above this score are flagged (default 0.5).
+        Boolean flags follow each checker's own flagged decision. The
+        flag_threshold argument is kept for backward-compatible callers.
         """
         scores: Dict[str, float] = {}
+        flags: Dict[str, bool] = {}
         for result in self.results:
             if not result.success:
                 continue
             rt = result.risk_type.value
             scores[rt] = max(scores.get(rt, 0.0), result.score)
+            flags[rt] = flags.get(rt, False) or result.flagged
 
         self.category_scores = scores
-        self.categories = {rt: score >= flag_threshold for rt, score in scores.items()}
+        self.categories = {rt: flags.get(rt, False) for rt in scores}
         self.flagged = any(self.categories.values())
 
 
