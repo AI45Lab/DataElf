@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { cn } from '../utils';
+import { buildRunSummaryRows } from '../api/runDisplay.js';
 
 interface Attempt {
   id: string;
@@ -18,17 +19,26 @@ interface Attempt {
   };
 }
 
+interface RunResultData {
+  rawResult?: any;
+  allFailed?: boolean;
+  error?: string | null;
+  jobId?: string | null;
+}
+
 interface FooterProps {
   pipelineTools?: string[];
   logs?: string[];
   attempts?: Attempt[];
   candidateJson?: string | null;
+  runResultData?: RunResultData | null;
   height?: number;
 }
 
-export function Footer({ pipelineTools = [], logs = [], attempts = [], candidateJson = null, height = 200 }: FooterProps) {
+export function Footer({ pipelineTools = [], logs = [], attempts = [], candidateJson = null, runResultData = null, height = 200 }: FooterProps) {
   const [activeTab, setActiveTab] = useState('Logs');
   const logsEndRef = useRef<HTMLDivElement>(null);
+  const runSummaryRows = buildRunSummaryRows(runResultData?.rawResult);
 
   // Auto-scroll logs when new logs are added
   useEffect(() => {
@@ -165,7 +175,54 @@ export function Footer({ pipelineTools = [], logs = [], attempts = [], candidate
         </div>
       )}
 
-      {activeTab === 'Result' && attempts.length > 0 && (
+      {activeTab === 'Result' && runResultData && (
+        <div
+          className="p-4 border-t border-gray-700/30 bg-black font-mono animate-in slide-in-from-bottom-2 overflow-y-auto custom-scrollbar"
+          style={{ height: `${height - 50}px` }}
+        >
+          <div className={cn(
+            "border p-3 rounded bg-black/40",
+            runResultData.allFailed ? "border-red-600/40" : "border-gray-700/50"
+          )}>
+            <div className={cn(
+              "text-xs font-bold uppercase tracking-wider mb-3 pb-2 border-b flex items-center justify-between gap-4",
+              runResultData.allFailed ? "text-red-400 border-red-600/30" : "text-white border-gray-700/40"
+            )}>
+              <span>Run Summary Result</span>
+              {runResultData.jobId && (
+                <span className="text-[10px] text-gray-500 normal-case tracking-normal">{runResultData.jobId}</span>
+              )}
+            </div>
+
+            {runResultData.error && (
+              <div className="mb-3 p-2 border border-red-900/50 bg-red-950/20 text-red-300 text-xs whitespace-pre-wrap">
+                {runResultData.error}
+              </div>
+            )}
+
+            {runSummaryRows.length > 0 ? (
+              <div className="grid grid-cols-1 gap-2 text-xs">
+                {runSummaryRows.map(row => (
+                  <div key={row.key} className="grid grid-cols-[190px_1fr] gap-4 border-b border-gray-800/70 pb-2 last:border-0 last:pb-0">
+                    <span className="text-gray-500">{row.key}</span>
+                    {row.isNested ? (
+                      <pre className="text-gray-300 whitespace-pre-wrap leading-relaxed overflow-x-auto">
+                        {row.value}
+                      </pre>
+                    ) : (
+                      <span className="text-gray-200">{row.value}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : !runResultData.error ? (
+              <div className="text-xs text-gray-500">No summary result returned.</div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'Result' && !runResultData && attempts.length > 0 && (
         <div
           className="p-4 border-t border-gray-700/30 bg-black font-mono animate-in slide-in-from-bottom-2 overflow-y-auto custom-scrollbar"
           style={{ height: `${height - 50}px` }}
@@ -245,9 +302,9 @@ export function Footer({ pipelineTools = [], logs = [], attempts = [], candidate
         </div>
       )}
 
-      {activeTab === 'Result' && attempts.length === 0 && (
+      {activeTab === 'Result' && !runResultData && attempts.length === 0 && (
         <div className="p-4 border-t border-gray-700/30 bg-black font-mono opacity-50 flex items-center gap-2 text-gray-500 text-sm">
-          <span>{'>'}</span> No attempt results available. Results are generated in PILOT mode.
+          <span>{'>'}</span> No result available yet.
         </div>
       )}
     </footer>

@@ -5,14 +5,32 @@ import { LeftSidebar } from './components/LeftSidebar';
 import { RightSidebar } from './components/RightSidebar';
 import { Footer } from './components/Footer';
 import { parseUserCommand } from './api/commandParser.js';
-import { answerCheckpoint, checkpointEventFromJob, createRun, extractCheckpointSuggestions, fetchJob, subscribeRunEvents } from './api/dataelfApi.js';
-import { formatBackendLog, logsFromRunCompletion, mergeRunLogLines, normalizeRunResultData } from './api/runDisplay.js';
+import { answerCheckpoint, checkpointEventFromJob, createRun, createSession, createSessionRun, deleteSession, extractCheckpointSuggestions, fetchJob, listDatasets, listSessions, listTools, replayRunEvents, saveSessionSnapshot, setSessionMode, shouldUseRunStatusPollingFallback, subscribeRunEvents, updateSession } from './api/dataelfApi.js';
+import { buildRunCompletionResultMessage, buildRunFailureResultMessage, executionStepFromBackendLog, formatBackendLog, logsFromRunCompletion, mergeRunLogLines, normalizeRunResultData } from './api/runDisplay.js';
+import { buildModeCommandPromptMessage } from './api/sessionDisplay.js';
+import { applyPilotEventToAttempts, buildPilotAttemptsFromBackendAttempts, buildPilotAttemptClarificationMessage, buildPilotCompletionResultMessage, buildPilotLifecycleMessage, buildPilotSummaryMessage, buildRejectedPilotToolCandidateMessage, parsePilotAttemptCount, pilotCheckpointAnswerPayload, pilotLifecycleMessageId } from './api/pilotDisplay.js';
+import { upsertJobMessages } from './api/jobMessages.js';
 
 interface ExecutionStep {
   id: string;
   name: string;
   status: 'pending' | 'running' | 'success' | 'error';
   log: string;
+}
+
+interface CatalogDataset {
+  name: string;
+  rows?: string | number;
+  nesting?: string | number;
+  size?: string;
+}
+
+interface CatalogTool {
+  name: string;
+  description?: string;
+  parameters?: {
+    properties?: Record<string, unknown>;
+  };
 }
 
 interface Attempt {
@@ -44,6 +62,21 @@ interface Attempt {
   };
 }
 
+interface RunResultData {
+  score: number;
+  flaggedSamples: number;
+  approvedAssets: number;
+  allFailed?: boolean;
+  rawResult?: any;
+  artifacts?: any;
+  metadata?: any;
+  clarification?: any;
+  capabilityGap?: any;
+  logs?: any[];
+  error?: string | null;
+  jobId?: string | null;
+}
+
 interface Message {
   id: string;
   type: 'user' | 'system' | 'clarification' | 'pipeline' | 'execution' | 'lifecycle' | 'result' | 'pipeline_candidate' | 'tool_candidate' | 'pilot_summary';
@@ -60,24 +93,12 @@ interface Message {
   jobId?: string;
   checkpointId?: string;
   checkpointType?: string;
+  pendingCommand?: string;
   // Execution fields
   executionSteps?: ExecutionStep[];
   // Lifecycle fields
   attempts?: Attempt[];
-  resultData?: {
-    score: number;
-    flaggedSamples: number;
-    approvedAssets: number;
-    allFailed?: boolean;
-    rawResult?: any;
-    artifacts?: any;
-    metadata?: any;
-    clarification?: any;
-    capabilityGap?: any;
-    logs?: any[];
-    error?: string | null;
-    jobId?: string | null;
-  };
+  resultData?: RunResultData;
   // Pipeline Candidate
   pipelineData?: {
     id: string;
@@ -131,90 +152,70 @@ export interface Session {
   mode?: string;
   pipelineTools?: string[];
   candidateJson?: string | null;
+  runResultData?: RunResultData | null;
+  jobId?: string | null;
+  status?: string;
+  locked?: boolean;
+  backendMode?: string | null;
+}
+
+function timestampNow() {
+  return new Date().toLocaleTimeString('en-US', { hour12: false });
+}
+
+function createModeSelectionMessage(sessionId: string): Message {
+  return {
+    id: `${sessionId}-mode-selection`,
+    type: 'clarification',
+    content: '',
+    question: '请选择这个 session 的执行模式：run 或 pilot。',
+    status: 'pending',
+    suggestions: ['run', 'pilot'],
+    index: 1,
+    total: 1,
+    checkpointType: 'mode_selection',
+    timestamp: timestampNow()
+  };
+}
+
+function sessionFromBackend(record: any, active: boolean): Session {
+  const snapshot = record?.snapshot || {};
+  const mode = record?.mode ? String(record.mode).toUpperCase() : (snapshot.mode || 'NA');
+  const createdAt = String(record?.created_at || new Date().toISOString());
+  return {
+    id: record.session_id,
+    name: record.name || 'Untitled',
+    date: createdAt.slice(0, 10),
+    active,
+    messages: snapshot.messages || [],
+    logs: snapshot.logs || [],
+    attempts: snapshot.attempts || [],
+    bestScore: snapshot.bestScore ?? 'NA',
+    mode,
+    pipelineTools: snapshot.pipelineTools || [],
+    candidateJson: snapshot.candidateJson ?? null,
+    runResultData: snapshot.runResultData ?? null,
+    jobId: record.job_id || null,
+    status: record.status || 'new',
+    locked: Boolean(record.locked),
+    backendMode: record.backend_mode || null,
+  };
 }
 
 export default function App() {
-  const [sessions, setSessions] = useState<Session[]>([
-    { id: '0x7A9F', name: 'data_clean_101', date: '2026-04-27', active: true, messages: [{id: '1', type: 'user', content: 'elf run "Clean Data"', timestamp: '10:00:00'}], mode: 'RUN', bestScore: 92.5 },
-    { id: '0x4B21', name: 'model_eval_run', date: '2026-04-26', active: false, messages: [{id: '2', type: 'user', content: 'elf pilot "Evaluate Model"', timestamp: '11:00:00'}, {id: '3', type: 'lifecycle', content: '', timestamp: '11:01:00', attempts: [{id: 'att_01', action_type: 'generate_code', score: 85, status: 'success', validation: 'passed', produced_candidate: true, candidateApproval: 'NEEDED'}]}], mode: 'PILOT', bestScore: 88.0 },
-    { id: '0x1A09', name: 'log_parser_v2', date: '2026-04-25', active: false },
-    { id: '0x8F9C', name: 'temp_experiment', date: '2026-04-25', active: false },
-    { id: '0x3D4E', name: 'data_augment', date: '2026-04-24', active: false },
-  ]);
-  const activeSession = sessions.find(s => s.active) || sessions[0];
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const activeSession = sessions.find(s => s.active) || sessions[0] || null;
 
-  const handleNewSession = () => {
-    const newId = '0x' + Math.floor(Math.random() * 65536).toString(16).toUpperCase().padStart(4, '0');
-    const dateStr = new Date().toISOString().split('T')[0];
-    setSessions(prev => [
-      { id: newId, name: 'Untitled', date: dateStr, active: true },
-      ...prev.map(s => ({ ...s, active: false }))
-    ]);
-    setMessages([]);
-    setLogs([]);
-    setAttempts([]);
-    setBestScore('NA');
-    setMode('NA');
-    setPipelineTools([]);
-    setReplyingTo(null);
-    setActiveTool(null);
-    setCandidateJson(null);
-    setHeaderStatus('IDLE');
+  const handleNewSession = async () => {
+    await createAndActivateSession();
   };
 
   const handleSelectSession = (id: string) => {
-    if (id === activeSession?.id) return;
-
-    setSessions(prev => {
-      // First save the current session's state
-      const saved = prev.map(s => {
-        if (s.id === activeSession?.id) {
-          return { ...s, messages, logs, attempts, bestScore, mode, pipelineTools, candidateJson, active: false };
-        }
-        return s;
-      });
-      
-      // Then activate the selected session
-      return saved.map(s => ({ ...s, active: s.id === id }));
-    });
-
-    const selected = sessions.find(s => s.id === id);
-    if (selected) {
-      setMessages(selected.messages || []);
-      setLogs(selected.logs || []);
-      setBestScore(selected.bestScore || 'NA');
-      setMode(selected.mode || 'NA');
-      setPipelineTools(selected.pipelineTools || []);
-      setAttempts(selected.attempts || []);
-      setReplyingTo(null);
-      setActiveTool(null);
-      setCandidateJson(selected.candidateJson || null);
-      setHeaderStatus((selected.messages && selected.messages.length > 0) ? 'STABLE' : 'IDLE');
-    }
+    activateSession(id);
   };
 
   const handleDeleteSession = (id: string) => {
-    setSessions(prev => {
-      const remaining = prev.filter(s => s.id !== id);
-      if (remaining.length > 0 && !remaining.some(s => s.active)) {
-        remaining[0].active = true;
-        
-        // Update local states directly here using the new active session
-        const selected = remaining[0];
-        setTimeout(() => {
-          setMessages(selected.messages || []);
-          setLogs(selected.logs || []);
-          setBestScore(selected.bestScore || 'NA');
-          setMode(selected.mode || 'NA');
-          setPipelineTools(selected.pipelineTools || []);
-          setAttempts([]);
-          setReplyingTo(null);
-          setActiveTool(null);
-          setHeaderStatus((selected.messages && selected.messages.length > 0) ? 'STABLE' : 'IDLE');
-        }, 0);
-      }
-      return remaining;
-    });
+    removeSession(id);
   };
 
   const extractTaskName = (cmd: string) => {
@@ -228,15 +229,16 @@ export default function App() {
     return noPrefix.slice(0, 15).replace(/\s+/g, '_');
   };
 
-  const [mode, setMode] = useState(sessions[0].mode || 'NA');
+  const [mode, setMode] = useState('NA');
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>(sessions[0].messages || []);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
-  const [pipelineTools, setPipelineTools] = useState<string[]>(sessions[0].pipelineTools || []);
-  const [logs, setLogs] = useState<string[]>(sessions[0].logs || []);
+  const [pipelineTools, setPipelineTools] = useState<string[]>([]);
+  const [logs, setLogs] = useState<string[]>([]);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
-  const [bestScore, setBestScore] = useState<number | 'NA'>(sessions[0].bestScore || 'NA');
+  const [bestScore, setBestScore] = useState<number | 'NA'>('NA');
+  const [runResultData, setRunResultData] = useState<RunResultData | null>(null);
   const candidateTools = useMemo(() => {
     const tools: {id: string, name: string, status: 'pending'|'stable', sessionId: string, messageId: string}[] = [];
     sessions.forEach(s => {
@@ -246,7 +248,7 @@ export default function App() {
             tools.push({
               id: m.toolData.id,
               name: m.toolData.name,
-              status: m.toolData.status === 'approved' ? 'stable' : 'pending',
+              status: m.toolData.status === 'pending' ? 'pending' : 'stable',
               sessionId: s.id,
               messageId: m.id
             });
@@ -258,6 +260,8 @@ export default function App() {
   }, [sessions]);
   const [candidateJson, setCandidateJson] = useState<string | null>(null);
   const [headerStatus, setHeaderStatus] = useState<'IDLE' | 'PROCESSING' | 'PENDING' | 'STABLE'>('IDLE');
+  const [catalogDatasets, setCatalogDatasets] = useState<CatalogDataset[]>([]);
+  const [catalogTools, setCatalogTools] = useState<CatalogTool[]>([]);
   const [executingSessionId, setExecutingSessionId] = useState<string | null>(null); // Track which session is currently executing
   const [expandedAttempts, setExpandedAttempts] = useState<Set<string>>(new Set()); // Track which attempt DSL codes are expanded
   const [footerHeight, setFooterHeight] = useState(200); // Footer height in pixels
@@ -267,6 +271,194 @@ export default function App() {
   const resumeRef = useRef<((approved: boolean) => void) | null>(null);
   const runStreamsRef = useRef<Record<string, EventSource>>({});
   const runPollersRef = useRef<Record<string, number>>({});
+  const runSessionByJobRef = useRef<Record<string, string>>({});
+  const runLastEventIdRef = useRef<Record<string, number>>({});
+  const runSeenEventIdsRef = useRef<Record<string, Set<number>>>({});
+  const pilotBudgetByJobRef = useRef<Record<string, number>>({});
+  const sessionSaveTimerRef = useRef<number | null>(null);
+
+  const sessionNeedsMode = (session: Session | null) => {
+    return !session?.mode || session.mode === 'NA';
+  };
+
+  const messagesWithModePrompt = (session: Session) => {
+    const existingMessages = session.messages || [];
+    if (!sessionNeedsMode(session)) {
+      return existingMessages;
+    }
+    if (existingMessages.some(message => message.checkpointType === 'mode_selection')) {
+      return existingMessages;
+    }
+    return [createModeSelectionMessage(session.id), ...existingMessages];
+  };
+
+  const applySessionState = (session: Session) => {
+    const sessionMessages = session.jobId
+      ? upsertJobMessages(messagesWithModePrompt(session), session.jobId, []) as Message[]
+      : messagesWithModePrompt(session);
+    const pendingClarification = sessionMessages.find(
+      message => message.type === 'clarification' && message.status === 'pending'
+    );
+    setMessages(sessionMessages);
+    setLogs(session.logs || []);
+    setBestScore(session.bestScore ?? 'NA');
+    setMode(session.mode || 'NA');
+    setPipelineTools(session.pipelineTools || []);
+    setAttempts(session.attempts || []);
+    setReplyingTo(session.locked ? null : (pendingClarification?.id || null));
+    setActiveTool(null);
+    setCandidateJson(session.candidateJson || null);
+    setRunResultData(session.runResultData || null);
+    if (session.locked) {
+      setHeaderStatus('STABLE');
+    } else if (pendingClarification) {
+      setHeaderStatus('PENDING');
+    } else if (session.status === 'running') {
+      setHeaderStatus('PROCESSING');
+      setExecutingSessionId(session.id);
+    } else {
+      setHeaderStatus(sessionMessages.length > 0 ? 'STABLE' : 'IDLE');
+    }
+  };
+
+  const buildCurrentSnapshot = () => ({
+    messages,
+    logs,
+    attempts,
+    bestScore,
+    mode,
+    pipelineTools,
+    candidateJson,
+    runResultData,
+  });
+
+  const persistActiveSnapshot = () => {
+    if (!activeSession) return;
+    saveSessionSnapshot(activeSession.id, buildCurrentSnapshot()).catch(() => {});
+  };
+
+  const createAndActivateSession = async () => {
+    try {
+      persistActiveSnapshot();
+      const created = sessionFromBackend(await createSession({ name: 'Untitled' }), true);
+      setSessions(prev => [
+        created,
+        ...prev.map(session => ({ ...session, active: false })),
+      ]);
+      applySessionState(created);
+    } catch (error: any) {
+      appendSystemMessage(`Failed to create backend session: ${String(error?.message || error)}`);
+    }
+  };
+
+  const activateSession = (id: string) => {
+    if (id === activeSession?.id) return;
+    persistActiveSnapshot();
+    const selected = sessions.find(session => session.id === id);
+    if (!selected) return;
+    const nextSelected = { ...selected, active: true };
+    setSessions(prev => prev.map(session => (
+      session.id === id
+        ? nextSelected
+        : session.id === activeSession?.id
+          ? {
+            ...session,
+            messages,
+            logs,
+            attempts,
+            bestScore,
+            mode,
+            pipelineTools,
+            candidateJson,
+            runResultData,
+            active: false,
+          }
+          : { ...session, active: false }
+    )));
+    applySessionState(nextSelected);
+  };
+
+  const removeSession = async (id: string) => {
+    try {
+      await deleteSession(id);
+    } catch (error: any) {
+      appendSystemMessage(`Failed to delete backend session: ${String(error?.message || error)}`);
+      return;
+    }
+
+    const remaining = sessions.filter(session => session.id !== id);
+    if (remaining.length === 0) {
+      setSessions([]);
+      await createAndActivateSession();
+      return;
+    }
+
+    const shouldMoveActive = activeSession?.id === id || !remaining.some(session => session.active);
+    const nextSessions = remaining.map((session, index) => ({
+      ...session,
+      active: shouldMoveActive ? index === 0 : session.active,
+    }));
+    const selected = nextSessions.find(session => session.active) || nextSessions[0];
+    setSessions(nextSessions);
+    applySessionState(selected);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCatalog = async () => {
+      const [datasetsResult, toolsResult] = await Promise.allSettled([
+        listDatasets(),
+        listTools(),
+      ]);
+
+      if (cancelled) return;
+
+      if (datasetsResult.status === 'fulfilled') {
+        setCatalogDatasets(datasetsResult.value);
+      }
+      if (toolsResult.status === 'fulfilled') {
+        setCatalogTools(toolsResult.value);
+      }
+    };
+
+    loadCatalog();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSessions = async () => {
+      try {
+        let backendSessions = await listSessions();
+        if (backendSessions.length === 0) {
+          backendSessions = [await createSession({ name: 'Untitled' })];
+        }
+        if (cancelled) return;
+        const nextSessions = backendSessions.map((session: any, index: number) => (
+          sessionFromBackend(session, index === 0)
+        ));
+        setSessions(nextSessions);
+        if (nextSessions[0]) {
+          applySessionState(nextSessions[0]);
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          appendSystemMessage(`Failed to load backend sessions: ${String(error?.message || error)}`);
+        }
+      }
+    };
+
+    loadSessions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Auto-save session state
   useEffect(() => {
@@ -279,21 +471,32 @@ export default function App() {
         if (
           current.messages === messages &&
           current.logs === logs &&
+          current.attempts === attempts &&
           current.bestScore === bestScore &&
           current.mode === mode &&
-          current.pipelineTools === pipelineTools
+          current.pipelineTools === pipelineTools &&
+          current.candidateJson === candidateJson &&
+          current.runResultData === runResultData
         ) {
           return prev;
         }
 
         return prev.map(s => 
           s.id === activeSession.id 
-            ? { ...s, messages, logs, bestScore, mode, pipelineTools } 
+            ? { ...s, messages, logs, attempts, bestScore, mode, pipelineTools, candidateJson, runResultData } 
             : s
         );
       });
+
+      if (sessionSaveTimerRef.current !== null) {
+        window.clearTimeout(sessionSaveTimerRef.current);
+      }
+      sessionSaveTimerRef.current = window.setTimeout(() => {
+        saveSessionSnapshot(activeSession.id, buildCurrentSnapshot()).catch(() => {});
+        sessionSaveTimerRef.current = null;
+      }, 500);
     }
-  }, [messages, logs, bestScore, mode, pipelineTools, activeSession?.id]);
+  }, [messages, logs, attempts, bestScore, mode, pipelineTools, candidateJson, runResultData, activeSession?.id]);
 
   const [pendingApproval, setPendingApproval] = useState<{msgId: string, attId: string, mockAttempts: Attempt[], currentAtt: number} | null>(null);
 
@@ -1011,20 +1214,22 @@ log_step("Final audit package saved")`;
              } else {
                setBestScore(98.5);
                setTimeout(() => {
-                 setMessages(prev => [
-                   ...prev,
-                   {
-                     id: Date.now().toString() + "-res",
-                     type: 'result',
-                     content: 'RUN Execution Completed',
-                     timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-                     resultData: {
-                       score: 98.5,
-                       flaggedSamples: 2,
-                       approvedAssets: 15
-                     }
-                   }
-                 ]);
+                 setRunResultData({
+                   score: 98.5,
+                   flaggedSamples: 2,
+                   approvedAssets: 0,
+                   rawResult: {
+                     security_score: 98.5,
+                     flagged_samples: 2,
+                   },
+                   artifacts: {},
+                   metadata: {},
+                   clarification: {},
+                   capabilityGap: {},
+                   logs: [],
+                   error: null,
+                   jobId: null
+                 });
                  setHeaderStatus('STABLE');
                  setExecutingSessionId(null);
                }, 1000);
@@ -1069,6 +1274,10 @@ log_step("Final audit package saved")`;
       runStreamsRef.current = {};
       Object.values(runPollersRef.current).forEach(intervalId => window.clearInterval(intervalId));
       runPollersRef.current = {};
+      if (sessionSaveTimerRef.current !== null) {
+        window.clearTimeout(sessionSaveTimerRef.current);
+        sessionSaveTimerRef.current = null;
+      }
     };
   }, []);
 
@@ -1101,11 +1310,89 @@ log_step("Final audit package saved")`;
     };
   }, [isDragging]);
 
+  const upsertJobMessagesState = (jobId: string | undefined, incoming: Message | Message[]) => {
+    if (!jobId) {
+      setMessages(prev => {
+        const messagesToAdd = Array.isArray(incoming) ? incoming : [incoming];
+        const next = [...prev];
+        messagesToAdd.forEach(message => {
+          const index = next.findIndex(item => item.id === message.id);
+          if (index >= 0) {
+            next[index] = { ...next[index], ...message };
+          } else {
+            next.push(message);
+          }
+        });
+        return next;
+      });
+      return;
+    }
+    setMessages(prev => upsertJobMessages(prev, jobId, incoming) as Message[]);
+  };
+
+  const initializeBackendJobCards = (jobId: string, execId: string, modeName: string) => {
+    upsertJobMessagesState(jobId, {
+      id: execId,
+      type: 'execution',
+      content: '',
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      jobId,
+      executionSteps: [{
+        id: `${execId}-accepted`,
+        name: modeName === 'pilot' ? 'Backend Pilot' : 'Backend Run',
+        status: 'running',
+        log: 'Backend job accepted.',
+      }],
+    });
+    if (modeName === 'pilot') {
+      upsertJobMessagesState(jobId, {
+        ...buildPilotLifecycleMessage(
+          jobId,
+          new Date().toLocaleTimeString('en-US', { hour12: false }),
+        ),
+        jobId,
+      } as Message);
+    }
+  };
+
+  const stageTimelineLog = (event: any, phase: 'started' | 'completed') => {
+    const backendEvent = event.backend_event || {};
+    const stage = String(backendEvent.stage || 'backend');
+    const success = backendEvent.success !== false;
+    const label = stageLabel(stage);
+    return {
+      source: 'stage',
+      step: stage,
+      level: phase === 'completed' ? (success ? 'SUCCESS' : 'ERROR') : 'INFO',
+      message: phase === 'completed'
+        ? `${label}: ${success ? 'completed' : 'failed'}`
+        : `${label}: running`,
+      icon: phase === 'completed' ? (success ? '✅' : '❌') : '',
+      attempt_id: backendEvent.attempt_id,
+    };
+  };
+
+  const stageLabel = (stage: string) => {
+    const labels: Record<string, string> = {
+      clarification: 'Clarification',
+      clarification_llm: 'Clarification LLM',
+      goal_clarification: 'Goal clarification',
+      security_checker_clarification: 'Checker clarification',
+      pilot_goal_clarification: 'Pilot goal clarification',
+      planner: 'Planner',
+      pipeline_generation: 'Pipeline generation',
+      execution: 'Execution',
+      judge: 'Judge',
+    };
+    return labels[stage] || stage.replace(/_/g, ' ');
+  };
+
   const updateExecutionMessage = (
     execId: string,
     status: ExecutionStep['status'],
     log: string,
-    name: string = 'Backend Run'
+    name: string = 'Backend Run',
+    jobId?: string,
   ) => {
     setMessages(prev => prev.map(message => {
       if (message.id !== execId || message.type !== 'execution') return message;
@@ -1117,6 +1404,7 @@ log_step("Final audit package saved")`;
       };
       return {
         ...message,
+        jobId: message.jobId || jobId,
         executionSteps: [{
           ...currentStep,
           name,
@@ -1130,26 +1418,26 @@ log_step("Final audit package saved")`;
   const ensureExecutionTimeline = (
     execId: string,
     tools: string[] = [],
-    initialLog: string = 'Pipeline generated. Executing DSL.'
+    initialLog: string = 'Pipeline generated. Executing DSL.',
+    jobId?: string,
   ) => {
     const stepNames = tools.length > 0 ? tools : ['Backend Run'];
     setMessages(prev => {
       if (prev.some(message => message.id === execId)) return prev;
-      return [
-        ...prev,
-        {
+      const message = {
           id: execId,
           type: 'execution',
           content: '',
           timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+          jobId,
           executionSteps: stepNames.map((tool, idx) => ({
             id: `${execId}-step-${idx}`,
             name: tool,
             status: idx === 0 ? 'running' : 'pending',
             log: idx === 0 ? initialLog : 'Pending...'
           }))
-        }
-      ];
+        } as Message;
+      return jobId ? upsertJobMessages(prev, jobId, message) as Message[] : [...prev, message];
     });
   };
 
@@ -1166,29 +1454,74 @@ log_step("Final audit package saved")`;
         ...message,
         executionSteps: message.executionSteps.map(step => ({
           ...step,
-          status,
-          log
+          status: step.status === 'running' || step.status === 'pending' ? status : step.status,
+          log: step.status === 'running' || step.status === 'pending' ? log : step.log,
         }))
       };
     }));
   };
 
-  const addPipelineMessage = (jobId: string | undefined, pipeline: string, llmMetadata?: any) => {
+  const appendExecutionTimelineLog = (execId: string, backendLog: any, jobId?: string) => {
+    const runtimeStep = executionStepFromBackendLog(backendLog) as ExecutionStep | null;
+    if (!runtimeStep) return;
+
+    setMessages(prev => {
+      const messageIndex = prev.findIndex(message => message.id === execId && message.type === 'execution');
+      const normalizeSteps = (steps: ExecutionStep[]) => {
+        const existingIndex = steps.findIndex(step => step.id === runtimeStep.id);
+        const nextSteps = runtimeStep.status === 'running'
+          ? steps.map(step => step.status === 'running' ? { ...step, status: 'success' as const } : step)
+          : steps;
+        if (existingIndex >= 0) {
+          return nextSteps.map((step, index) => index === existingIndex ? { ...step, ...runtimeStep } : step);
+        }
+        return [...nextSteps, runtimeStep];
+      };
+
+      if (messageIndex === -1) {
+        const message = {
+            id: execId,
+            type: 'execution',
+            content: '',
+            timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+            jobId,
+            executionSteps: [runtimeStep],
+          } as Message;
+        return jobId ? upsertJobMessages(prev, jobId, message) as Message[] : [...prev, message];
+      }
+
+      const next = prev.map((message, index) => {
+        if (index !== messageIndex || message.type !== 'execution') return message;
+        return {
+          ...message,
+          jobId: message.jobId || jobId,
+          executionSteps: normalizeSteps(message.executionSteps || []),
+        };
+      });
+      return jobId ? upsertJobMessages(next, jobId, []) as Message[] : next;
+    });
+  };
+
+  const addPipelineMessage = (
+    jobId: string | undefined,
+    pipeline: string,
+    llmMetadata?: any,
+    messageScope?: string,
+  ) => {
     if (!pipeline) return;
-    const pipelineId = `${jobId || 'backend'}-pipeline`;
+    const pipelineId = `${jobId || 'backend'}${messageScope ? `-${messageScope}` : ''}-pipeline`;
     setMessages(prev => {
       if (prev.some(message => message.id === pipelineId)) return prev;
       const elapsed = llmMetadata?.elapsed_seconds !== undefined ? ` · ${llmMetadata.elapsed_seconds}s` : '';
       const header = llmMetadata?.model ? `# model: ${llmMetadata.model}${elapsed}\n` : '';
-      return [
-        ...prev,
-        {
+      const message = {
           id: pipelineId,
           type: 'pipeline',
           content: `${header}pipeline:\n${pipeline}`,
-          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
-        }
-      ];
+          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+          jobId,
+        } as Message;
+      return jobId ? upsertJobMessages(prev, jobId, message) as Message[] : [...prev, message];
     });
   };
 
@@ -1204,18 +1537,45 @@ log_step("Final audit package saved")`;
     ]);
   };
 
-  const startBackendRun = async (command: string, sessionId?: string) => {
+  const startBackendRun = async (
+    command: string,
+    sessionId?: string,
+    options: { budgetSteps?: number } = {}
+  ) => {
     const execId = Date.now().toString() + '-backend-exec';
     setHeaderStatus('PROCESSING');
     setLogs([]);
     setBestScore('NA');
+    setRunResultData(null);
 
     try {
-      const submitted = await createRun(command, sessionId);
+      const submitted = sessionId
+        ? await createSessionRun(sessionId, command, options)
+        : await createRun(command, sessionId);
+      runLastEventIdRef.current[submitted.job_id] = 0;
+      runSeenEventIdsRef.current[submitted.job_id] = new Set<number>();
+      if (sessionId) {
+        runSessionByJobRef.current[submitted.job_id] = sessionId;
+      }
+      if (options.budgetSteps && submitted.mode === 'pilot') {
+        pilotBudgetByJobRef.current[submitted.job_id] = options.budgetSteps;
+      }
+      setSessions(prev => prev.map(session => (
+        session.id === sessionId
+          ? {
+            ...session,
+            jobId: submitted.job_id,
+            status: 'running',
+            locked: false,
+            backendMode: submitted.mode || session.backendMode,
+          }
+          : session
+      )));
       setLogs(prev => [
         ...prev,
         `[${new Date().toLocaleTimeString('en-US', { hour12: false })}] [INFO] Backend job ${submitted.job_id} started`
       ]);
+      initializeBackendJobCards(submitted.job_id, execId, submitted.mode || 'run');
 
       const source = subscribeRunEvents(submitted.job_id, {
         onEvent: (event: any) => handleBackendRunEvent(event, execId),
@@ -1239,8 +1599,41 @@ log_step("Final audit package saved")`;
   };
 
   const handleBackendRunEvent = (event: any, execId: string) => {
+    const eventJobId = event.job_id as string | undefined;
+    const eventId = Number(event.event_id || 0);
+    if (eventJobId && eventId > 0) {
+      const seen = runSeenEventIdsRef.current[eventJobId] || new Set<number>();
+      if (seen.has(eventId)) return;
+      seen.add(eventId);
+      runSeenEventIdsRef.current[eventJobId] = seen;
+      runLastEventIdRef.current[eventJobId] = Math.max(
+        runLastEventIdRef.current[eventJobId] || 0,
+        eventId,
+      );
+    }
+
+    if (String(event.type || '').startsWith('pilot.')) {
+      if (event.type === 'pilot.pipeline' && event.pipeline) {
+        addPipelineMessage(event.job_id, event.pipeline, event.llm, event.attempt_id || 'attempt');
+        ensureExecutionTimeline(
+          execId,
+          extractPipelineTools(event.pipeline),
+          `${event.attempt_id || 'Pilot'} pipeline generated.`,
+          event.job_id,
+        );
+      }
+      updatePilotLifecycle(event);
+      return;
+    }
+
     if (event.type === 'job.running') {
-      updateExecutionMessage(execId, 'running', 'Backend pipeline is running.');
+      updateExecutionMessage(
+        execId,
+        'running',
+        event.mode === 'pilot' ? 'Backend pilot is running.' : 'Backend pipeline is running.',
+        event.mode === 'pilot' ? 'Backend Pilot' : 'Backend Run',
+        event.job_id,
+      );
       return;
     }
 
@@ -1250,9 +1643,7 @@ log_step("Final audit package saved")`;
       setHeaderStatus('PENDING');
       setMessages(prev => {
         if (prev.some(message => message.id === checkpointMsgId)) return prev;
-        return [
-          ...prev,
-          {
+        const message = {
             id: checkpointMsgId,
             type: 'clarification',
             content: '',
@@ -1265,11 +1656,11 @@ log_step("Final audit package saved")`;
             checkpointId: event.checkpoint_id,
             checkpointType: event.checkpoint_type,
             timestamp: new Date().toLocaleTimeString('en-US', { hour12: false })
-          }
-        ];
+          } as Message;
+        return event.job_id ? upsertJobMessages(prev, event.job_id, message) as Message[] : [...prev, message];
       });
       setReplyingTo(checkpointMsgId);
-      updateExecutionMessage(execId, 'running', 'Waiting for clarification.');
+      updateExecutionMessage(execId, 'running', 'Waiting for clarification.', 'Backend Run', event.job_id);
       return;
     }
 
@@ -1284,42 +1675,40 @@ log_step("Final audit package saved")`;
       const tools = extractPipelineTools(pipeline);
       setPipelineTools(tools);
       addPipelineMessage(event.job_id, pipeline, event.llm_metadata);
-      ensureExecutionTimeline(execId, tools, 'Pipeline generated. Executing DSL.');
-      updateExecutionMessage(execId, 'running', 'Pipeline generated. Executing DSL.');
+      ensureExecutionTimeline(execId, tools, 'Pipeline generated. Executing DSL.', event.job_id);
       return;
     }
 
     if (event.type === 'backend.stage_started') {
-      const stage = event.backend_event?.stage;
-      if (stage === 'execution') {
-        updateExecutionMessage(execId, 'running', 'Runtime execution started.');
-      }
+      appendExecutionTimelineLog(execId, stageTimelineLog(event, 'started'), event.job_id);
       return;
     }
 
     if (event.type === 'backend.stage_completed') {
-      const stage = event.backend_event?.stage;
-      if (stage === 'execution') {
-        updateExecutionMessage(
-          execId,
-          event.backend_event?.success === false ? 'error' : 'success',
-          event.backend_event?.success === false ? 'Runtime execution failed.' : 'Runtime execution completed.'
-        );
-      }
+      appendExecutionTimelineLog(execId, stageTimelineLog(event, 'completed'), event.job_id);
       return;
     }
 
     if (event.type === 'log.appended') {
       setLogs(prev => mergeRunLogLines(prev, [formatBackendLog(event.log)]));
+      appendExecutionTimelineLog(execId, event.log, event.job_id);
       return;
     }
 
     if (event.type === 'job.completed') {
+      if (event.mode === 'pilot' || event.pilot_summary) {
+        completeBackendPilot(event.job_id, execId, event);
+        return;
+      }
       completeBackendRun(event.job_id, execId, event);
       return;
     }
 
     if (event.type === 'job.failed') {
+      if (event.mode === 'pilot' || event.pilot_summary || event.attempts) {
+        failBackendPilot(event.job_id, execId, event);
+        return;
+      }
       failBackendRun(event.job_id, execId, event.error || event.execution?.error || 'Backend Run failed.');
     }
   };
@@ -1340,12 +1729,54 @@ log_step("Final audit package saved")`;
     }
   };
 
+  const replayRunEventsSince = async (jobId: string, execId: string) => {
+    const events = await replayRunEvents(jobId, runLastEventIdRef.current[jobId] || 0);
+    events.forEach((event: any) => handleBackendRunEvent(event, execId));
+  };
+
   const startRunStatusPolling = (jobId: string, execId: string) => {
     stopRunStatusPolling(jobId);
     runPollersRef.current[jobId] = window.setInterval(async () => {
       try {
+        await replayRunEventsSince(jobId, execId);
+        if (runPollersRef.current[jobId] === undefined) {
+          return;
+        }
         const job = await fetchJob(jobId);
+        const stream = runStreamsRef.current[jobId];
+        const usePollingFallback = shouldUseRunStatusPollingFallback(stream?.readyState);
+        if (job.mode === 'pilot' && usePollingFallback) {
+          syncPilotLifecycleFromJob(job);
+        }
         if (job.status === 'completed') {
+          if (!usePollingFallback) {
+            return;
+          }
+          if (job.mode === 'pilot' || job.result?.metadata?.pilot_summary) {
+            completeBackendPilot(jobId, execId, {
+              job_id: jobId,
+              mode: 'pilot',
+              status: 'success',
+              result: job.result?.result ?? job.result,
+              execution: {
+                result: job.result?.result ?? job.result,
+                artifacts: job.result?.artifacts || {},
+                metadata: job.result?.metadata || {},
+                logs: job.result?.logs || [],
+                error: null
+              },
+              attempts: job.attempts || [],
+              best_attempt: job.best_attempt || {
+                attempt_id: job.result?.metadata?.best_attempt_id,
+                judge: job.result?.metadata?.judge || {},
+              },
+              pilot_summary: job.pilot_summary || job.result?.metadata?.pilot_summary || {},
+              approved_asset_ids: job.result?.metadata?.approved_asset_ids || [],
+              candidate_asset_ids: job.candidate_asset_ids || [],
+              clarification: job.result?.metadata?.goal_clarification || {},
+            });
+            return;
+          }
           completeBackendRun(jobId, execId, {
             job_id: jobId,
             pipeline: job.pipeline,
@@ -1367,6 +1798,34 @@ log_step("Final audit package saved")`;
             capability_gap: job.capability_gap || {}
           });
         } else if (job.status === 'failed') {
+          if (!usePollingFallback) {
+            return;
+          }
+          if (job.mode === 'pilot' || job.result?.metadata?.pilot_summary) {
+            failBackendPilot(jobId, execId, {
+              job_id: jobId,
+              mode: 'pilot',
+              status: 'failed',
+              error: job.error || 'Backend Pilot failed.',
+              result: job.result?.result ?? null,
+              execution: {
+                result: job.result?.result ?? null,
+                artifacts: job.result?.artifacts || {},
+                metadata: job.result?.metadata || {},
+                logs: job.result?.logs || [],
+                error: job.error || 'Backend Pilot failed.'
+              },
+              attempts: job.attempts || [],
+              best_attempt: job.best_attempt || {
+                attempt_id: job.result?.metadata?.best_attempt_id,
+                judge: job.result?.metadata?.judge || {},
+              },
+              pilot_summary: job.pilot_summary || job.result?.metadata?.pilot_summary || {},
+              approved_asset_ids: job.result?.metadata?.approved_asset_ids || [],
+              candidate_asset_ids: job.candidate_asset_ids || [],
+            });
+            return;
+          }
           failBackendRun(jobId, execId, job.error || 'Backend Run failed.');
         } else if (job.status === 'paused') {
           const checkpointEvent = checkpointEventFromJob(job);
@@ -1379,7 +1838,7 @@ log_step("Final audit package saved")`;
       } catch (_error) {
         // Keep SSE as the primary transport; polling is only a state reconciliation fallback.
       }
-    }, 2000);
+    }, 1000);
   };
 
   const completeBackendRun = (jobId: string, execId: string, event: any) => {
@@ -1387,62 +1846,232 @@ log_step("Final audit package saved")`;
     closeRunStream(jobId);
     if (event.pipeline) {
       addPipelineMessage(jobId, event.pipeline, event.llm_metadata);
-      ensureExecutionTimeline(execId, extractPipelineTools(event.pipeline), 'Backend Run completed.');
+      ensureExecutionTimeline(execId, extractPipelineTools(event.pipeline), 'Backend Run completed.', jobId);
     }
     setLogs(prev => mergeRunLogLines(prev, logsFromRunCompletion(event)));
     const resultData = normalizeRunResultData(event);
     setBestScore(resultData.score);
+    setRunResultData(resultData);
     completeExecutionTimeline(execId, 'success', 'Backend Run completed.');
     setMessages(prev => {
       if (prev.some(message => message.id === `${jobId}-result`)) return prev;
-      return [
-        ...prev,
-        {
-          id: `${jobId}-result`,
-          type: 'result',
-          content: 'RUN Execution Completed',
-          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-          resultData
-        }
-      ];
+      return upsertJobMessages(prev, jobId, buildRunCompletionResultMessage(
+          jobId,
+          resultData,
+          new Date().toLocaleTimeString('en-US', { hour12: false })
+        ) as Message) as Message[];
     });
     setHeaderStatus('STABLE');
     setExecutingSessionId(null);
+    const completedSessionId = runSessionByJobRef.current[jobId];
+    setSessions(prev => prev.map(session => (
+      session.jobId === jobId || session.id === completedSessionId
+        ? { ...session, jobId, status: 'completed', locked: true }
+        : session
+    )));
+  };
+
+  const updatePilotLifecycle = (event: any) => {
+    setHeaderStatus('PROCESSING');
+    setAttempts(prev => {
+      const next = applyPilotEventToAttempts(prev, event) as Attempt[];
+      const maxScore = next.length ? Math.max(...next.map(attempt => Number(attempt.score || 0))) : 0;
+      setBestScore(next.length ? maxScore : 'NA');
+      return next;
+    });
+    setMessages(prev => {
+      const lifecycleId = pilotLifecycleMessageId(event.job_id);
+      const lifecycleMessage = {
+        ...buildPilotLifecycleMessage(
+          event.job_id,
+          new Date().toLocaleTimeString('en-US', { hour12: false }),
+        ),
+        jobId: event.job_id,
+      } as Message;
+      const baseMessages = prev.some(message => message.id === lifecycleId)
+        ? prev
+        : upsertJobMessages(prev, event.job_id, lifecycleMessage) as Message[];
+      const next = baseMessages.map(message => (
+        message.id === lifecycleId && message.type === 'lifecycle'
+          ? { ...message, attempts: applyPilotEventToAttempts(message.attempts || attempts, event) as Attempt[] }
+          : message
+      ));
+      return upsertJobMessages(next, event.job_id, []) as Message[];
+    });
+  };
+
+  const pilotBudgetFromMessages = () => {
+    const attemptQuestion = [...messages].reverse().find(
+      message => message.checkpointType === 'pilot_attempt_count'
+    );
+    const parsed = parsePilotAttemptCount(
+      attemptQuestion?.userReply || attemptQuestion?.resolvedText || ''
+    );
+    return parsed.ok ? parsed.value : null;
+  };
+
+  const syncPilotLifecycleFromJob = (job: any) => {
+    if (job?.mode !== 'pilot' || !Array.isArray(job.attempts) || job.attempts.length === 0) {
+      return;
+    }
+    const totalAttempts = (
+      pilotBudgetByJobRef.current[job.job_id] ||
+      pilotBudgetFromMessages() ||
+      job.budget_steps ||
+      job.attempt_count ||
+      job.attempts.length
+    );
+    const lifecycleAttempts = buildPilotAttemptsFromBackendAttempts(
+      job.attempts,
+      totalAttempts
+    ) as Attempt[];
+    setAttempts(lifecycleAttempts);
+    const maxScore = lifecycleAttempts.length
+      ? Math.max(...lifecycleAttempts.map(attempt => Number(attempt.score || 0)))
+      : 0;
+    setBestScore(lifecycleAttempts.length ? maxScore : 'NA');
+    job.attempts.forEach((attempt: any) => {
+      if (attempt?.pipeline) {
+        addPipelineMessage(
+          job.job_id,
+          attempt.pipeline,
+          attempt.pipeline_llm,
+          attempt.attempt_id || 'attempt',
+        );
+      }
+    });
+    setMessages(prev => {
+      const lifecycleId = pilotLifecycleMessageId(job.job_id);
+      const lifecycleMessage = {
+        ...buildPilotLifecycleMessage(
+          job.job_id,
+          new Date().toLocaleTimeString('en-US', { hour12: false }),
+        ),
+        jobId: job.job_id,
+      } as Message;
+      const baseMessages = prev.some(message => message.id === lifecycleId)
+        ? prev
+        : upsertJobMessages(prev, job.job_id, lifecycleMessage) as Message[];
+      const next = baseMessages.map(message => (
+        message.id === lifecycleId && message.type === 'lifecycle'
+          ? { ...message, attempts: lifecycleAttempts }
+          : message
+      ));
+      return upsertJobMessages(next, job.job_id, []) as Message[];
+    });
+  };
+
+  useEffect(() => {
+    if (!activeSession?.jobId) return;
+    const isPilotSession =
+      String(activeSession.backendMode || '').toLowerCase() === 'pilot' ||
+      String(activeSession.mode || '').toUpperCase() === 'PILOT';
+    if (!isPilotSession) return;
+
+    let cancelled = false;
+    fetchJob(activeSession.jobId)
+      .then(job => {
+        if (!cancelled) {
+          syncPilotLifecycleFromJob(job);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSession?.jobId, activeSession?.backendMode, activeSession?.mode]);
+
+  const completeBackendPilot = (jobId: string, execId: string, event: any) => {
+    stopRunStatusPolling(jobId);
+    closeRunStream(jobId);
+    setLogs(prev => mergeRunLogLines(prev, logsFromRunCompletion(event)));
+    const summaryMessage = buildPilotSummaryMessage(
+      event,
+      new Date().toLocaleTimeString('en-US', { hour12: false })
+    ) as Message;
+    const candidateMessage = buildRejectedPilotToolCandidateMessage(
+      event,
+      new Date().toLocaleTimeString('en-US', { hour12: false })
+    ) as Message;
+    const resultMessage = buildPilotCompletionResultMessage(
+      event,
+      new Date().toLocaleTimeString('en-US', { hour12: false })
+    ) as Message;
+    setRunResultData(resultMessage.resultData || null);
+    setBestScore(resultMessage.resultData?.score ?? 'NA');
+    completeExecutionTimeline(execId, 'success', 'Pilot completed.');
+    setMessages(prev => upsertJobMessages(
+      prev,
+      jobId,
+      [summaryMessage, candidateMessage, resultMessage],
+    ) as Message[]);
+    setHeaderStatus('STABLE');
+    setExecutingSessionId(null);
+    const completedSessionId = runSessionByJobRef.current[jobId];
+    setSessions(prev => prev.map(session => (
+      session.jobId === jobId || session.id === completedSessionId
+        ? { ...session, jobId, status: 'completed', locked: true }
+        : session
+    )));
+  };
+
+  const failBackendPilot = (jobId: string, execId: string, event: any) => {
+    stopRunStatusPolling(jobId);
+    closeRunStream(jobId);
+    setLogs(prev => mergeRunLogLines(prev, logsFromRunCompletion(event)));
+    ensureExecutionTimeline(execId, ['Backend Pilot'], event.error || 'Pilot failed.', jobId);
+    completeExecutionTimeline(execId, 'error', event.error || 'Pilot failed.');
+    const summaryMessage = buildPilotSummaryMessage(
+      event,
+      new Date().toLocaleTimeString('en-US', { hour12: false })
+    ) as Message;
+    const candidateMessage = buildRejectedPilotToolCandidateMessage(
+      event,
+      new Date().toLocaleTimeString('en-US', { hour12: false })
+    ) as Message;
+    const resultMessage = buildPilotCompletionResultMessage(
+      { ...event, type: 'job.failed' },
+      new Date().toLocaleTimeString('en-US', { hour12: false })
+    ) as Message;
+    setRunResultData(resultMessage.resultData || null);
+    setMessages(prev => upsertJobMessages(
+      prev,
+      jobId,
+      [summaryMessage, candidateMessage, resultMessage],
+    ) as Message[]);
+    setHeaderStatus('STABLE');
+    setExecutingSessionId(null);
+    const failedSessionId = runSessionByJobRef.current[jobId];
+    setSessions(prev => prev.map(session => (
+      session.jobId === jobId || session.id === failedSessionId
+        ? { ...session, jobId, status: 'failed', locked: true }
+        : session
+    )));
   };
 
   const failBackendRun = (jobId: string, execId: string, error: string) => {
     stopRunStatusPolling(jobId);
     closeRunStream(jobId);
-    ensureExecutionTimeline(execId, ['Backend Run'], error);
+    ensureExecutionTimeline(execId, ['Backend Run'], error, jobId);
     completeExecutionTimeline(execId, 'error', error);
+    const failedMessage = buildRunFailureResultMessage(
+      jobId,
+      error,
+      new Date().toLocaleTimeString('en-US', { hour12: false })
+    ) as Message;
+    setRunResultData(failedMessage.resultData || null);
     setMessages(prev => {
       if (prev.some(message => message.id === `${jobId}-failed`)) return prev;
-      return [
-        ...prev,
-        {
-          id: `${jobId}-failed`,
-          type: 'result',
-          content: 'RUN Execution Failed',
-          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-          resultData: {
-            score: 0,
-            flaggedSamples: 0,
-            approvedAssets: 0,
-            allFailed: true,
-            rawResult: null,
-            artifacts: {},
-            metadata: {},
-            clarification: {},
-            capabilityGap: {},
-            logs: [],
-            error,
-            jobId
-          }
-        }
-      ];
+      return upsertJobMessages(prev, jobId, failedMessage) as Message[];
     });
     setHeaderStatus('STABLE');
     setExecutingSessionId(null);
+    const failedSessionId = runSessionByJobRef.current[jobId];
+    setSessions(prev => prev.map(session => (
+      session.jobId === jobId || session.id === failedSessionId
+        ? { ...session, jobId, status: 'failed', locked: true }
+        : session
+    )));
   };
 
   const submitBackendCheckpointReply = async (message: Message, reply: string) => {
@@ -1460,11 +2089,11 @@ log_step("Final audit package saved")`;
     setInput('');
     setHeaderStatus('PROCESSING');
     try {
-      await answerCheckpoint(message.jobId, message.checkpointId, {
-        decision: 'answer',
-        answer: reply,
-        approved: /^(allow|approve|yes|y|ok|okay|好|可以|是)$/i.test(reply.trim())
-      });
+      await answerCheckpoint(
+        message.jobId,
+        message.checkpointId,
+        pilotCheckpointAnswerPayload(message, reply),
+      );
     } catch (error: any) {
       appendSystemMessage(`Failed to answer backend checkpoint: ${String(error?.message || error)}`);
       setHeaderStatus('STABLE');
@@ -1472,36 +2101,150 @@ log_step("Final audit package saved")`;
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const submitSessionModeSelection = async (message: Message, reply: string) => {
+    if (!activeSession) return;
+    const normalized = reply.trim().toLowerCase();
+    const selectedMode = normalized.includes('pilot')
+      ? 'pilot'
+      : normalized.includes('run')
+        ? 'run'
+        : '';
+    if (!selectedMode) {
+      appendSystemMessage('Please choose either run or pilot for this session.');
+      return;
+    }
+
+    setInput('');
+    setHeaderStatus('PROCESSING');
+    try {
+      const saved = await setSessionMode(activeSession.id, selectedMode);
+      const displayMode = String(saved.mode || selectedMode).toUpperCase();
+      setMode(displayMode);
+      const promptMessage = buildModeCommandPromptMessage(
+        activeSession.id,
+        selectedMode
+      ) as Message;
+      setMessages(prev => {
+        const resolvedMessages = prev.map(item => (
+          item.id === message.id
+            ? {
+              ...item,
+              status: 'resolved' as const,
+              userReply: reply,
+              resolvedText: `Resolved: mode = ${selectedMode}`
+            }
+            : item
+        ));
+        if (resolvedMessages.some(item => item.id === promptMessage.id)) {
+          return resolvedMessages;
+        }
+        return [...resolvedMessages, promptMessage];
+      });
+      setSessions(prev => prev.map(session => (
+        session.id === activeSession.id
+          ? {
+            ...session,
+            mode: displayMode,
+            backendMode: saved.backend_mode || 'run',
+            status: saved.status || 'mode_selected',
+            locked: Boolean(saved.locked),
+          }
+          : session
+      )));
+      setReplyingTo(null);
+      setHeaderStatus('IDLE');
+    } catch (error: any) {
+      appendSystemMessage(`Failed to set session mode: ${String(error?.message || error)}`);
+      setHeaderStatus('STABLE');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cmd = input.trim();
     if (!cmd) return;
 
+    if (!activeSession) {
+      await createAndActivateSession();
+      return;
+    }
+
+    if (activeSession.locked && !replyingTo) {
+      appendSystemMessage('This session is locked because its backend job has finished. Create a new session to continue.');
+      setInput('');
+      return;
+    }
+
     setHeaderStatus('STABLE');
 
-    if (activeSession && (activeSession.name === 'Untitled' || activeSession.name === 'new_session')) {
+    if (!replyingTo && activeSession && (activeSession.name === 'Untitled' || activeSession.name === 'new_session')) {
       const newName = extractTaskName(cmd);
       setSessions(prev => prev.map(s => 
         s.id === activeSession.id ? { ...s, name: newName } : s
       ));
+      updateSession(activeSession.id, { name: newName }).catch(() => {});
     }
 
     const lowerCmd = cmd.toLowerCase();
     const parsedCommand = parseUserCommand(cmd);
     
-    // Handle mode change if not replying to clarification
-    let detectedMode = mode;
-    
+    let detectedMode = activeSession.mode || mode;
+
+    if (!replyingTo && sessionNeedsMode(activeSession)) {
+      const modeMessage = createModeSelectionMessage(activeSession.id);
+      setMessages(prev => (
+        prev.some(message => message.checkpointType === 'mode_selection')
+          ? prev
+          : [modeMessage, ...prev]
+      ));
+      setReplyingTo(modeMessage.id);
+      setHeaderStatus('PENDING');
+      setInput('');
+      return;
+    }
     if (!replyingTo) {
-      detectedMode = parsedCommand.mode;
-      if (detectedMode !== mode) {
-        setMode(detectedMode);
-      }
+      detectedMode = (activeSession.mode || mode || parsedCommand.mode || 'RUN').toUpperCase();
     }
 
     if (replyingTo) {
       // Resolve a clarification
       const clarifiedMsg = messages.find(m => m.id === replyingTo);
+      if (clarifiedMsg?.checkpointType === 'mode_selection') {
+        await submitSessionModeSelection(clarifiedMsg, cmd);
+        return;
+      }
+      if (clarifiedMsg?.checkpointType === 'pilot_attempt_count') {
+        const parsedAttempts = parsePilotAttemptCount(cmd);
+        if (!parsedAttempts.ok) {
+          appendSystemMessage('请输入 1 到 10 之间的 attempt 轮数。');
+          setInput('');
+          setHeaderStatus('PENDING');
+          return;
+        }
+        const pendingCommand = clarifiedMsg.pendingCommand;
+        if (!pendingCommand) {
+          appendSystemMessage('Pilot command is missing. Please start a new pilot session.');
+          setReplyingTo(null);
+          setInput('');
+          setHeaderStatus('STABLE');
+          return;
+        }
+        setMessages(prev => prev.map(item => (
+          item.id === clarifiedMsg.id
+            ? {
+              ...item,
+              status: 'resolved' as const,
+              userReply: cmd,
+              resolvedText: `Resolved: attempts = ${parsedAttempts.value}`
+            }
+            : item
+        )));
+        setReplyingTo(null);
+        setInput('');
+        setHeaderStatus('PROCESSING');
+        startBackendRun(pendingCommand, activeSession?.id, { budgetSteps: parsedAttempts.value });
+        return;
+      }
       if (clarifiedMsg?.jobId && clarifiedMsg?.checkpointId) {
         submitBackendCheckpointReply(clarifiedMsg, cmd);
         return;
@@ -1998,6 +2741,20 @@ log_step("Final audit package saved")`;
       setActiveTool(matchedTool);
     } else {
       setActiveTool(null);
+    }
+
+    if (detectedMode === 'PILOT') {
+      const attemptQuestion = buildPilotAttemptClarificationMessage({
+        sessionId: activeSession.id,
+        command: cmd,
+        timestamp: timestampNow(),
+      }) as Message;
+      setMessages([...nextMessages, attemptQuestion]);
+      setReplyingTo(attemptQuestion.id);
+      setHeaderStatus('PENDING');
+      setExecutingSessionId(null);
+      setInput('');
+      return;
     }
 
     if (detectedMode === 'RUN') {
@@ -2545,40 +3302,6 @@ log_step("Final audit package saved")`;
                             </div>
                           </div>
                         </div>
-                        {(msg.resultData.error || hasDisplayValue(msg.resultData.rawResult) || hasDisplayValue(msg.resultData.artifacts) || hasDisplayValue(msg.resultData.metadata)) && (
-                          <div className={cn("mt-4 pt-4 border-t text-xs font-mono flex flex-col gap-3", failed ? "border-red-500/40" : "border-gray-700/50")}>
-                            {msg.resultData.error && (
-                              <div className="p-3 bg-red-950/30 border border-red-700/50 text-red-300">
-                                <div className="text-[10px] uppercase tracking-wider mb-1 text-red-400">Error</div>
-                                <pre className="whitespace-pre-wrap break-words">{msg.resultData.error}</pre>
-                              </div>
-                            )}
-                            {hasDisplayValue(msg.resultData.rawResult) && (
-                              <div className="p-3 bg-black/40 border border-gray-700/50">
-                                <div className="text-[10px] uppercase tracking-wider mb-1 text-gray-400">Result</div>
-                                <pre className="whitespace-pre-wrap break-words text-gray-300 max-h-64 overflow-y-auto custom-scrollbar">
-                                  {formatJsonPreview(msg.resultData.rawResult)}
-                                </pre>
-                              </div>
-                            )}
-                            {hasDisplayValue(msg.resultData.artifacts) && (
-                              <div className="p-3 bg-black/40 border border-gray-700/50">
-                                <div className="text-[10px] uppercase tracking-wider mb-1 text-gray-400">Artifacts</div>
-                                <pre className="whitespace-pre-wrap break-words text-cyan-300">
-                                  {formatJsonPreview(msg.resultData.artifacts)}
-                                </pre>
-                              </div>
-                            )}
-                            {hasDisplayValue(msg.resultData.metadata) && (
-                              <div className="p-3 bg-black/40 border border-gray-700/50">
-                                <div className="text-[10px] uppercase tracking-wider mb-1 text-gray-400">Metadata</div>
-                                <pre className="whitespace-pre-wrap break-words text-gray-300 max-h-52 overflow-y-auto custom-scrollbar">
-                                  {formatJsonPreview(msg.resultData.metadata)}
-                                </pre>
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
                     </div>
                   );
@@ -2866,16 +3589,23 @@ log_step("Final audit package saved")`;
                   handleSubmit(e);
                 }
               }}
-              disabled={executingSessionId === activeSession?.id && !replyingTo}
+              disabled={!activeSession || Boolean(activeSession.locked) || (executingSessionId === activeSession?.id && !replyingTo)}
               className={`flex-1 bg-transparent font-mono p-3 outline-none text-sm resize-none overflow-hidden min-h-[2.5rem] ${
                 replyingTo ? 'text-red-400 placeholder:text-red-900/50' : 'text-white placeholder:text-gray-600'
-              } ${executingSessionId === activeSession?.id && !replyingTo ? 'opacity-50 cursor-not-allowed' : ''}`}
-              placeholder={replyingTo ? "Replying to clarification..." : "Enter command (e.g. elf run \"extract skills\") or natural language..."}
+              } ${(!activeSession || activeSession.locked || (executingSessionId === activeSession?.id && !replyingTo)) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              placeholder={
+                activeSession?.locked
+                  ? "Session finished. Create a new session to continue..."
+                  : replyingTo
+                    ? "Replying to clarification..."
+                    : "Enter command (e.g. elf run \"extract skills\") or natural language..."
+              }
               rows={1}
               autoFocus
             />
             <button
               type="submit"
+              disabled={!activeSession || Boolean(activeSession.locked)}
               className={`px-4 text-xs uppercase tracking-widest py-3 font-bold transition-colors cursor-pointer border-l self-stretch ${
                 replyingTo
                   ? 'text-red-500 hover:text-red-300 border-red-900/60 hover:bg-red-900/40'
@@ -2890,6 +3620,8 @@ log_step("Final audit package saved")`;
         <RightSidebar 
           activeTool={activeTool} 
           candidateTools={candidateTools}
+          datasets={catalogDatasets}
+          tools={catalogTools}
           onCandidateToolClick={(sessionId, messageId) => {
             handleSelectSession(sessionId);
             setTimeout(() => {
@@ -2924,6 +3656,7 @@ log_step("Final audit package saved")`;
         logs={logs}
         attempts={attempts}
         candidateJson={candidateJson}
+        runResultData={runResultData}
         height={footerHeight}
       />
     </div>
@@ -2944,24 +3677,4 @@ function extractPipelineTools(pipeline: string): string[] {
     return ['DataElf Pipeline'];
   }
   return ['Backend Run'];
-}
-
-function hasDisplayValue(value: any): boolean {
-  if (value === undefined || value === null) return false;
-  if (Array.isArray(value)) return value.length > 0;
-  if (typeof value === 'object') return Object.keys(value).length > 0;
-  return String(value).length > 0;
-}
-
-function formatJsonPreview(value: any): string {
-  if (Array.isArray(value) && value.length > 5) {
-    return JSON.stringify({
-      count: value.length,
-      preview: value.slice(0, 5)
-    }, null, 2);
-  }
-  if (typeof value === 'string') {
-    return value;
-  }
-  return JSON.stringify(value, null, 2);
 }

@@ -37,6 +37,101 @@ export function normalizeRunResultData(event) {
   };
 }
 
+export function buildRunCompletionResultMessage(jobId, resultData, timestamp) {
+  return {
+    id: `${jobId}-result`,
+    type: 'result',
+    content: 'RUN Execution Completed',
+    timestamp,
+    resultData,
+  };
+}
+
+export function buildRunFailureResultMessage(jobId, error, timestamp) {
+  return {
+    id: `${jobId}-failed`,
+    type: 'result',
+    content: 'RUN Execution Failed',
+    timestamp,
+    resultData: {
+      score: 0,
+      flaggedSamples: 0,
+      approvedAssets: 0,
+      allFailed: true,
+      rawResult: null,
+      artifacts: {},
+      metadata: {},
+      clarification: {},
+      capabilityGap: {},
+      logs: [],
+      error,
+      jobId,
+    },
+  };
+}
+
+export function buildRunSummaryRows(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) {
+    return [];
+  }
+
+  return Object.entries(result).map(([key, value]) => ({
+    key,
+    value: formatRunSummaryValue(value),
+    isNested: isNestedRunSummaryValue(value),
+  }));
+}
+
+function formatRunSummaryValue(value) {
+  if (value === null || value === undefined) {
+    return 'NA';
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return JSON.stringify(value, null, 2);
+}
+
+function isNestedRunSummaryValue(value) {
+  return Boolean(value && typeof value === 'object');
+}
+
+export function executionStepFromBackendLog(log) {
+  if (!log || typeof log !== 'object') {
+    return null;
+  }
+  const step = String(log.step || log.source || 'runtime');
+  const attemptId = log.attempt_id ? String(log.attempt_id) : '';
+  const level = String(log.level || '').toUpperCase();
+  const message = String(log.message || '');
+  const stepId = attemptId ? `${attemptId}-${step}` : step;
+  return {
+    id: `runtime-${stepId}`,
+    name: attemptId ? `${attemptId} ${step}` : (step === 'stage' ? 'Execution' : step),
+    status: backendLogStatus(level, step, message),
+    log: message,
+  };
+}
+
+function backendLogStatus(level, step, message) {
+  const lowered = message.toLowerCase();
+  if (level === 'ERROR' || level === 'CRITICAL' || lowered.includes('failed')) {
+    return 'error';
+  }
+  if (
+    step === 'job_end' ||
+    level === 'SUCCESS' ||
+    lowered.includes('completed') ||
+    lowered.includes('status=success')
+  ) {
+    return 'success';
+  }
+  return 'running';
+}
+
 export function formatBackendLog(log) {
   if (!log || typeof log !== 'object') {
     return String(log || '');
@@ -44,9 +139,11 @@ export function formatBackendLog(log) {
   const level = log.level || 'INFO';
   const message = log.message || '';
   const icon = log.icon || logIcon(log);
+  const attemptPrefix = log.attempt_id ? `${log.attempt_id} ` : '';
 
   if (log.source === 'stage') {
-    return icon ? `${icon} ${message}` : message;
+    const line = icon ? `${icon} ${message}` : message;
+    return `${attemptPrefix}${line}`.trim();
   }
 
   if (log.step) {
@@ -54,11 +151,11 @@ export function formatBackendLog(log) {
       ? Number(log.duration_ms)
       : 0;
     const prefix = `${icon ? `${icon} ` : ''}[${log.step} · ${duration}ms]`;
-    return `${prefix} ${message}`.trim();
+    return `${attemptPrefix}${prefix} ${message}`.trim();
   }
 
   const timestamp = log.timestamp || new Date().toLocaleTimeString('en-US', { hour12: false });
-  return `[${timestamp}] [${level}] ${message}`.trim();
+  return `${attemptPrefix}[${timestamp}] [${level}] ${message}`.trim();
 }
 
 function logIcon(log) {

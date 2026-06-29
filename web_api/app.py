@@ -6,6 +6,11 @@ from cli.common import bootstrap_environment
 
 from .service import RunSubmission, RunWebService
 
+try:
+    from fastapi import Request
+except ImportError:  # pragma: no cover - create_app raises a clearer dependency error.
+    Request = Any  # type: ignore
+
 
 def create_app(
     *,
@@ -14,7 +19,7 @@ def create_app(
     service: RunWebService | None = None,
 ):
     try:
-        from fastapi import FastAPI, HTTPException, Request
+        from fastapi import FastAPI, HTTPException
         from fastapi.middleware.cors import CORSMiddleware
         from fastapi.responses import StreamingResponse
     except ImportError as exc:
@@ -40,6 +45,82 @@ def create_app(
     @app.get("/api/v1/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/api/v1/sessions")
+    def list_sessions() -> dict[str, Any]:
+        return {"sessions": service.list_sessions()}
+
+    @app.post("/api/v1/sessions")
+    def create_session(payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        return service.create_session(payload or {})
+
+    @app.get("/api/v1/sessions/{session_id}")
+    def get_session(session_id: str) -> dict[str, Any]:
+        session = service.get_session(session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="session not found")
+        return session
+
+    @app.patch("/api/v1/sessions/{session_id}")
+    def update_session(session_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        session = service.update_session(session_id, payload)
+        if session is None:
+            raise HTTPException(status_code=404, detail="session not found")
+        return session
+
+    @app.delete("/api/v1/sessions/{session_id}")
+    def delete_session(session_id: str) -> dict[str, bool]:
+        deleted = service.delete_session(session_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="session not found")
+        return {"deleted": True}
+
+    @app.post("/api/v1/sessions/{session_id}/mode")
+    def set_session_mode(session_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        try:
+            session = service.set_session_mode(session_id, str(payload.get("mode", "")))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        if session is None:
+            raise HTTPException(status_code=404, detail="session not found")
+        return session
+
+    @app.post("/api/v1/sessions/{session_id}/snapshot")
+    def save_session_snapshot(session_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        snapshot = payload.get("snapshot", payload)
+        if not isinstance(snapshot, dict):
+            raise HTTPException(status_code=400, detail="snapshot must be an object")
+        session = service.save_session_snapshot(session_id, snapshot)
+        if session is None:
+            raise HTTPException(status_code=404, detail="session not found")
+        return session
+
+    @app.post("/api/v1/sessions/{session_id}/runs")
+    def submit_session_run(session_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        command = str(payload.get("command", "")).strip()
+        if not command:
+            raise HTTPException(status_code=400, detail="command is required")
+        budget_steps = payload.get("budget_steps")
+        if budget_steps is not None:
+            try:
+                budget_steps = int(budget_steps)
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(status_code=400, detail="budget_steps must be an integer") from exc
+            if budget_steps < 1 or budget_steps > 10:
+                raise HTTPException(status_code=400, detail="budget_steps must be between 1 and 10")
+        try:
+            response = service.submit_session_run(
+                session_id,
+                command=command,
+                budget_steps=budget_steps,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="session not found") from exc
+        except RuntimeError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return response.__dict__
 
     @app.post("/api/v1/runs")
     def submit_run(payload: dict[str, Any]) -> dict[str, Any]:
@@ -79,6 +160,13 @@ def create_app(
                 "Connection": "keep-alive",
             },
         )
+
+    @app.get("/api/v1/jobs/{job_id}/events/replay")
+    def replay_job_events(job_id: str, request: Request) -> dict[str, Any]:
+        if service.get_job(job_id) is None:
+            raise HTTPException(status_code=404, detail="job not found")
+        last_event_id = _parse_last_event_id(request)
+        return {"events": service.event_bus.replay(job_id, after_event_id=last_event_id)}
 
     @app.post("/api/v1/jobs/{job_id}/checkpoints/{checkpoint_id}/answer")
     def answer_checkpoint(

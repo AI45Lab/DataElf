@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  buildRunSummaryRows,
+  buildRunCompletionResultMessage,
+  buildRunFailureResultMessage,
+  executionStepFromBackendLog,
   formatBackendLog,
   logsFromRunCompletion,
   mergeRunLogLines,
@@ -96,5 +100,121 @@ test('formats stage logs and runtime logs like CLI output', () => {
       message: 'Completed tool: security_audit',
     }),
     '✅ [step_16 · 0ms] Completed tool: security_audit',
+  );
+});
+
+test('builds CLI-style summary rows from a run result object', () => {
+  const rows = buildRunSummaryRows({
+    security_score: 0.9778,
+    flagged_samples: 1,
+    safe_samples: 44,
+    total_samples: 45,
+    flagged_rate: 0.0222,
+    risk_distribution: {
+      pii: { total: 45, flagged: 1 },
+    },
+  });
+
+  assert.deepEqual(rows.slice(0, 5), [
+    { key: 'security_score', value: '0.9778', isNested: false },
+    { key: 'flagged_samples', value: '1', isNested: false },
+    { key: 'safe_samples', value: '44', isNested: false },
+    { key: 'total_samples', value: '45', isNested: false },
+    { key: 'flagged_rate', value: '0.0222', isNested: false },
+  ]);
+  assert.deepEqual(rows[5], {
+    key: 'risk_distribution',
+    value: '{\n  "pii": {\n    "total": 45,\n    "flagged": 1\n  }\n}',
+    isNested: true,
+  });
+});
+
+test('builds middle conversation result messages for completed and failed run jobs', () => {
+  const resultData = {
+    score: 97.78,
+    flaggedSamples: 1,
+    approvedAssets: 0,
+    rawResult: { security_score: 0.9778 },
+    jobId: 'job_1',
+  };
+
+  assert.deepEqual(
+    buildRunCompletionResultMessage('job_1', resultData, '12:00:00'),
+    {
+      id: 'job_1-result',
+      type: 'result',
+      content: 'RUN Execution Completed',
+      timestamp: '12:00:00',
+      resultData,
+    },
+  );
+  assert.deepEqual(
+    buildRunFailureResultMessage('job_2', 'failed', '12:01:00'),
+    {
+      id: 'job_2-failed',
+      type: 'result',
+      content: 'RUN Execution Failed',
+      timestamp: '12:01:00',
+      resultData: {
+        score: 0,
+        flaggedSamples: 0,
+        approvedAssets: 0,
+        allFailed: true,
+        rawResult: null,
+        artifacts: {},
+        metadata: {},
+        clarification: {},
+        capabilityGap: {},
+        logs: [],
+        error: 'failed',
+        jobId: 'job_2',
+      },
+    },
+  );
+});
+
+test('maps backend log entries into execution timeline steps', () => {
+  assert.deepEqual(
+    executionStepFromBackendLog({
+      step: 'step_4',
+      level: 'INFO',
+      message: 'Running security audit',
+    }),
+    {
+      id: 'runtime-step_4',
+      name: 'step_4',
+      status: 'running',
+      log: 'Running security audit',
+    },
+  );
+  assert.equal(
+    executionStepFromBackendLog({
+      step: 'step_16',
+      level: 'ERROR',
+      message: 'Pipeline failed',
+    }).status,
+    'error',
+  );
+  assert.equal(
+    executionStepFromBackendLog({
+      step: 'job_end',
+      level: 'INFO',
+      message: 'Job completed',
+    }).status,
+    'success',
+  );
+  assert.deepEqual(
+    executionStepFromBackendLog({
+      attempt_id: 'attempt_02',
+      step: 'step_4',
+      level: 'INFO',
+      message: 'Running security audit',
+    }),
+    {
+      id: 'runtime-attempt_02-step_4',
+      name: 'attempt_02 step_4',
+      status: 'running',
+      log: 'Running security audit',
+    },
   );
 });
