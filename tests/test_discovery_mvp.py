@@ -460,9 +460,19 @@ def test_dcode_extra_args_are_appended_and_agents_are_not_overwritten(tmp_path: 
     explorer = DeepAgentsCodeCliInsightsExplorer(extra_args='--max-turns 2 --no-mcp')
     command = explorer._build_command("hello", "openai:gpt-5.5")
     assert command[-5:] == ["--max-turns", "2", "--no-mcp", "-n", "hello"]
+    assert "-M" in command
+    assert "--model" not in command
+    assert "--model-params" in command
+    assert '{"use_responses_api": false}' in command
     assert "--max-turns" in command
     assert "--no-mcp" in command
     assert DEFAULT_DCODE_EXTRA_ARGS == ""
+
+    custom_params = DeepAgentsCodeCliInsightsExplorer(extra_args='--model-params {"temperature":0}')._build_command(
+        "hello",
+        "openai:gpt-5.5",
+    )
+    assert custom_params.count("--model-params") == 1
 
     workspace = tmp_path / "workspace"
     custom_agent = workspace / ".deepagents" / "agents" / "breadth-scout" / "AGENTS.md"
