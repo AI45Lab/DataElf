@@ -1,0 +1,5 @@
+{
+  "defaultProvider": "boyuerich-openai",
+  "defaultModel": "gpt-5.5",
+  "defaultThinkingLevel": "medium"
+}

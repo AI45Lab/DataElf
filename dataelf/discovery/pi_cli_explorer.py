@@ -38,18 +38,18 @@ class PiCliInsightsExplorer:
         pi_binary: str | None = None,
         model: str | None = None,
         mode: str | None = None,
+        cwd: str | Path | None = None,
         timeout_seconds: int | None = None,
         extra_args: str | None = None,
-        skill_paths: list[str] | None = None,
         approve_project: bool = True,
         stream_logs: bool | None = None,
     ):
         self.pi_binary = pi_binary or os.getenv("DATAELF_PI_BINARY")
         self.model = model if model is not None else os.getenv("DATAELF_PI_MODEL")
         self.mode = mode or os.getenv("DATAELF_PI_MODE", DEFAULT_PI_MODE)
+        self.cwd = Path(cwd) if cwd is not None else _repo_root()
         self.timeout_seconds = timeout_seconds
         self.extra_args = extra_args if extra_args is not None else os.getenv("DATAELF_PI_EXTRA_ARGS", DEFAULT_PI_EXTRA_ARGS)
-        self.skill_paths = skill_paths if skill_paths is not None else _skill_paths_from_env()
         self.approve_project = approve_project
         self.stream_logs = _env_bool("DATAELF_PI_STREAM_LOGS", DEFAULT_PI_STREAM_LOGS) if stream_logs is None else stream_logs
 
@@ -74,12 +74,13 @@ class PiCliInsightsExplorer:
         command = self._build_command(pi_binary, prompt_path)
         env = self._build_env(workspace_path, job, context)
         timeout = self.timeout_seconds or _timeout_seconds(job)
-        _write_json(logs_dir / "pi_command.json", {"command": _redact_command(command), "cwd": str(workspace_path)})
+        cwd = self.cwd.resolve()
+        _write_json(logs_dir / "pi_command.json", {"command": _redact_command(command), "cwd": str(cwd), "workspace_path": str(workspace_path)})
         _write_json(logs_dir / "pi_env_redacted.json", _redact_env(env))
 
-        logger.info("Starting Pi CLI: binary=%s mode=%s model=%s timeout=%ss", pi_binary, self.mode, self.model or "<pi default>", timeout)
+        logger.info("Starting Pi CLI: binary=%s mode=%s model=%s cwd=%s timeout=%ss", pi_binary, self.mode, self.model or "<pi default>", cwd, timeout)
         try:
-            completed = _run_pi_process(command, cwd=workspace_path, env=env, timeout=timeout, stream_logs=self.stream_logs)
+            completed = _run_pi_process(command, cwd=cwd, env=env, timeout=timeout, stream_logs=self.stream_logs)
         except subprocess.TimeoutExpired as exc:
             stdout = exc.stdout or ""
             stderr = (exc.stderr or "") + f"\nPi CLI timed out after {timeout} seconds.\n"
@@ -126,11 +127,9 @@ class PiCliInsightsExplorer:
             command.append("--approve")
         if self.model:
             command.extend(["--model", self.model])
-        for skill_path in self.skill_paths:
-            command.extend(["--skill", skill_path])
         if self.extra_args:
             command.extend(shlex.split(self.extra_args))
-        command.extend([f"@{prompt_path.relative_to(prompt_path.parents[1])}", "Run this DataElf discovery task and write the required workspace artifacts."])
+        command.extend([f"@{prompt_path.resolve()}", "Run this DataElf discovery task and write the required workspace artifacts."])
         return command
 
     def _build_env(self, workspace_path: Path, job: DiscoveryJob, context: DiscoveryContext) -> dict[str, str]:
@@ -270,17 +269,8 @@ def _timeout_seconds(job: DiscoveryJob) -> int:
         return 1800
 
 
-def _skill_paths_from_env() -> list[str]:
-    paths: list[str] = []
-    raw_paths = os.getenv("DATAELF_PI_SKILL_PATHS", "")
-    for item in raw_paths.split(os.pathsep):
-        item = item.strip()
-        if item:
-            paths.append(item)
-    brave_path = os.getenv("DATAELF_PI_BRAVE_SEARCH_SKILL_PATH", "").strip()
-    if brave_path:
-        paths.append(brave_path)
-    return paths
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
 
 
 def _redact_env(env: dict[str, str]) -> dict[str, str]:

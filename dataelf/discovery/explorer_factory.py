@@ -12,15 +12,20 @@ PI_EXPLORER_ALIASES = {"pi", "pi-cli", "picli"}
 def create_insights_explorer(config: DataElfConfig):
     name = normalize_insights_explorer_name(config.insights_explorer)
     if name == "deepagentscode":
-        return DeepAgentsCodeCliInsightsExplorer()
+        return DeepAgentsCodeCliInsightsExplorer(
+            dcode_binary=config.dcode_binary,
+            shell_allow_list=config.dcode_shell_allow_list,
+            extra_args=config.dcode_extra_args,
+            stream_logs=config.dcode_stream_logs,
+        )
     if name == "pi":
         return PiCliInsightsExplorer(
             pi_binary=config.pi_binary,
             model=config.pi_model,
             mode=config.pi_mode,
+            cwd=config.pi_cwd,
             timeout_seconds=config.pi_timeout_seconds,
             extra_args=config.pi_extra_args,
-            skill_paths=config.pi_skill_paths,
         )
     raise ValueError(f"Unsupported DATAELF_INSIGHTS_EXPLORER: {config.insights_explorer!r}. Use 'deepagentscode'/'dcode' or 'pi'.")
 

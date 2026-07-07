@@ -8,7 +8,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from dataelf.config import DataElfConfig
+from dataelf.config import DEFAULT_CONFIG_FILE, DataElfConfig, write_config_template
 from dataelf.discovery.explorer_factory import normalize_insights_explorer_name
 from dataelf.discovery.workflow import run_discovery
 from dataelf.stores.sqlite_store import SQLiteStore
@@ -43,7 +43,9 @@ def init() -> None:
     """Initialize the local DataElf workspace."""
     config = _config()
     config.ensure_dirs()
+    config_file = write_config_template(DEFAULT_CONFIG_FILE, config)
     console.print(f"Initialized DataElf workspace: [bold]{config.workspace_dir.resolve()}[/bold]")
+    console.print(f"Config file: {config_file.resolve()}")
     if config.enable_sqlite:
         store = _store(config)
         store.close()

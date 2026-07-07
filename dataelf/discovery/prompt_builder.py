@@ -41,6 +41,8 @@ You are running inside this workspace:
 
 Use the workspace as the single source of working files. Do not modify the DataElf source repository.
 
+The process working directory may be the DataElf repository root for runtime configuration purposes. Still write all DataElf job artifacts to the workspace path above.
+
 Important directories:
 
 - `raw/ai_index/`: raw AI Index API responses.
@@ -352,7 +354,7 @@ Use the DeepAgentsCode `task` tool to delegate when helpful. In particular, dele
 
 def _external_web_section(runner_name: str) -> str:
     if runner_name == "pi":
-        return "Use Pi's loaded web-search skills or shell-accessible search helpers when useful. The recommended community option is a Pi Agent Skill such as `brave-search`, loaded via DataElf's `DATAELF_PI_SKILL_PATHS` or `DATAELF_PI_BRAVE_SEARCH_SKILL_PATH`."
+        return "Use Pi's loaded web-search skills or shell-accessible search helpers when useful. The recommended community option is a Pi Agent Skill such as `brave-search`, loaded through Pi's official skill discovery/settings or with the official `--skill` CLI flag in `pi_extra_args`."
     return "Use DeepAgentsCode `web_search` and `fetch_url` when useful."
 
 

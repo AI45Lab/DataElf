@@ -24,19 +24,51 @@ uv pip install -e ".[dev]"
 
 Live AI Index API mode is the default. The production base URL and the tested API key are built into the M1 config from the provided curl, so interns do not need extra AI Index exports for the default path.
 
-SQLite job registry is disabled by default. M1 uses workspace files as the source of truth. Enable SQLite only if you need `dataelf job ...` lookup commands:
+Run `dataelf init` once to create `dataelf.local.yaml` in the project root. DataElf loads config in this order:
 
-```bash
-export DATAELF_ENABLE_SQLITE=1
+1. Built-in defaults
+2. The first existing config file among `dataelf.local.yaml`, `dataelf.local.yml`, `dataelf.yaml`, `dataelf.yml`, `.dataelf/config.yaml`, `.dataelf/config.yml`, `.dataelf/config.json`
+3. Environment variables, which override the config file
+
+Use `DATAELF_CONFIG_FILE=/path/to/config.yaml` to select a specific file.
+
+Example `dataelf.local.yaml`:
+
+```yaml
+workspace_dir: .dataelf
+fixtures_dir: fixtures/ai_index
+model: openai:gpt-5.5
+ai_index_mode: api
+ai_index_base_url: https://index.shlab.org.cn/api/v2
+ai_index_api_key: ...
+enable_sqlite: false
+insights_explorer: deepagentscode
+dcode_binary: dcode
+dcode_shell_allow_list: all
+dcode_extra_args: "--max-turns 40"
+dcode_stream_logs:
+pi_binary: ./node_modules/.bin/pi
+pi_model: openai/gpt-4o
+pi_mode: json
+pi_cwd: .
+pi_timeout_seconds:
+pi_extra_args: ""
+env:
+  PI_CODING_AGENT_DIR: .pi/agent
+  OPENAI_API_KEY: ...
+  TAVILY_API_KEY: ...
+  # BRAVE_API_KEY: ...
 ```
 
-To force fixture mode for local tests:
+SQLite job registry is disabled by default. M1 uses workspace files as the source of truth. Set `enable_sqlite: true` only if you need `dataelf job ...` lookup commands.
+
+To force fixture mode for local tests, set `ai_index_mode: fixture` in the config file, or override it for one shell:
 
 ```bash
 export DATAELF_AI_INDEX_MODE="fixture"
 ```
 
-To override the live AI Index OpenAPI target:
+To override the live AI Index OpenAPI target for one shell:
 
 ```bash
 export DATAELF_AI_INDEX_MODE="api"
@@ -46,15 +78,17 @@ export AI_INDEX_API_KEY="..."
 
 DeepAgentsCode CLI is the default explorer for `dataelf discover`:
 
-```bash
-export DATAELF_INSIGHTS_EXPLORER="deepagentscode"  # optional; this is the default
-curl -LsSf https://langch.in/dcode | bash
-export DATAELF_DCODE_BINARY="dcode"  # optional; defaults to dcode
-export DATAELF_DCODE_SHELL_ALLOW_LIST="all"  # optional; defaults to all for M1 testing
-export DATAELF_DCODE_EXTRA_ARGS="--max-turns 40"  # optional; appended before -n
-export DATAELF_MODEL="openai:gpt-5.5"  # optional; if unset, dcode uses its own default model config
-export TAVILY_API_KEY="..."  # optional, enables dcode web_search/fetch_url
+```yaml
+insights_explorer: deepagentscode
+model: openai:gpt-5.5
+dcode_binary: dcode
+dcode_shell_allow_list: all
+dcode_extra_args: "--max-turns 40"
+env:
+  TAVILY_API_KEY: ...
 ```
+
+You can still override dcode values for one shell with `DATAELF_DCODE_BINARY`, `DATAELF_DCODE_SHELL_ALLOW_LIST`, `DATAELF_DCODE_EXTRA_ARGS`, and provider/search keys such as `TAVILY_API_KEY`.
 
 Configure LLM provider credentials in DeepAgentsCode or in the shell environment before running DataElf. DataElf forwards the current environment to the child process, but it does not own provider auth. If `DATAELF_MODEL` is set, DataElf passes it to `dcode --model`; otherwise dcode uses its own default model config. For example, use `dcode auth set openai` or export provider variables such as `OPENAI_API_KEY` / `OPENAI_BASE_URL` according to your DeepAgentsCode provider setup.
 
@@ -62,14 +96,45 @@ If `dcode` is not installed or not on `PATH`, DataElf fails clearly and writes d
 
 Pi CLI can be used as a parallel explorer:
 
+```yaml
+insights_explorer: pi
+pi_binary: ./node_modules/.bin/pi
+pi_model:
+pi_mode: json
+pi_cwd: .
+pi_extra_args: ""
+env:
+  PI_CODING_AGENT_DIR: .pi/agent
+  OPENAI_API_KEY: ...
+```
+
+Then install the pinned Pi CLI dependency:
+
 ```bash
 npm install
-export DATAELF_INSIGHTS_EXPLORER="pi"
-export DATAELF_PI_BINARY="./node_modules/.bin/pi"  # optional; DataElf checks this path before PATH
-export DATAELF_PI_MODEL="openai/gpt-4o"  # optional; if unset, pi uses its own default model config
-export OPENAI_API_KEY="..."  # or configure Pi provider auth in the official Pi way
 dataelf discover "围绕 Agentic LLMs，基于 AI Index 和联网搜索，发现最近值得关注的 3 个 insight"
 ```
+
+Configure Pi provider auth, settings, packages, skills, and extensions in the official Pi way. DataElf only starts Pi as a child process and collects workspace artifacts.
+
+Recommended Pi model setup for this project:
+
+```text
+.pi/settings.json          project-level Pi settings, such as defaultProvider/defaultModel
+.pi/agent/models.json      Pi agent-dir models.json for custom OpenAI-compatible providers
+dataelf.local.yaml env     secrets and env values referenced by Pi config, such as OPENAI_API_KEY
+```
+
+Leave `pi_model` empty when you want Pi to use `.pi/settings.json`. Setting `pi_model` makes DataElf pass `--model ...`, which overrides Pi's default model selection for that run.
+
+Pi runner boundary:
+
+- DataElf starts `pi --mode json --no-session --approve ...` and passes `pi_extra_args` verbatim as official Pi CLI flags.
+- Pi owns settings, provider auth, packages, skills, extensions, tools, and prompt/runtime behavior.
+- DataElf runs Pi with `cwd` set to `pi_cwd`, which defaults to the repository root (`.`), so repository-level `.pi/settings.json` and `.pi/` resources can be prepared before a job starts.
+- The generated job workspace is passed separately through `DATAELF_WORKSPACE` / `DATAELF_JOB_WORKSPACE`; the prompt tells Pi to write required artifacts there.
+- Reusable Pi tuning can live in official global Pi locations such as `~/.pi/agent/settings.json` / `~/.pi/agent/skills/`, repository-local `.pi/`, or official CLI flags through `pi_extra_args`.
+- `PI_CODING_AGENT_DIR` is optional; this repo sets it to `.pi/agent` in `dataelf.local.yaml` so DataElf-specific `models.json` and agent-dir resources are visible in the project instead of hidden in the user's home directory.
 
 Pi runs in official JSON event stream mode and DataElf writes:
 
@@ -87,11 +152,13 @@ For web search with Pi, use Pi skills instead of adding search logic to DataElf'
 git clone https://github.com/badlogic/pi-skills /path/to/pi-skills
 cd /path/to/pi-skills/brave-search && npm install
 export BRAVE_API_KEY="..."
-export DATAELF_PI_BRAVE_SEARCH_SKILL_PATH="/path/to/pi-skills/brave-search"
-# or export DATAELF_PI_SKILL_PATHS="/path/to/pi-skills/brave-search"
 ```
 
-DataElf passes configured skill paths to `pi --skill ...`; Pi remains responsible for loading and executing the skill.
+Then load it using Pi's official mechanisms, for example global Pi settings/skills or the official CLI flag in DataElf config:
+
+```yaml
+pi_extra_args: "--skill /path/to/pi-skills/brave-search"
+```
 
 ## Run
 

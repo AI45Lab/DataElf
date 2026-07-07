@@ -164,6 +164,7 @@ def build_discovery_workflow():
             domain=job.scope.get("domain", "ai_index"),
             model=explorer_model,
             env={
+                **config.runtime_env,
                 "DATAELF_AI_INDEX_MODE": config.ai_index_mode,
                 "AI_INDEX_BASE_URL": config.ai_index_base_url,
                 "AI_INDEX_API_KEY": config.ai_index_api_key,
