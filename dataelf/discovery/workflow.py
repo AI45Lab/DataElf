@@ -9,7 +9,7 @@ from typing import Any, TypedDict
 from dataelf.config import DataElfConfig
 from dataelf.discovery.base import DiscoveryContext
 from dataelf.discovery.domain_registry import DomainRegistry
-from dataelf.discovery.deepagents_code_cli_explorer import DeepAgentsCodeCliInsightsExplorer
+from dataelf.discovery.explorer_factory import create_insights_explorer, normalize_insights_explorer_name
 from dataelf.discovery.quality_review import review_workspace
 from dataelf.discovery.result_parser import load_insight_candidate_ids
 from dataelf.discovery.workspace import prepare_workspace
@@ -156,20 +156,22 @@ def build_discovery_workflow():
             workspace_path=Path(job.workspace_path),
         )
         client = AIIndexClient(connector=connector, workspace_path=Path(job.workspace_path))
-        explorer = DeepAgentsCodeCliInsightsExplorer()
+        explorer_name = normalize_insights_explorer_name(config.insights_explorer)
+        explorer = create_insights_explorer(config)
+        explorer_model = config.pi_model if explorer_name == "pi" else config.model
         context = DiscoveryContext(
             workspace_path=job.workspace_path,
             domain=job.scope.get("domain", "ai_index"),
-            model=config.model,
+            model=explorer_model,
             env={
                 "DATAELF_AI_INDEX_MODE": config.ai_index_mode,
                 "AI_INDEX_BASE_URL": config.ai_index_base_url,
                 "AI_INDEX_API_KEY": config.ai_index_api_key,
             },
             domain_pack=state["domain_pack"],
-            config=config.model_dump(mode="json"),
+            config={**config.model_dump(mode="json"), "insights_explorer": explorer_name},
         )
-        state["store"].add_trace_event(job.job_id, "insights_explore_start", {"mode": config.ai_index_mode})
+        state["store"].add_trace_event(job.job_id, "insights_explore_start", {"mode": config.ai_index_mode, "explorer": explorer_name})
         result = explorer.run(job, context)
         logger.info("insights_explore finished with status=%s for job %s.", result.status, job.job_id)
         job.insight_candidate_ids = load_insight_candidate_ids(Path(job.workspace_path))

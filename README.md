@@ -8,12 +8,12 @@ dataelf discover
   -> DiscoveryWorkflow
   -> AI Index domain pack
   -> job workspace
-  -> DeepAgentsCode CLI insights_explore runner
+  -> insights_explore runner (DeepAgentsCode CLI by default, Pi CLI optional)
   -> raw AI Index responses + CSV tables
   -> candidate_signals.json / insight_candidates.json / final_brief.md
 ```
 
-The current `insights_explore` uses a DeepAgentsCode CLI runner. This is a Discovery Lab Runner for quickly testing whether DeepAgentsCode can use dynamic AI Index data, web search, and Python analysis to produce deeper insights. It is not the final DataElf-native agent runtime integration. The stable contract is the outer `DiscoveryWorkflow`, `DiscoveryJob`, workspace layout, and `insight_candidates.json` schema.
+The default `insights_explore` uses a DeepAgentsCode CLI runner. A parallel Pi CLI runner is also available for testing Pi as the explorer agent. Both runners use the same stable outer contract: `DiscoveryWorkflow`, `DiscoveryJob`, workspace layout, and `insight_candidates.json` schema.
 
 ## Setup
 
@@ -44,9 +44,10 @@ export AI_INDEX_BASE_URL="https://index.shlab.org.cn/api/v2"
 export AI_INDEX_API_KEY="..."
 ```
 
-DeepAgentsCode CLI is required for `dataelf discover`:
+DeepAgentsCode CLI is the default explorer for `dataelf discover`:
 
 ```bash
+export DATAELF_INSIGHTS_EXPLORER="deepagentscode"  # optional; this is the default
 curl -LsSf https://langch.in/dcode | bash
 export DATAELF_DCODE_BINARY="dcode"  # optional; defaults to dcode
 export DATAELF_DCODE_SHELL_ALLOW_LIST="all"  # optional; defaults to all for M1 testing
@@ -58,6 +59,39 @@ export TAVILY_API_KEY="..."  # optional, enables dcode web_search/fetch_url
 Configure LLM provider credentials in DeepAgentsCode or in the shell environment before running DataElf. DataElf forwards the current environment to the child process, but it does not own provider auth. If `DATAELF_MODEL` is set, DataElf passes it to `dcode --model`; otherwise dcode uses its own default model config. For example, use `dcode auth set openai` or export provider variables such as `OPENAI_API_KEY` / `OPENAI_BASE_URL` according to your DeepAgentsCode provider setup.
 
 If `dcode` is not installed or not on `PATH`, DataElf fails clearly and writes details to `workspace/logs/dcode_stderr.log`.
+
+Pi CLI can be used as a parallel explorer:
+
+```bash
+npm install
+export DATAELF_INSIGHTS_EXPLORER="pi"
+export DATAELF_PI_BINARY="./node_modules/.bin/pi"  # optional; DataElf checks this path before PATH
+export DATAELF_PI_MODEL="openai/gpt-4o"  # optional; if unset, pi uses its own default model config
+export OPENAI_API_KEY="..."  # or configure Pi provider auth in the official Pi way
+dataelf discover "围绕 Agentic LLMs，基于 AI Index 和联网搜索，发现最近值得关注的 3 个 insight"
+```
+
+Pi runs in official JSON event stream mode and DataElf writes:
+
+```text
+logs/pi_events.jsonl
+logs/pi_stdout.log
+logs/pi_stderr.log
+logs/pi_command.json
+logs/pi_env_redacted.json
+```
+
+For web search with Pi, use Pi skills instead of adding search logic to DataElf's Python runner. One clean option is the community `brave-search` skill:
+
+```bash
+git clone https://github.com/badlogic/pi-skills /path/to/pi-skills
+cd /path/to/pi-skills/brave-search && npm install
+export BRAVE_API_KEY="..."
+export DATAELF_PI_BRAVE_SEARCH_SKILL_PATH="/path/to/pi-skills/brave-search"
+# or export DATAELF_PI_SKILL_PATHS="/path/to/pi-skills/brave-search"
+```
+
+DataElf passes configured skill paths to `pi --skill ...`; Pi remains responsible for loading and executing the skill.
 
 ## Run
 
@@ -100,6 +134,9 @@ insights/final_brief.md
 prompts/discovery_prompt.md
 logs/dcode_stdout.log
 logs/dcode_stderr.log
+logs/pi_events.jsonl
+logs/pi_stdout.log
+logs/pi_stderr.log
 reviews/quality_review.json
 workspace_index.json
 ```
