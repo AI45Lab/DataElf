@@ -21,6 +21,7 @@
           "compat": {
             "supportsDeveloperRole": false,
             "supportsReasoningEffort": false,
+            "supportsUsageInStreaming": false,
             "maxTokensField": "max_tokens"
           }
         }

@@ -26,6 +26,8 @@ def create_insights_explorer(config: DataElfConfig):
             cwd=config.pi_cwd,
             timeout_seconds=config.pi_timeout_seconds,
             extra_args=config.pi_extra_args,
+            stream_logs=config.pi_stream_logs,
+            log_mode=config.pi_log_mode,
         )
     raise ValueError(f"Unsupported DATAELF_INSIGHTS_EXPLORER: {config.insights_explorer!r}. Use 'deepagentscode'/'dcode' or 'pi'.")
 

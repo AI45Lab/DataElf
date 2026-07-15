@@ -11,7 +11,7 @@ from dataelf.discovery.base import DiscoveryContext
 from dataelf.discovery.deepagents_code_cli_explorer import DEFAULT_DCODE_EXTRA_ARGS, DEFAULT_SHELL_ALLOW_LIST, DeepAgentsCodeCliInsightsExplorer
 from dataelf.discovery.domain_registry import DomainRegistry
 from dataelf.discovery.explorer_factory import normalize_insights_explorer_name
-from dataelf.discovery.pi_cli_explorer import PI_BINARY_NOT_FOUND, PiCliInsightsExplorer
+from dataelf.discovery.pi_cli_explorer import PI_BINARY_NOT_FOUND, PiCliInsightsExplorer, _summarize_pi_event
 from dataelf.discovery.quality_review import review_workspace
 from dataelf.discovery.workflow import run_discovery
 from dataelf.discovery.workspace import prepare_workspace
@@ -601,6 +601,8 @@ def test_dataelf_config_file_loads_and_env_overrides(tmp_path: Path, monkeypatch
                 "pi_cwd: file-pi-cwd",
                 "pi_timeout_seconds: 123",
                 "pi_extra_args: --skill /tmp/brave-search",
+                "pi_stream_logs: true",
+                "pi_log_mode: raw",
                 "env:",
                 "  OPENAI_API_KEY: file-openai",
                 "  TAVILY_API_KEY: file-tavily",
@@ -613,6 +615,8 @@ def test_dataelf_config_file_loads_and_env_overrides(tmp_path: Path, monkeypatch
     monkeypatch.setenv("DATAELF_MODEL", "env-model")
     monkeypatch.setenv("DATAELF_PI_MODEL", "env-pi-model")
     monkeypatch.setenv("DATAELF_PI_CWD", "env-pi-cwd")
+    monkeypatch.setenv("DATAELF_PI_STREAM_LOGS", "false")
+    monkeypatch.setenv("DATAELF_PI_LOG_MODE", "summary")
     monkeypatch.setenv("OPENAI_API_KEY", "env-openai")
 
     config = DataElfConfig.from_env()
@@ -630,8 +634,43 @@ def test_dataelf_config_file_loads_and_env_overrides(tmp_path: Path, monkeypatch
     assert config.pi_cwd == Path("env-pi-cwd")
     assert config.pi_timeout_seconds == 123
     assert config.pi_extra_args == "--skill /tmp/brave-search"
+    assert config.pi_stream_logs is False
+    assert config.pi_log_mode == "summary"
     assert config.runtime_env["OPENAI_API_KEY"] == "env-openai"
     assert config.runtime_env["TAVILY_API_KEY"] == "file-tavily"
+
+
+def test_pi_event_summary_compacts_noisy_json_payload() -> None:
+    event = {
+        "role": "assistant",
+        "content": [
+            {
+                "type": "toolCall",
+                "name": "bash",
+                "arguments": {
+                    "command": "python - <<'PY'\nprint('very long payload')\nPY" + "x" * 500,
+                },
+            }
+        ],
+        "usage": {"input": 12, "output": 3, "totalTokens": 15},
+    }
+
+    summary = _summarize_pi_event(json.dumps(event))
+
+    assert summary is not None
+    assert "assistant: tool call: bash" in summary
+    assert "tokens in=12 out=3 total=15" in summary
+    assert len(summary) < 360
+
+
+def test_pi_event_summary_suppresses_streaming_deltas() -> None:
+    assert _summarize_pi_event('{"type":"message_update","content":[{"type":"text","text":"noisy"}]}') is None
+    assert _summarize_pi_event('{"type":"message_end","content":[{"type":"text","text":"large final payload"}]}') is None
+    assert _summarize_pi_event('{"type":"turn_start"}') is None
+    assert _summarize_pi_event('{"type":"turn_end"}') is None
+    assert _summarize_pi_event('{"type":"tool_execution_start"}') is None
+    assert _summarize_pi_event('{"type":"tool_execution_update","toolName":"bash","content":"partial output"}') is None
+    assert _summarize_pi_event('{"type":"tool_execution_end"}') is None
 
 
 def test_dataelf_init_config_template_is_not_overwritten(tmp_path: Path) -> None:

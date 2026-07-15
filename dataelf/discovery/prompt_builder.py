@@ -95,6 +95,9 @@ Important execution guidance for this CLI runner:
 - Prefer progressive acquisition: fetch a batch, write raw/tables/notes, summarize what changed, then decide the next batch.
 - Do not print raw API responses, full dataframes, or long CSV contents to stdout.
 - Write large details to `notes/`, `tables/`, or `raw/`; print only compact summaries from scripts.
+- For non-trivial Python, write a script under `scripts/` and run the script file. Do not run inline Python heredocs through shell commands.
+- Keep shell command strings short and simple. Put complex logic in files, not in command arguments.
+- Never overwrite `insights/candidate_signals.json` or `insights/insight_candidates.json` with empty arrays after you have collected evidence.
 - If a script or model step fails after a large batch, retry with smaller batches and summarize intermediate files instead of abandoning the task.
 
 Use `save_raw(...)` only for custom responses not already saved by `search_*`.
@@ -129,13 +132,20 @@ If web search is unavailable, say so explicitly in the final brief. Do not fabri
 
 ## Required Workflow
 
-You must work in four phases.
+You must work in four phases, but keep the run bounded. Prefer one compact script per phase over many small exploratory commands. Once you have enough evidence for 3 final insights, stop acquiring data and synthesize.
+
+Pi execution budget guidance:
+
+- Aim for no more than 12 substantial tool executions total.
+- Fetch only the AI Index batches needed to support the final 3 insights.
+- Use at most 3 selected signals for deep dive unless the user explicitly asks for more.
+- If external web search is slow or unavailable, use the best available AI Index evidence and state the limitation.
 
 ### Phase 1: Breadth Scan
 
 Inspect available tables and raw files. If needed, dynamically fetch more AI Index data using `AIIndexClient`.
 
-Generate at least 15 candidate signals and write them to:
+Generate 8 to 12 candidate signals and write them to:
 
 `insights/candidate_signals.json`
 
@@ -169,7 +179,7 @@ Score candidate signals using:
 - low-base risk
 - obviousness risk
 
-Select the top 3 to 5 signals for deep dive.
+Select the top 3 signals for deep dive.
 
 ### Phase 3: Deep Dive
 
@@ -196,6 +206,8 @@ Every deep dive must answer:
 Write deep-dive reports to:
 
 `deep_dives/`
+
+Do not keep expanding the search after the 3 deep dives are good enough to support final insight candidates.
 
 ### Phase 4: Synthesis
 
@@ -244,6 +256,8 @@ Final insights should cover at least two of these insight forms:
 - Each final insight should connect at least two entity types, such as Paper + Institution, Institution + Scholar, Paper + Benchmark, or AI Index data + WebSource.
 - If the available data is insufficient, produce fewer but stronger insights rather than filling the quota with weak claims.
 - Do not fabricate external facts. If web search is unavailable, state that limitation.
+- Before stopping, verify that `insights/candidate_signals.json`, `insights/insight_candidates.json`, `insights/final_brief.md`, and at least one `deep_dives/*.md` file exist and are non-empty.
+- After the required artifacts are written and verified, stop. Do not keep exploring or start another turn.
 
 ## Output Schemas
 
@@ -335,6 +349,8 @@ def _runtime_section(runner_name: str) -> str:
 You are running under Pi CLI in JSON event stream mode.
 
 Use Pi's normal capabilities, built-in tools, and any explicitly loaded skills. DataElf's Python runner is only the orchestrator; do not expect it to provide custom Pi tools beyond the workspace, environment variables, and prompt.
+
+If a `deliberate` tool from Pi Fusion is available, use it only after you already have non-empty candidate signals or a draft final ranking. It is optional review help for counterarguments, blind spots, and ranking decisions; it is not a replacement for AI Index analysis. If the tool fails or is unavailable, continue without it and write the required DataElf artifacts.
 
 If a web-search skill such as `brave-search` is available, use it when external evidence is needed. If no relevant web skill or network capability is available, continue with AI Index and local evidence, then state the limitation in the final brief.
 """

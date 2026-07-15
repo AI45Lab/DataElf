@@ -18,7 +18,19 @@ from dataelf.schemas import DiscoveryJob
 
 DEFAULT_PI_MODE = "json"
 DEFAULT_PI_EXTRA_ARGS = ""
-DEFAULT_PI_STREAM_LOGS = True
+DEFAULT_PI_LOG_MODE = "summary"
+DEFAULT_PI_STREAM_LOGS = False
+PI_LOG_MODES = {"quiet", "summary", "raw"}
+NOISY_PI_EVENT_TYPES = {
+    "message_start",
+    "message_update",
+    "message_end",
+    "turn_start",
+    "turn_end",
+    "tool_execution_start",
+    "tool_execution_update",
+    "tool_execution_end",
+}
 PI_BINARY_NOT_FOUND = "PI_BINARY_NOT_FOUND"
 PI_PROCESS_TIMEOUT = "PI_PROCESS_TIMEOUT"
 PI_PROCESS_NONZERO_EXIT = "PI_PROCESS_NONZERO_EXIT"
@@ -43,6 +55,7 @@ class PiCliInsightsExplorer:
         extra_args: str | None = None,
         approve_project: bool = True,
         stream_logs: bool | None = None,
+        log_mode: str | None = None,
     ):
         self.pi_binary = pi_binary or os.getenv("DATAELF_PI_BINARY")
         self.model = model if model is not None else os.getenv("DATAELF_PI_MODEL")
@@ -51,7 +64,7 @@ class PiCliInsightsExplorer:
         self.timeout_seconds = timeout_seconds
         self.extra_args = extra_args if extra_args is not None else os.getenv("DATAELF_PI_EXTRA_ARGS", DEFAULT_PI_EXTRA_ARGS)
         self.approve_project = approve_project
-        self.stream_logs = _env_bool("DATAELF_PI_STREAM_LOGS", DEFAULT_PI_STREAM_LOGS) if stream_logs is None else stream_logs
+        self.log_mode = _resolve_log_mode(log_mode=log_mode, stream_logs=stream_logs)
 
     def run(self, job: DiscoveryJob, context: DiscoveryContext) -> DiscoveryResult:
         workspace_path = Path(context.workspace_path)
@@ -78,9 +91,13 @@ class PiCliInsightsExplorer:
         _write_json(logs_dir / "pi_command.json", {"command": _redact_command(command), "cwd": str(cwd), "workspace_path": str(workspace_path)})
         _write_json(logs_dir / "pi_env_redacted.json", _redact_env(env))
 
-        logger.info("Starting Pi CLI: binary=%s mode=%s model=%s cwd=%s timeout=%ss", pi_binary, self.mode, self.model or "<pi default>", cwd, timeout)
+        logger.info("Starting Pi CLI: binary=%s mode=%s model=%s cwd=%s timeout=%ss log_mode=%s", pi_binary, self.mode, self.model or "<pi default>", cwd, timeout, self.log_mode)
+        if self.log_mode == "quiet":
+            logger.info("Pi raw JSON events will be captured in %s and not streamed to the terminal.", events_path)
+        elif self.log_mode == "summary":
+            logger.info("Pi event summaries will be streamed; raw JSON events will also be captured in %s.", events_path)
         try:
-            completed = _run_pi_process(command, cwd=cwd, env=env, timeout=timeout, stream_logs=self.stream_logs)
+            completed = _run_pi_process(command, cwd=cwd, env=env, timeout=timeout, log_mode=self.log_mode)
         except subprocess.TimeoutExpired as exc:
             stdout = exc.stdout or ""
             stderr = (exc.stderr or "") + f"\nPi CLI timed out after {timeout} seconds.\n"
@@ -196,7 +213,7 @@ def _run_pi_process(
     cwd: Path,
     env: dict[str, str],
     timeout: int,
-    stream_logs: bool,
+    log_mode: str,
 ) -> PiCompleted:
     process = subprocess.Popen(
         command,
@@ -209,8 +226,8 @@ def _run_pi_process(
     )
     stdout_chunks: list[str] = []
     stderr_chunks: list[str] = []
-    stdout_thread = Thread(target=_drain_stream, args=(process.stdout, stdout_chunks, logging.INFO, "[pi] ", stream_logs), daemon=True)
-    stderr_thread = Thread(target=_drain_stream, args=(process.stderr, stderr_chunks, logging.WARNING, "[pi stderr] ", stream_logs), daemon=True)
+    stdout_thread = Thread(target=_drain_stream, args=(process.stdout, stdout_chunks, logging.INFO, "[pi] ", log_mode, True), daemon=True)
+    stderr_thread = Thread(target=_drain_stream, args=(process.stderr, stderr_chunks, logging.WARNING, "[pi stderr] ", log_mode, False), daemon=True)
     stdout_thread.start()
     stderr_thread.start()
     try:
@@ -226,19 +243,182 @@ def _run_pi_process(
     return PiCompleted(returncode=returncode, stdout="".join(stdout_chunks), stderr="".join(stderr_chunks))
 
 
-def _drain_stream(pipe: object, chunks: list[str], level: int, prefix: str, stream_logs: bool) -> None:
+def _drain_stream(pipe: object, chunks: list[str], level: int, prefix: str, log_mode: str, summarize_json: bool) -> None:
     if pipe is None:
         return
     try:
         for line in pipe:
             chunks.append(line)
             stripped = line.rstrip()
-            if stream_logs and stripped:
+            if not stripped or log_mode == "quiet":
+                continue
+            if log_mode == "raw":
                 logger.log(level, "%s%s", prefix, stripped)
+                continue
+            if summarize_json:
+                summary = _summarize_pi_event(stripped)
+                if summary:
+                    logger.log(level, "%s%s", prefix, summary)
+            else:
+                logger.log(level, "%s%s", prefix, _compact_text(stripped, limit=600))
     finally:
         close = getattr(pipe, "close", None)
         if callable(close):
             close()
+
+
+def _summarize_pi_event(line: str) -> str | None:
+    try:
+        event = json.loads(line)
+    except json.JSONDecodeError:
+        return _compact_text(line, limit=600)
+    if not isinstance(event, dict):
+        return f"event {type(event).__name__}"
+
+    event_type = _string(event.get("type"))
+    role = _string(event.get("role"))
+    usage = _summarize_usage(event.get("usage"))
+
+    if event_type in NOISY_PI_EVENT_TYPES:
+        return None
+
+    if event_type == "session":
+        cwd = _string(event.get("cwd"))
+        suffix = f" cwd={cwd}" if cwd else ""
+        return f"session started{suffix}"
+    if event_type in {"agent_start", "agentStart"}:
+        return "agent started"
+    if event_type in {"agent_end", "agentEnd"}:
+        return "agent finished"
+    if event_type in {"toolCall", "tool_call"}:
+        return _summarize_tool_call(event, usage)
+    if event_type in {"toolResult", "tool_result"}:
+        return _summarize_tool_result(event, usage)
+    if role:
+        content_summary = _summarize_content(event.get("content"))
+        label = role.replace("_", " ")
+        if content_summary and usage:
+            return f"{label}: {content_summary} | {usage}"
+        if content_summary:
+            return f"{label}: {content_summary}"
+        if usage:
+            return f"{label}: {usage}"
+        return label
+
+    content_summary = _summarize_content(event.get("content"))
+    if event_type and content_summary and usage:
+        return f"{event_type}: {content_summary} | {usage}"
+    if event_type and content_summary:
+        return f"{event_type}: {content_summary}"
+    if event_type and usage:
+        return f"{event_type}: {usage}"
+    if event_type:
+        return event_type
+    return _compact_text(json.dumps(event, ensure_ascii=False, sort_keys=True), limit=600)
+
+
+def _summarize_content(content: object) -> str | None:
+    if isinstance(content, str):
+        return _compact_text(content, limit=220)
+    if not isinstance(content, list):
+        return None
+
+    parts: list[str] = []
+    for item in content:
+        if isinstance(item, str):
+            text = _compact_text(item, limit=160)
+            if text:
+                parts.append(text)
+            continue
+        if not isinstance(item, dict):
+            continue
+        item_type = _string(item.get("type"))
+        if item_type == "text":
+            text = _compact_text(_string(item.get("text")), limit=220)
+            if text:
+                parts.append(text)
+        elif item_type in {"toolCall", "tool_call"}:
+            parts.append(_summarize_tool_call(item, usage=None))
+        elif item_type in {"toolResult", "tool_result"}:
+            parts.append(_summarize_tool_result(item, usage=None))
+        elif item_type:
+            parts.append(item_type)
+        if len(parts) >= 3:
+            break
+    return "; ".join(part for part in parts if part) or None
+
+
+def _summarize_tool_call(event: dict[str, object], usage: str | None) -> str:
+    name = _string(event.get("name") or event.get("toolName") or event.get("tool_name") or "tool")
+    arguments = event.get("arguments") or event.get("args") or event.get("input")
+    command = ""
+    if isinstance(arguments, dict):
+        command = _string(arguments.get("command") or arguments.get("query") or arguments.get("url"))
+    elif isinstance(arguments, str):
+        command = arguments
+    detail = _compact_text(command, limit=220)
+    summary = f"tool call: {name}"
+    if detail:
+        summary += f" `{detail}`"
+    if usage:
+        summary += f" | {usage}"
+    return summary
+
+
+def _summarize_tool_result(event: dict[str, object], usage: str | None) -> str:
+    name = _string(event.get("toolName") or event.get("tool_name") or event.get("name") or "tool")
+    content = event.get("content") or event.get("result") or event.get("output")
+    if isinstance(content, (dict, list)):
+        detail = _compact_text(json.dumps(content, ensure_ascii=False), limit=220)
+    else:
+        detail = _compact_text(_string(content), limit=220)
+    summary = f"tool result: {name}"
+    if detail:
+        summary += f" {detail}"
+    if usage:
+        summary += f" | {usage}"
+    return summary
+
+
+def _summarize_usage(usage: object) -> str | None:
+    if not isinstance(usage, dict):
+        return None
+    input_tokens = usage.get("input")
+    output_tokens = usage.get("output")
+    total_tokens = usage.get("totalTokens") or usage.get("total")
+    parts: list[str] = []
+    if input_tokens is not None:
+        parts.append(f"in={input_tokens}")
+    if output_tokens is not None:
+        parts.append(f"out={output_tokens}")
+    if total_tokens is not None:
+        parts.append(f"total={total_tokens}")
+    return "tokens " + " ".join(parts) if parts else None
+
+
+def _resolve_log_mode(log_mode: str | None, stream_logs: bool | None) -> str:
+    raw_mode = log_mode if log_mode is not None else os.getenv("DATAELF_PI_LOG_MODE")
+    if raw_mode:
+        normalized = raw_mode.strip().lower()
+        if normalized not in PI_LOG_MODES:
+            raise ValueError(f"Unsupported Pi log mode {raw_mode!r}. Use one of: {', '.join(sorted(PI_LOG_MODES))}.")
+        return normalized
+    if stream_logs is not None:
+        return "raw" if stream_logs else "quiet"
+    if os.getenv("DATAELF_PI_STREAM_LOGS") is not None:
+        return "raw" if _env_bool("DATAELF_PI_STREAM_LOGS", DEFAULT_PI_STREAM_LOGS) else "quiet"
+    return DEFAULT_PI_LOG_MODE
+
+
+def _string(value: object) -> str:
+    return value if isinstance(value, str) else ""
+
+
+def _compact_text(value: str, limit: int) -> str:
+    text = " ".join(value.split())
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 1)].rstrip() + "…"
 
 
 def _write_json_events(stdout: str, path: Path) -> list[str]:

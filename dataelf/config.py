@@ -47,6 +47,8 @@ class DataElfConfig(BaseModel):
     pi_cwd: Path | None = None
     pi_timeout_seconds: int | None = None
     pi_extra_args: str = ""
+    pi_stream_logs: bool | None = None
+    pi_log_mode: str | None = None
     runtime_env: dict[str, str] = Field(default_factory=dict)
 
     @classmethod
@@ -75,6 +77,8 @@ class DataElfConfig(BaseModel):
             pi_cwd=_optional_path(_env_or_config("DATAELF_PI_CWD", file_values, "pi_cwd", None)),
             pi_timeout_seconds=_env_int("DATAELF_PI_TIMEOUT_SECONDS", _config_int(file_values, "pi_timeout_seconds", None)),
             pi_extra_args=_env_or_config("DATAELF_PI_EXTRA_ARGS", file_values, "pi_extra_args", ""),
+            pi_stream_logs=_env_optional_bool("DATAELF_PI_STREAM_LOGS", _config_optional_bool(file_values, "pi_stream_logs")),
+            pi_log_mode=_blank_to_none(_env_or_config("DATAELF_PI_LOG_MODE", file_values, "pi_log_mode", None)),
             runtime_env=_runtime_env(file_values),
         )
 
@@ -131,6 +135,8 @@ def write_config_template(path: Path = DEFAULT_CONFIG_FILE, config: DataElfConfi
                 f"pi_timeout_seconds: {cfg.pi_timeout_seconds or ''}",
                 "# Put official Pi CLI resource flags here, for example: --skill /path/to/brave-search",
                 f"pi_extra_args: {cfg.pi_extra_args!r}",
+                f"pi_log_mode: {cfg.pi_log_mode or 'summary'}",
+                f"pi_stream_logs: {'' if cfg.pi_stream_logs is None else str(cfg.pi_stream_logs).lower()}",
                 "# Optional child-process environment. Exported shell variables with the same name win.",
                 "env: {}",
                 "",

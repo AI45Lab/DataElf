@@ -12,3 +12,4 @@ dataelf.local.yml
 .pi/agent/auth.json
 .pi/agent/sessions/
 .pi/agent/trust.json
+.pi/npm/

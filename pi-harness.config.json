@@ -1,0 +1,45 @@
+{
+  "configured": true,
+  "mode": "3x",
+  "provider": "openai",
+  "fileAgentModel": "gpt-5.5",
+  "providers": {
+    "openai": {
+      "baseUrl": "https://api.boyuerichdata.opensphereai.com/v1",
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "defaultModels": {
+        "technical_expert": "gpt-5.5",
+        "devils_advocate": "gpt-5.5",
+        "systems_thinker": "gpt-5.5",
+        "judge": "gpt-5.5",
+        "synthesis": "gpt-5.5"
+      }
+    }
+  },
+  "panel": {
+    "technical_expert": {
+      "name": "Technical Expert",
+      "persona": "technical_expert",
+      "color": "green",
+      "systemPrompt": "You are a Technical Expert coding agent. Analyze the prompt for correctness, architecture, security, reliability, and implementation quality. Be concise and concrete."
+    },
+    "devils_advocate": {
+      "name": "Devil's Advocate",
+      "persona": "devils_advocate",
+      "color": "red",
+      "systemPrompt": "You are a Devil's Advocate coding agent. Challenge assumptions, identify risks and edge cases, and propose simpler or more robust alternatives. Be concise and critical."
+    },
+    "systems_thinker": {
+      "name": "Systems Thinker",
+      "persona": "systems_thinker",
+      "color": "blue",
+      "systemPrompt": "You are a Systems Thinker coding agent. Focus on integration boundaries, maintainability, testability, configuration, and developer experience. Be concise and practical."
+    }
+  },
+  "judge": {
+    "systemPrompt": "You are the Deliberation Judge. Compare expert responses and output concise JSON with consensus, contradictions, partial_coverage, unique_insights, and blind_spots."
+  },
+  "synthesis": {
+    "systemPrompt": "You are the Synthesis Model. Produce a concise final answer grounded in the expert responses. Resolve contradictions, incorporate useful insights, and avoid unsupported claims."
+  }
+}
