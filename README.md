@@ -1,76 +1,268 @@
-# DataElf M1 Insight Discovery Runtime
+# DataElf Insight Discovery Runtime
 
-DataElf M1 is a user-triggered Insight Discovery runtime for AI science intelligence.
+DataElf is a user-triggered insight discovery runtime for AI science intelligence. The current recommended explorer path is:
 
 ```text
 dataelf discover
   -> DiscoveryJob
-  -> DiscoveryWorkflow
   -> AI Index domain pack
-  -> job workspace
-  -> DeepAgentsCode CLI insights_explore runner
+  -> job workspace under .dataelf/workspaces/<job_id>/
+  -> Pi CLI explorer
   -> raw AI Index responses + CSV tables
   -> candidate_signals.json / insight_candidates.json / final_brief.md
 ```
 
-The current `insights_explore` uses a DeepAgentsCode CLI runner. This is a Discovery Lab Runner for quickly testing whether DeepAgentsCode can use dynamic AI Index data, web search, and Python analysis to produce deeper insights. It is not the final DataElf-native agent runtime integration. The stable contract is the outer `DiscoveryWorkflow`, `DiscoveryJob`, workspace layout, and `insight_candidates.json` schema.
+DataElf owns the outer workflow, workspace contract, AI Index access, and result parsing. Pi owns the agent runtime, model/provider configuration, skills, extensions, packages, tools, and execution loop.
 
-## Setup
+## Quick Start
+
+Prerequisites:
+
+- Python 3.11+
+- Node.js and npm
+
+Install Python dependencies:
 
 ```bash
 uv venv
 uv pip install -e ".[dev]"
 ```
 
-Live AI Index API mode is the default. The production base URL and the tested API key are built into the M1 config from the provided curl, so interns do not need extra AI Index exports for the default path.
-
-SQLite job registry is disabled by default. M1 uses workspace files as the source of truth. Enable SQLite only if you need `dataelf job ...` lookup commands:
+If you do not use `uv`:
 
 ```bash
-export DATAELF_ENABLE_SQLITE=1
+python3 -m venv .venv
+.venv/bin/python -m pip install -e ".[dev]"
 ```
 
-To force fixture mode for local tests:
+Install the pinned Pi CLI dependency declared in `package.json`:
 
 ```bash
-export DATAELF_AI_INDEX_MODE="fixture"
+npm install
 ```
 
-To override the live AI Index OpenAPI target:
+Install or reconcile project-local Pi packages declared in `.pi/settings.json`:
 
 ```bash
-export DATAELF_AI_INDEX_MODE="api"
-export AI_INDEX_BASE_URL="https://index.shlab.org.cn/api/v2"
-export AI_INDEX_API_KEY="..."
+PI_CODING_AGENT_DIR=.pi/agent npm_config_cache=.npm-cache \
+  ./node_modules/.bin/pi install npm:@quarkos/pi-fusion --local --approve
 ```
 
-DeepAgentsCode CLI is required for `dataelf discover`:
+Why this extra command exists: `.pi/settings.json` is committed, but generated package files under `.pi/npm/` are not. A fresh clone needs npm to populate `.pi/npm/node_modules/`. `npm_config_cache=.npm-cache` keeps npm cache writes inside the repo and avoids user-level `~/.npm` permission issues.
 
-```bash
-curl -LsSf https://langch.in/dcode | bash
-export DATAELF_DCODE_BINARY="dcode"  # optional; defaults to dcode
-export DATAELF_DCODE_SHELL_ALLOW_LIST="all"  # optional; defaults to all for M1 testing
-export DATAELF_DCODE_EXTRA_ARGS="--max-turns 40"  # optional; appended before -n
-export DATAELF_MODEL="openai:gpt-5.5"  # optional; if unset, dcode uses its own default model config
-export TAVILY_API_KEY="..."  # optional, enables dcode web_search/fetch_url
-```
-
-Configure LLM provider credentials in DeepAgentsCode or in the shell environment before running DataElf. DataElf forwards the current environment to the child process, but it does not own provider auth. If `DATAELF_MODEL` is set, DataElf passes it to `dcode --model`; otherwise dcode uses its own default model config. For example, use `dcode auth set openai` or export provider variables such as `OPENAI_API_KEY` / `OPENAI_BASE_URL` according to your DeepAgentsCode provider setup.
-
-If `dcode` is not installed or not on `PATH`, DataElf fails clearly and writes details to `workspace/logs/dcode_stderr.log`.
-
-## Run
+Create or edit local secrets/config:
 
 ```bash
 dataelf init
-dataelf discover "围绕 Agentic LLMs，基于 AI Index 和联网搜索，发现最近值得关注的 3 个 insight"
-# With DATAELF_ENABLE_SQLITE=1 only:
-# dataelf job workspace <job_id>
-# dataelf job insights <job_id>
-# dataelf job brief <job_id>
-# dataelf job review <job_id>
-# dataelf job logs <job_id>
 ```
+
+`dataelf init` creates `dataelf.local.yaml` if it does not already exist. That file is ignored by git and is where each developer should put API keys.
+
+Verify Pi package loading:
+
+```bash
+PI_CODING_AGENT_DIR=.pi/agent OPENAI_API_KEY=placeholder ./node_modules/.bin/pi list --approve
+PI_CODING_AGENT_DIR=.pi/agent OPENAI_API_KEY=placeholder ./node_modules/.bin/pi --approve --list-models fusion
+```
+
+Expected signals:
+
+```text
+Project packages:
+  npm:@quarkos/pi-fusion
+
+provider  model
+fusion    fusion
+```
+
+Run a discovery job:
+
+```bash
+dataelf discover "围绕 Agentic LLMs，基于 AI Index，发现最近值得关注的 3 个 insight"
+```
+
+## DataElf Config
+
+DataElf loads config in this order:
+
+1. Built-in defaults
+2. The first existing file among `dataelf.local.yaml`, `dataelf.local.yml`, `dataelf.yaml`, `dataelf.yml`, `.dataelf/config.yaml`, `.dataelf/config.yml`, `.dataelf/config.json`
+3. Environment variables, which override config file values
+
+Use `DATAELF_CONFIG_FILE=/path/to/config.yaml` to select a specific file.
+
+Recommended `dataelf.local.yaml` for the Pi explorer:
+
+```yaml
+# DataElf workspace and AI Index data source.
+workspace_dir: .dataelf
+fixtures_dir: fixtures/ai_index
+ai_index_mode: api
+ai_index_base_url: https://index.shlab.org.cn/api/v2
+ai_index_api_key: ak_...
+enable_sqlite: false
+
+# Explorer selection.
+insights_explorer: pi
+
+# Pi runner. Leave pi_model empty to let Pi use .pi/settings.json.
+pi_binary: ./node_modules/.bin/pi
+pi_model:
+pi_mode: json
+pi_cwd: .
+pi_timeout_seconds:
+pi_extra_args: ""
+pi_log_mode: summary
+
+# Child-process environment for Pi and DataElf tools.
+# Shell exports with the same names override these values.
+env:
+  PI_CODING_AGENT_DIR: .pi/agent
+  OPENAI_API_KEY: sk-...
+
+  # Optional. Only needed after loading a Pi web-search skill that uses Brave.
+  # BRAVE_API_KEY: xxx
+```
+
+Config notes:
+
+- `workspace_dir`: DataElf runtime directory. Discovery jobs are written under `.dataelf/workspaces/`.
+- `fixtures_dir`: Local AI Index fixture path used when `ai_index_mode: fixture`.
+- `ai_index_mode`: `api` for live AI Index OpenAPI calls, `fixture` for local fixtures.
+- `ai_index_base_url`: AI Index OpenAPI base URL.
+- `ai_index_api_key`: AI Index OpenAPI key.
+- `enable_sqlite`: Optional job registry. Keep `false` unless you need `dataelf job ...` lookup commands.
+- `insights_explorer`: Use `pi` for the Pi-based explorer.
+- `pi_binary`: Path to the Pi CLI installed by `npm install`.
+- `pi_model`: Optional per-run Pi model override. Leave empty so Pi uses `.pi/settings.json`.
+- `pi_mode`: Pi output mode. DataElf expects `json`.
+- `pi_cwd`: Working directory for the Pi process. Keep `.` so Pi project settings and `pi-harness.config.json` are loaded from the repo root.
+- `pi_timeout_seconds`: Optional hard timeout. Empty means DataElf derives it from the job constraint.
+- `pi_extra_args`: Extra official Pi CLI flags, for example `--skill /path/to/brave-search`.
+- `pi_log_mode`: `summary`, `quiet`, or `raw`. Raw Pi JSON is always saved to workspace logs.
+- `env`: Environment forwarded to the child Pi process. Exported shell variables win over values in this file.
+
+Environment variable override examples:
+
+```bash
+export DATAELF_AI_INDEX_MODE=fixture
+export DATAELF_PI_LOG_MODE=raw
+export OPENAI_API_KEY=sk-...
+```
+
+## Pi Configuration
+
+Project-level Pi config lives in:
+
+```text
+.pi/settings.json
+.pi/agent/models.json
+pi-harness.config.json
+```
+
+`.pi/settings.json` is standard Pi project settings. It currently sets the default provider/model and declares the project package:
+
+```json
+{
+  "defaultProvider": "boyuerich-openai",
+  "defaultModel": "gpt-5.5",
+  "defaultThinkingLevel": "medium",
+  "packages": ["npm:@quarkos/pi-fusion"]
+}
+```
+
+`.pi/agent/models.json` is the Pi agent-dir model registry for the custom OpenAI-compatible Boyuerich provider. `dataelf.local.yaml` sets `PI_CODING_AGENT_DIR: .pi/agent` so this file is visible to Pi without using the user's global `~/.pi/agent`.
+
+The Boyuerich provider entry sets `compat.supportsUsageInStreaming: false`. Keep that unless the provider changes its stream format: Pi's OpenAI-completions adapter expects normal streaming choice deltas, while this endpoint may emit usage-only chunks that otherwise make Pi fail before DataElf can parse the workspace artifacts.
+
+`pi-harness.config.json` belongs to `@quarkos/pi-fusion`, not DataElf. Pi Fusion's extension code looks for `process.cwd()/pi-harness.config.json`; DataElf runs Pi with `pi_cwd: .`, so the file is placed at the repository root. If `pi_cwd` changes, this file must move with that cwd or Pi Fusion will fall back to its own defaults.
+
+## Pi Packages, Extensions, And Skills
+
+Pi packages are distribution bundles. A package can contain extensions, skills, prompt templates, and themes. Project npm packages install under `.pi/npm/`; that directory is generated and ignored by git.
+
+`@quarkos/pi-fusion` is an extension package. Its package manifest declares:
+
+```json
+{
+  "extensions": ["./index.js"]
+}
+```
+
+That means it loads JavaScript runtime code into Pi. It registers:
+
+- `/fusion <prompt>` slash command
+- `deliberate` tool callable by the Pi agent
+- `fusion/fusion` model provider
+
+A Pi skill is different: it is usually a directory with `SKILL.md`, plus optional helper scripts and references. Skills mainly provide on-demand workflow instructions. Extensions provide runtime capabilities. They can work together: for example, a future DataElf skill can tell the agent when to call Fusion's `deliberate` tool during insight ranking.
+
+## Pi Fusion In DataElf
+
+Pi Fusion is useful as a high-quality review and deliberation layer, not as the first source of truth for AI Index data. Good uses:
+
+- Challenge candidate insights before final selection
+- Compare multiple plausible interpretations of the same signal
+- Identify blind spots and missing evidence
+- Rank final insight candidates with a technical expert and a skeptic persona
+
+`pi-harness.config.json` currently uses:
+
+```json
+{
+  "mode": "3x",
+  "provider": "openai"
+}
+```
+
+`3x` means two parallel expert calls plus one synthesis call. Pi Fusion's full `5x` mode uses three panel experts, a judge, and a synthesis model. `3x` is cheaper and faster, so it is the right first test mode for DataElf.
+
+The safest first way to use Fusion inside DataElf is to ask the Pi explorer to use the registered `deliberate` tool only at the final ranking/review step:
+
+```bash
+dataelf discover "围绕 Agentic LLMs，基于 AI Index，发现最近值得关注的 3 个 insight。若 Pi runtime 暴露 deliberate 工具，请在最终筛选 3 个 insight 前调用它，对候选 insight 做反方论证、盲点检查和排序建议。"
+```
+
+Do not make `fusion/fusion` the default model for the whole DataElf job yet. That routes every agent turn through the deliberation pipeline and may conflict with DataElf's artifact-writing contract. Use the `deliberate` tool first, then promote deeper integration after benchmark runs.
+
+## Logs
+
+Each Pi job writes:
+
+```text
+.dataelf/workspaces/<job_id>/logs/pi_events.jsonl
+.dataelf/workspaces/<job_id>/logs/pi_stdout.log
+.dataelf/workspaces/<job_id>/logs/pi_stderr.log
+.dataelf/workspaces/<job_id>/logs/pi_command.json
+.dataelf/workspaces/<job_id>/logs/pi_env_redacted.json
+```
+
+`pi_log_mode` controls terminal output:
+
+- `summary`: compact event summaries, suitable for normal runs
+- `quiet`: no streamed Pi events in terminal
+- `raw`: mirror raw Pi JSON event stream to terminal
+
+The old `pi_stream_logs` boolean is still accepted for compatibility: `true` maps to `raw`, and `false` maps to `quiet`, unless `pi_log_mode` is set.
+
+## Web Search
+
+Pi web search should be added through Pi skills or extensions, not hard-coded into the DataElf Python runner. One candidate is the community `brave-search` skill:
+
+```bash
+git clone https://github.com/badlogic/pi-skills /path/to/pi-skills
+cd /path/to/pi-skills/brave-search && npm install
+```
+
+Then load it using official Pi mechanisms, for example:
+
+```yaml
+pi_extra_args: "--skill /path/to/pi-skills/brave-search"
+env:
+  BRAVE_API_KEY: xxx
+```
+
+Leaving `BRAVE_API_KEY` unset is fine as long as the Brave skill is not loaded.
 
 ## Discovery Workspace
 
@@ -88,7 +280,6 @@ Each job creates:
   prompts/
   logs/
   reviews/
-  .deepagents/agents/
 ```
 
 Key files:
@@ -98,8 +289,9 @@ insights/candidate_signals.json
 insights/insight_candidates.json
 insights/final_brief.md
 prompts/discovery_prompt.md
-logs/dcode_stdout.log
-logs/dcode_stderr.log
+logs/pi_events.jsonl
+logs/pi_stdout.log
+logs/pi_stderr.log
 reviews/quality_review.json
 workspace_index.json
 ```
@@ -125,9 +317,10 @@ The AI Index connector supports:
 - `POST /openapi/scholar/search`
 - `GET /openapi/institutions/:institution_id/funding-profile`
 
-The default production base URL in code is `https://index.shlab.org.cn/api/v2`; override it with `AI_INDEX_BASE_URL`.
+The default production base URL in code is `https://index.shlab.org.cn/api/v2`; override it with `AI_INDEX_BASE_URL` or `ai_index_base_url`.
 
-## Team Handoff
+## Tests
 
-- Intern A can focus on `dataelf/discovery/prompt_builder.py` and dcode-native config. DataElf scaffolds `.deepagents/agents/*/AGENTS.md` only when missing, so workspace-level agent edits are not overwritten on reruns.
-- Intern B can focus on `dataelf/domains/ai_index/domain.yaml`, `table_builder.py`, and future mapper/normalizer modules.
+```bash
+.venv/bin/python -m pytest -q
+```

@@ -184,7 +184,9 @@ class DeepAgentsCodeCliInsightsExplorer:
         if self.shell_allow_list:
             command.extend(["-S", self.shell_allow_list])
         if model:
-            command.extend(["--model", model])
+            command.extend(["-M", model])
+        if _needs_chat_completions_model_params(model, self.extra_args):
+            command.extend(["--model-params", json.dumps({"use_responses_api": False})])
         if self.extra_args:
             command.extend(shlex.split(self.extra_args))
         command.extend(["-n", prompt])
@@ -201,6 +203,7 @@ class DeepAgentsCodeCliInsightsExplorer:
         env["DATAELF_DOMAIN"] = context.domain
         if context.model:
             env["DATAELF_MODEL"] = context.model
+        _mirror_openai_env_for_dcode(env)
         return env
 
     def _init_project_agents(self, workspace_path: Path) -> None:
@@ -391,3 +394,32 @@ def _env_bool(name: str, default: bool) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _mirror_openai_env_for_dcode(env: dict[str, str]) -> None:
+    """Keep OpenAI-compatible endpoints visible to DeepAgentsCode's provider resolver.
+
+    DeepAgentsCode can read provider-specific variables such as
+    DEEPAGENTS_CODE_OPENAI_API_KEY / DEEPAGENTS_CODE_OPENAI_BASE_URL. Some
+    OpenAI-compatible deployments work through the plain OPENAI_* variables in
+    direct curl tests, but the dcode LangGraph server can miss them depending on
+    its provider auth/config path. Mirroring avoids requiring every caller to
+    export both forms.
+    """
+
+    if env.get("OPENAI_API_KEY") and not env.get("DEEPAGENTS_CODE_OPENAI_API_KEY"):
+        env["DEEPAGENTS_CODE_OPENAI_API_KEY"] = env["OPENAI_API_KEY"]
+
+    base_url = env.get("OPENAI_BASE_URL") or env.get("OPENAI_API_BASE")
+    if base_url:
+        env.setdefault("OPENAI_BASE_URL", base_url)
+        env.setdefault("OPENAI_API_BASE", base_url)
+        env.setdefault("DEEPAGENTS_CODE_OPENAI_BASE_URL", base_url)
+
+
+def _needs_chat_completions_model_params(model: str | None, extra_args: str) -> bool:
+    if not model or not model.startswith("openai:"):
+        return False
+    if "--model-params" in shlex.split(extra_args):
+        return False
+    return True

@@ -6,10 +6,12 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from dataelf.cli import app
-from dataelf.config import DEFAULT_AI_INDEX_API_KEY, DEFAULT_AI_INDEX_BASE_URL, DEFAULT_AI_INDEX_MODE, DataElfConfig
+from dataelf.config import DEFAULT_AI_INDEX_API_KEY, DEFAULT_AI_INDEX_BASE_URL, DEFAULT_AI_INDEX_MODE, DEFAULT_INSIGHTS_EXPLORER, DataElfConfig, write_config_template
 from dataelf.discovery.base import DiscoveryContext
 from dataelf.discovery.deepagents_code_cli_explorer import DEFAULT_DCODE_EXTRA_ARGS, DEFAULT_SHELL_ALLOW_LIST, DeepAgentsCodeCliInsightsExplorer
 from dataelf.discovery.domain_registry import DomainRegistry
+from dataelf.discovery.explorer_factory import normalize_insights_explorer_name
+from dataelf.discovery.pi_cli_explorer import PI_BINARY_NOT_FOUND, PiCliInsightsExplorer, _summarize_pi_event
 from dataelf.discovery.quality_review import review_workspace
 from dataelf.discovery.workflow import run_discovery
 from dataelf.discovery.workspace import prepare_workspace
@@ -163,6 +165,76 @@ cat > deep_dives/sig_001.md <<'MD'
 # Retry deep dive
 MD
 echo "retry completed"
+""",
+        encoding="utf-8",
+    )
+    path.chmod(0o755)
+    return path
+
+
+def _write_fake_pi(tmp_path: Path) -> Path:
+    path = tmp_path / "fake_pi"
+    path.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+printf '{"type":"session","version":3,"id":"fake-pi","timestamp":"2026-01-01T00:00:00Z","cwd":"%s"}\n' "$PWD"
+cd "$DATAELF_WORKSPACE"
+mkdir -p insights scripts deep_dives tables raw/web logs
+echo '{"type":"agent_start"}'
+cat > insights/candidate_signals.json <<'JSON'
+{
+  "candidate_signals": [
+    {
+      "signal_id": "sig_pi_001",
+      "signal_type": "ecosystem_gap",
+      "summary": "Pi runner can produce DataElf candidate signals through workspace artifacts.",
+      "why_might_matter": "The signal verifies the Pi orchestration contract without depending on Pi internals.",
+      "supporting_tables": ["papers.csv"],
+      "related_entities": ["Paper", "Tool"],
+      "suggested_deep_dive": ["Check Pi artifact handoff"],
+      "initial_score": {"novelty": 0.7, "magnitude": 0.6, "strategic_relevance": 0.8},
+      "status": "needs_deep_dive"
+    }
+  ]
+}
+JSON
+cat > insights/insight_candidates.json <<'JSON'
+{
+  "insight_candidates": [
+    {
+      "insight_id": "ins_pi_001",
+      "title": "Pi can act as a DataElf explorer while DataElf keeps artifact ownership",
+      "thesis": "The Pi CLI runner writes the same structured insight files as the dcode runner, keeping DataElf core stable.",
+      "why_now": "DataElf is adding a parallel Pi explorer after benchmark evaluation.",
+      "supporting_signals": ["sig_pi_001"],
+      "analysis_artifacts": ["scripts/pi_analysis.py", "deep_dives/sig_pi_001.md"],
+      "related_entities": ["Runtime:Pi", "Workspace:DataElf"],
+      "external_support": [{"source_id": "web_pi_001", "summary": "Fake Pi web evidence placeholder."}],
+      "counterarguments": ["The fake runner does not exercise real Pi skills."],
+      "confidence": 0.64,
+      "next_questions": ["Run with the real Pi CLI and brave-search skill."]
+    }
+  ]
+}
+JSON
+cat > insights/final_brief.md <<'MD'
+# Pi Insight Discovery Brief
+
+Fake Pi output for tests.
+MD
+cat > scripts/pi_analysis.py <<'PY'
+print("pi analysis artifact")
+PY
+cat > deep_dives/sig_pi_001.md <<'MD'
+# sig_pi_001
+
+Deep dive artifact for fake Pi.
+MD
+cat > tables/external_findings.csv <<'CSV'
+finding_id,source_id,finding_type,summary,supports,challenges,confidence,url,source_raw
+finding_pi_001,web_pi_001,web_search,External fake Pi finding,ins_pi_001,,0.5,https://example.com/pi,
+CSV
+echo '{"type":"agent_end","messages":[]}'
 """,
         encoding="utf-8",
     )
@@ -344,6 +416,45 @@ def test_discovery_workflow_creates_job_workspace_and_review(tmp_path: Path, mon
     assert not config.sqlite_path.exists()
 
 
+def test_discovery_workflow_can_use_pi_explorer(tmp_path: Path, monkeypatch) -> None:
+    fake_pi = _write_fake_pi(tmp_path)
+    monkeypatch.setenv("DATAELF_INSIGHTS_EXPLORER", "pi")
+    monkeypatch.setenv("DATAELF_PI_BINARY", str(fake_pi))
+    config = DataElfConfig(
+        workspace_dir=tmp_path / ".dataelf",
+        sqlite_path=tmp_path / ".dataelf" / "dataelf.sqlite",
+        raw_dir=tmp_path / ".dataelf" / "raw",
+        workspaces_dir=tmp_path / ".dataelf" / "workspaces",
+        fixtures_dir=Path("fixtures/ai_index"),
+        ai_index_mode="fixture",
+        insights_explorer="pi",
+        pi_binary=str(fake_pi),
+        pi_model="openai/gpt-4o",
+    )
+
+    job = run_discovery("围绕 Agentic LLMs，发现 1 个 insight", config)
+
+    workspace = Path(job.workspace_path)
+    assert job.status == "completed"
+    assert job.insight_candidate_ids == ["ins_pi_001"]
+    assert (workspace / "logs" / "pi_stdout.log").exists()
+    assert (workspace / "logs" / "pi_stderr.log").exists()
+    assert (workspace / "logs" / "pi_events.jsonl").exists()
+    assert (workspace / "logs" / "pi_command.json").exists()
+    command_log = json.loads((workspace / "logs" / "pi_command.json").read_text(encoding="utf-8"))
+    command = command_log["command"]
+    assert "--mode" in command
+    assert "--approve" in command
+    assert "--model" in command
+    assert "openai/gpt-4o" in command
+    assert command_log["cwd"] == str(Path(__file__).resolve().parents[1])
+    assert command_log["workspace_path"] == str(workspace)
+    prompt = (workspace / "prompts" / "discovery_prompt.md").read_text(encoding="utf-8")
+    assert "Pi Runtime" in prompt
+    assert "process working directory may be the DataElf repository root" in prompt
+    assert "DeepAgentsCode Subagents" not in prompt
+
+
 def test_discovery_workflow_can_use_sqlite_when_enabled(tmp_path: Path, monkeypatch) -> None:
     fake_dcode = _write_fake_dcode(tmp_path)
     monkeypatch.setenv("DATAELF_DCODE_BINARY", str(fake_dcode))
@@ -405,6 +516,18 @@ def test_deepagents_code_cli_missing_binary_is_clear(tmp_path: Path) -> None:
     assert "DeepAgentsCode CLI not found" in (workspace / "logs" / "dcode_stderr.log").read_text(encoding="utf-8")
 
 
+def test_pi_cli_missing_binary_is_clear(tmp_path: Path) -> None:
+    workspace = prepare_workspace(tmp_path / "workspace")
+    job = DiscoveryJob(job_id="job_missing_pi", workspace_path=str(workspace), seed_query="test")
+    explorer = PiCliInsightsExplorer(pi_binary=str(tmp_path / "missing_pi"))
+
+    result = explorer.run(job, DiscoveryContext(workspace_path=str(workspace), domain="ai_index", config={"insights_explorer": "pi"}))
+
+    assert result.status == "failed"
+    assert result.error == PI_BINARY_NOT_FOUND
+    assert "Pi CLI not found" in (workspace / "logs" / "pi_stderr.log").read_text(encoding="utf-8")
+
+
 def test_deepagents_code_cli_retries_synthesis_after_partial_failure(tmp_path: Path) -> None:
     fake_dcode = _write_retry_fake_dcode(tmp_path)
     workspace = prepare_workspace(tmp_path / "workspace")
@@ -431,6 +554,7 @@ def test_cli_discover_smoke(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setenv("DATAELF_WORKSPACE", str(tmp_path / ".dataelf"))
     monkeypatch.setenv("DATAELF_FIXTURES_DIR", str(fixtures))
     monkeypatch.setenv("DATAELF_AI_INDEX_MODE", "fixture")
+    monkeypatch.setenv("DATAELF_INSIGHTS_EXPLORER", "deepagentscode")
     monkeypatch.setenv("DATAELF_DCODE_BINARY", str(fake_dcode))
 
     result = CliRunner().invoke(
@@ -440,6 +564,7 @@ def test_cli_discover_smoke(tmp_path: Path, monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert "Discovery job completed" in result.output
+    assert "Explorer: deepagentscode" in result.output
     assert "Actual dcode model: fake-model" in result.output
     assert (tmp_path / ".dataelf" / "workspaces").exists()
 
@@ -451,6 +576,113 @@ def test_ai_index_api_defaults_match_provided_curl() -> None:
     assert AI_INDEX_ENDPOINTS["fetch_institution_funding"] == "/openapi/institutions/{institution_id}/funding-profile"
 
 
+def test_insights_explorer_defaults_and_aliases() -> None:
+    assert DEFAULT_INSIGHTS_EXPLORER == "deepagentscode"
+    assert normalize_insights_explorer_name("dcode") == "deepagentscode"
+    assert normalize_insights_explorer_name("deepagents-code") == "deepagentscode"
+    assert normalize_insights_explorer_name("pi") == "pi"
+
+
+def test_dataelf_config_file_loads_and_env_overrides(tmp_path: Path, monkeypatch) -> None:
+    config_path = tmp_path / "dataelf.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "workspace_dir: file_workspace",
+                "fixtures_dir: file_fixtures",
+                "model: file-model",
+                "ai_index_mode: fixture",
+                "enable_sqlite: true",
+                "insights_explorer: pi",
+                "dcode_binary: file-dcode",
+                "dcode_extra_args: --max-turns 7",
+                "pi_binary: file-pi",
+                "pi_model: file-pi-model",
+                "pi_cwd: file-pi-cwd",
+                "pi_timeout_seconds: 123",
+                "pi_extra_args: --skill /tmp/brave-search",
+                "pi_stream_logs: true",
+                "pi_log_mode: raw",
+                "env:",
+                "  OPENAI_API_KEY: file-openai",
+                "  TAVILY_API_KEY: file-tavily",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DATAELF_MODEL", "env-model")
+    monkeypatch.setenv("DATAELF_PI_MODEL", "env-pi-model")
+    monkeypatch.setenv("DATAELF_PI_CWD", "env-pi-cwd")
+    monkeypatch.setenv("DATAELF_PI_STREAM_LOGS", "false")
+    monkeypatch.setenv("DATAELF_PI_LOG_MODE", "summary")
+    monkeypatch.setenv("OPENAI_API_KEY", "env-openai")
+
+    config = DataElfConfig.from_env()
+
+    assert config.workspace_dir == Path("file_workspace")
+    assert config.fixtures_dir == Path("file_fixtures")
+    assert config.model == "env-model"
+    assert config.ai_index_mode == "fixture"
+    assert config.enable_sqlite
+    assert config.insights_explorer == "pi"
+    assert config.dcode_binary == "file-dcode"
+    assert config.dcode_extra_args == "--max-turns 7"
+    assert config.pi_binary == "file-pi"
+    assert config.pi_model == "env-pi-model"
+    assert config.pi_cwd == Path("env-pi-cwd")
+    assert config.pi_timeout_seconds == 123
+    assert config.pi_extra_args == "--skill /tmp/brave-search"
+    assert config.pi_stream_logs is False
+    assert config.pi_log_mode == "summary"
+    assert config.runtime_env["OPENAI_API_KEY"] == "env-openai"
+    assert config.runtime_env["TAVILY_API_KEY"] == "file-tavily"
+
+
+def test_pi_event_summary_compacts_noisy_json_payload() -> None:
+    event = {
+        "role": "assistant",
+        "content": [
+            {
+                "type": "toolCall",
+                "name": "bash",
+                "arguments": {
+                    "command": "python - <<'PY'\nprint('very long payload')\nPY" + "x" * 500,
+                },
+            }
+        ],
+        "usage": {"input": 12, "output": 3, "totalTokens": 15},
+    }
+
+    summary = _summarize_pi_event(json.dumps(event))
+
+    assert summary is not None
+    assert "assistant: tool call: bash" in summary
+    assert "tokens in=12 out=3 total=15" in summary
+    assert len(summary) < 360
+
+
+def test_pi_event_summary_suppresses_streaming_deltas() -> None:
+    assert _summarize_pi_event('{"type":"message_update","content":[{"type":"text","text":"noisy"}]}') is None
+    assert _summarize_pi_event('{"type":"message_end","content":[{"type":"text","text":"large final payload"}]}') is None
+    assert _summarize_pi_event('{"type":"turn_start"}') is None
+    assert _summarize_pi_event('{"type":"turn_end"}') is None
+    assert _summarize_pi_event('{"type":"tool_execution_start"}') is None
+    assert _summarize_pi_event('{"type":"tool_execution_update","toolName":"bash","content":"partial output"}') is None
+    assert _summarize_pi_event('{"type":"tool_execution_end"}') is None
+
+
+def test_dataelf_init_config_template_is_not_overwritten(tmp_path: Path) -> None:
+    path = tmp_path / ".dataelf" / "config.yaml"
+    first = write_config_template(path, DataElfConfig(model="first-model"))
+    second = write_config_template(path, DataElfConfig(model="second-model"))
+
+    assert first == second
+    assert "first-model" in path.read_text(encoding="utf-8")
+    assert "second-model" not in path.read_text(encoding="utf-8")
+
+
 def test_dcode_shell_allow_list_defaults_to_all() -> None:
     assert DEFAULT_SHELL_ALLOW_LIST == "all"
     assert DeepAgentsCodeCliInsightsExplorer().shell_allow_list == "all"
@@ -460,9 +692,19 @@ def test_dcode_extra_args_are_appended_and_agents_are_not_overwritten(tmp_path: 
     explorer = DeepAgentsCodeCliInsightsExplorer(extra_args='--max-turns 2 --no-mcp')
     command = explorer._build_command("hello", "openai:gpt-5.5")
     assert command[-5:] == ["--max-turns", "2", "--no-mcp", "-n", "hello"]
+    assert "-M" in command
+    assert "--model" not in command
+    assert "--model-params" in command
+    assert '{"use_responses_api": false}' in command
     assert "--max-turns" in command
     assert "--no-mcp" in command
     assert DEFAULT_DCODE_EXTRA_ARGS == ""
+
+    custom_params = DeepAgentsCodeCliInsightsExplorer(extra_args='--model-params {"temperature":0}')._build_command(
+        "hello",
+        "openai:gpt-5.5",
+    )
+    assert custom_params.count("--model-params") == 1
 
     workspace = tmp_path / "workspace"
     custom_agent = workspace / ".deepagents" / "agents" / "breadth-scout" / "AGENTS.md"

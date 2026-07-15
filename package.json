@@ -1,0 +1,9 @@
+{
+  "name": "dataelf-v2",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DataElf M1 insight discovery runtime",
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.80.3"
+  }
+}

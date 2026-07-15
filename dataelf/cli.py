@@ -8,7 +8,8 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from dataelf.config import DataElfConfig
+from dataelf.config import DEFAULT_CONFIG_FILE, DataElfConfig, write_config_template
+from dataelf.discovery.explorer_factory import normalize_insights_explorer_name
 from dataelf.discovery.workflow import run_discovery
 from dataelf.stores.sqlite_store import SQLiteStore
 from dataelf.tools.registry import list_tool_specs
@@ -42,7 +43,9 @@ def init() -> None:
     """Initialize the local DataElf workspace."""
     config = _config()
     config.ensure_dirs()
+    config_file = write_config_template(DEFAULT_CONFIG_FILE, config)
     console.print(f"Initialized DataElf workspace: [bold]{config.workspace_dir.resolve()}[/bold]")
+    console.print(f"Config file: {config_file.resolve()}")
     if config.enable_sqlite:
         store = _store(config)
         store.close()
@@ -67,14 +70,22 @@ def discover(query: str) -> None:
     status_style = "green" if job.status == "completed" else "red"
     console.print(f"[{status_style}]Discovery job {job.status}:[/{status_style}] {job.job_id}")
     workspace = Path(job.workspace_path).resolve()
+    explorer_name = normalize_insights_explorer_name(config.insights_explorer)
     console.print(f"Workspace: {workspace}")
-    console.print(f"Requested model: {config.model or '<dcode default>'}")
-    console.print(f"Actual dcode model: {_read_dcode_model(workspace) or '<unknown>'}")
+    console.print(f"Explorer: {explorer_name}")
+    if explorer_name == "pi":
+        console.print(f"Requested model: {config.pi_model or '<pi default>'}")
+        console.print(f"Pi events: {workspace / 'logs' / 'pi_events.jsonl'}")
+        console.print(f"pi stdout: {workspace / 'logs' / 'pi_stdout.log'}")
+        console.print(f"pi stderr: {workspace / 'logs' / 'pi_stderr.log'}")
+    else:
+        console.print(f"Requested model: {config.model or '<dcode default>'}")
+        console.print(f"Actual dcode model: {_read_dcode_model(workspace) or '<unknown>'}")
+        console.print(f"dcode stdout: {workspace / 'logs' / 'dcode_stdout.log'}")
+        console.print(f"dcode stderr: {workspace / 'logs' / 'dcode_stderr.log'}")
     console.print(f"Insight candidates: {workspace / 'insights' / 'insight_candidates.json'}")
     console.print(f"Final brief: {workspace / 'insights' / 'final_brief.md'}")
     console.print(f"Review file: {workspace / 'reviews' / 'quality_review.json'}")
-    console.print(f"dcode stdout: {workspace / 'logs' / 'dcode_stdout.log'}")
-    console.print(f"dcode stderr: {workspace / 'logs' / 'dcode_stderr.log'}")
     if config.enable_sqlite:
         console.print(f"Registry review: dataelf job review {job.job_id}")
         console.print(f"Registry logs: dataelf job logs {job.job_id}")

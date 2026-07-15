@@ -21,6 +21,11 @@ def build_discovery_prompt(job: DiscoveryJob, context: DiscoveryContext) -> str:
     constraints_json = json.dumps(job.constraints, ensure_ascii=False, indent=2)
     seed_query = job.seed_query or ""
     model_line = f"\nPreferred model: `{context.model}`\n" if context.model else ""
+    runner_name = str(context.config.get("insights_explorer", "deepagentscode")).lower()
+    data_source_line = _external_data_source_line(runner_name)
+    runtime_section = _runtime_section(runner_name)
+    external_web_section = _external_web_section(runner_name)
+    web_tool_phrase = _web_tool_phrase(runner_name)
 
     return f"""# DataElf Insight Discovery Task
 
@@ -35,6 +40,8 @@ You are running inside this workspace:
 `{workspace_path}`
 
 Use the workspace as the single source of working files. Do not modify the DataElf source repository.
+
+The process working directory may be the DataElf repository root for runtime configuration purposes. Still write all DataElf job artifacts to the workspace path above.
 
 Important directories:
 
@@ -53,7 +60,7 @@ You have access to:
 1. Local CSV tables under `tables/`.
 2. Raw AI Index API responses under `raw/ai_index/`.
 3. AI Index dynamic data access via Python SDK.
-4. DeepAgentsCode `web_search` / `fetch_url` tools for external web investigation.
+4. {data_source_line}
 
 ## AI Index SDK
 
@@ -88,26 +95,19 @@ Important execution guidance for this CLI runner:
 - Prefer progressive acquisition: fetch a batch, write raw/tables/notes, summarize what changed, then decide the next batch.
 - Do not print raw API responses, full dataframes, or long CSV contents to stdout.
 - Write large details to `notes/`, `tables/`, or `raw/`; print only compact summaries from scripts.
+- For non-trivial Python, write a script under `scripts/` and run the script file. Do not run inline Python heredocs through shell commands.
+- Keep shell command strings short and simple. Put complex logic in files, not in command arguments.
+- Never overwrite `insights/candidate_signals.json` or `insights/insight_candidates.json` with empty arrays after you have collected evidence.
 - If a script or model step fails after a large batch, retry with smaller batches and summarize intermediate files instead of abandoning the task.
 
 Use `save_raw(...)` only for custom responses not already saved by `search_*`.
 Use `save_table(...)` only for derived analysis tables you create.
 
-## DeepAgentsCode Subagents
-
-Project subagent shells are available under `.deepagents/agents/`:
-
-- `breadth-scout`: broad AI Index and local table scan; generate candidate signal coverage.
-- `code-analyst`: Python analysis, joins, aggregations, anomaly detection, and derived tables.
-- `web-investigator`: external web_search / fetch_url investigation.
-- `skeptic`: challenge evidence, low-base effects, obviousness, and alternative explanations.
-- `insight-synthesizer`: produce final insight_candidates.json and final_brief.md.
-
-Use the DeepAgentsCode `task` tool to delegate when helpful. In particular, delegate the first broad/starter scan to `breadth-scout` rather than doing all acquisition in the main agent context. Subagents should write findings to workspace files and return concise summaries to the main agent.
+{runtime_section}
 
 ## External Web Search
 
-Use DeepAgentsCode `web_search` and `fetch_url` when useful.
+{external_web_section}
 
 External search should be used to explain or challenge AI Index signals, not to replace data analysis.
 
@@ -132,13 +132,20 @@ If web search is unavailable, say so explicitly in the final brief. Do not fabri
 
 ## Required Workflow
 
-You must work in four phases.
+You must work in four phases, but keep the run bounded. Prefer one compact script per phase over many small exploratory commands. Once you have enough evidence for 3 final insights, stop acquiring data and synthesize.
+
+Pi execution budget guidance:
+
+- Aim for no more than 12 substantial tool executions total.
+- Fetch only the AI Index batches needed to support the final 3 insights.
+- Use at most 3 selected signals for deep dive unless the user explicitly asks for more.
+- If external web search is slow or unavailable, use the best available AI Index evidence and state the limitation.
 
 ### Phase 1: Breadth Scan
 
 Inspect available tables and raw files. If needed, dynamically fetch more AI Index data using `AIIndexClient`.
 
-Generate at least 15 candidate signals and write them to:
+Generate 8 to 12 candidate signals and write them to:
 
 `insights/candidate_signals.json`
 
@@ -172,7 +179,7 @@ Score candidate signals using:
 - low-base risk
 - obviousness risk
 
-Select the top 3 to 5 signals for deep dive.
+Select the top 3 signals for deep dive.
 
 ### Phase 3: Deep Dive
 
@@ -183,7 +190,7 @@ For each selected signal:
 3. Use pandas or another Python library to analyze CSV tables.
 4. Use groupby / join / anomaly detection / co-occurrence / ranking / simple network analysis when useful.
 5. Save outputs under `tables/` or `deep_dives/`.
-6. Use web_search / fetch_url if external explanation is needed.
+6. Use {web_tool_phrase} if external explanation is needed.
 7. Check counterarguments and uncertainty.
 
 Every deep dive must answer:
@@ -199,6 +206,8 @@ Every deep dive must answer:
 Write deep-dive reports to:
 
 `deep_dives/`
+
+Do not keep expanding the search after the 3 deep dives are good enough to support final insight candidates.
 
 ### Phase 4: Synthesis
 
@@ -247,6 +256,8 @@ Final insights should cover at least two of these insight forms:
 - Each final insight should connect at least two entity types, such as Paper + Institution, Institution + Scholar, Paper + Benchmark, or AI Index data + WebSource.
 - If the available data is insufficient, produce fewer but stronger insights rather than filling the quota with weak claims.
 - Do not fabricate external facts. If web search is unavailable, state that limitation.
+- Before stopping, verify that `insights/candidate_signals.json`, `insights/insight_candidates.json`, `insights/final_brief.md`, and at least one `deep_dives/*.md` file exist and are non-empty.
+- After the required artifacts are written and verified, stop. Do not keep exploring or start another turn.
 
 ## Output Schemas
 
@@ -323,3 +334,47 @@ Constraints:
 {constraints_json}
 ```
 """
+
+
+def _external_data_source_line(runner_name: str) -> str:
+    if runner_name == "pi":
+        return "Pi built-in tools and explicitly loaded Pi skills for external web investigation."
+    return "DeepAgentsCode `web_search` / `fetch_url` tools for external web investigation."
+
+
+def _runtime_section(runner_name: str) -> str:
+    if runner_name == "pi":
+        return """## Pi Runtime
+
+You are running under Pi CLI in JSON event stream mode.
+
+Use Pi's normal capabilities, built-in tools, and any explicitly loaded skills. DataElf's Python runner is only the orchestrator; do not expect it to provide custom Pi tools beyond the workspace, environment variables, and prompt.
+
+If a `deliberate` tool from Pi Fusion is available, use it only after you already have non-empty candidate signals or a draft final ranking. It is optional review help for counterarguments, blind spots, and ranking decisions; it is not a replacement for AI Index analysis. If the tool fails or is unavailable, continue without it and write the required DataElf artifacts.
+
+If a web-search skill such as `brave-search` is available, use it when external evidence is needed. If no relevant web skill or network capability is available, continue with AI Index and local evidence, then state the limitation in the final brief.
+"""
+    return """## DeepAgentsCode Subagents
+
+Project subagent shells are available under `.deepagents/agents/`:
+
+- `breadth-scout`: broad AI Index and local table scan; generate candidate signal coverage.
+- `code-analyst`: Python analysis, joins, aggregations, anomaly detection, and derived tables.
+- `web-investigator`: external web_search / fetch_url investigation.
+- `skeptic`: challenge evidence, low-base effects, obviousness, and alternative explanations.
+- `insight-synthesizer`: produce final insight_candidates.json and final_brief.md.
+
+Use the DeepAgentsCode `task` tool to delegate when helpful. In particular, delegate the first broad/starter scan to `breadth-scout` rather than doing all acquisition in the main agent context. Subagents should write findings to workspace files and return concise summaries to the main agent.
+"""
+
+
+def _external_web_section(runner_name: str) -> str:
+    if runner_name == "pi":
+        return "Use Pi's loaded web-search skills or shell-accessible search helpers when useful. The recommended community option is a Pi Agent Skill such as `brave-search`, loaded through Pi's official skill discovery/settings or with the official `--skill` CLI flag in `pi_extra_args`."
+    return "Use DeepAgentsCode `web_search` and `fetch_url` when useful."
+
+
+def _web_tool_phrase(runner_name: str) -> str:
+    if runner_name == "pi":
+        return "Pi's loaded web-search skill or available shell-accessible search helper"
+    return "web_search / fetch_url"

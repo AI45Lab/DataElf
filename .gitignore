@@ -5,3 +5,11 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .DS_Store
+node_modules/
+.npm-cache/
+dataelf.local.yaml
+dataelf.local.yml
+.pi/agent/auth.json
+.pi/agent/sessions/
+.pi/agent/trust.json
+.pi/npm/
