@@ -41,22 +41,23 @@ Install the pinned Pi CLI dependency declared in `package.json`:
 npm install
 ```
 
-Install or reconcile project-local Pi packages declared in `.pi/settings.json` when the project enables any Pi packages:
+Install or reconcile project-local Pi packages declared in `.pi/settings.json`:
 
 ```bash
 PI_CODING_AGENT_DIR=.pi/agent npm_config_cache=.npm-cache \
-  ./node_modules/.bin/pi install npm:<package-name> --local --approve
+  ./node_modules/.bin/pi install npm:pi-web-access --local --approve
 ```
 
-Why this extra command may be needed: `.pi/settings.json` is committed, but generated package files under `.pi/npm/` are not. A fresh clone needs Pi to populate `.pi/npm/node_modules/` for any declared Pi packages. `npm_config_cache=.npm-cache` keeps npm cache writes inside the repo and avoids user-level `~/.npm` permission issues. The baseline repo currently does not require a project Pi package.
+Why this extra command is needed: `.pi/settings.json` is committed, but generated package files under `.pi/npm/` are not. A fresh clone needs Pi to populate `.pi/npm/node_modules/` for declared Pi packages. `npm_config_cache=.npm-cache` keeps npm cache writes inside the repo and avoids user-level `~/.npm` permission issues.
 
 Create or edit local secrets/config:
 
 ```bash
-dataelf init
+cp dataelf.example.yaml dataelf.local.yaml
+# edit dataelf.local.yaml and replace xx with real local secrets
 ```
 
-`dataelf init` creates `dataelf.local.yaml` if it does not already exist. That file is ignored by git and is where each developer should put API keys.
+`dataelf.example.yaml` is the committed, masked example config. `dataelf.local.yaml` is ignored by git and is where each developer should put real API keys. You can also run `dataelf init` to create a minimal local config if one does not already exist, but `dataelf.example.yaml` is the fuller reference.
 
 Verify Pi config and package loading:
 
@@ -64,7 +65,12 @@ Verify Pi config and package loading:
 PI_CODING_AGENT_DIR=.pi/agent OPENAI_API_KEY=placeholder ./node_modules/.bin/pi list --approve
 ```
 
-With no project packages enabled, the package list can be empty. After installing a web-search package, it should appear here.
+Expected package signal:
+
+```text
+Project packages:
+  npm:pi-web-access
+```
 
 You can also check the configured custom model:
 
@@ -88,42 +94,18 @@ DataElf loads config in this order:
 
 Use `DATAELF_CONFIG_FILE=/path/to/config.yaml` to select a specific file.
 
-Recommended `dataelf.local.yaml` for the Pi explorer:
+Use the committed [dataelf.example.yaml](dataelf.example.yaml) as the complete masked example for the Pi explorer. Copy it to `dataelf.local.yaml` and replace only local secret values:
 
-```yaml
-# DataElf workspace and AI Index data source.
-workspace_dir: .dataelf
-fixtures_dir: fixtures/ai_index
-ai_index_mode: api
-ai_index_base_url: https://index.shlab.org.cn/api/v2
-ai_index_api_key: ak_...
-enable_sqlite: false
-
-# Explorer selection.
-insights_explorer: pi
-
-# Pi runner. Leave pi_model empty to let Pi use .pi/settings.json.
-pi_binary: ./node_modules/.bin/pi
-pi_model:
-pi_mode: json
-pi_cwd: .
-pi_timeout_seconds:
-pi_extra_args: ""
-pi_log_mode: summary
-
-# Child-process environment for Pi and DataElf tools.
-# Shell exports with the same names override these values.
-env:
-  PI_CODING_AGENT_DIR: .pi/agent
-  OPENAI_API_KEY: sk-...
-
-  # Optional. Only needed after loading a Pi web-search skill that uses Brave.
-  # BRAVE_API_KEY: xxx
+```bash
+cp dataelf.example.yaml dataelf.local.yaml
 ```
 
 Config notes:
 
 - `workspace_dir`: DataElf runtime directory. Discovery jobs are written under `.dataelf/workspaces/`.
+- `sqlite_path`: Optional SQLite job registry path, used only when `enable_sqlite: true`.
+- `raw_dir`: Shared raw-data directory for future non-job caches.
+- `workspaces_dir`: Parent directory for per-job workspaces.
 - `fixtures_dir`: Local AI Index fixture path used when `ai_index_mode: fixture`.
 - `ai_index_mode`: `api` for live AI Index OpenAPI calls, `fixture` for local fixtures.
 - `ai_index_base_url`: AI Index OpenAPI base URL.
@@ -135,9 +117,12 @@ Config notes:
 - `pi_mode`: Pi output mode. DataElf expects `json`.
 - `pi_cwd`: Working directory for the Pi process. Keep `.` so Pi project settings are loaded from the repo root.
 - `pi_timeout_seconds`: Optional hard timeout. Empty means DataElf derives it from the job constraint.
-- `pi_extra_args`: Extra official Pi CLI flags, for example `--skill /path/to/brave-search`.
+- `pi_extra_args`: Extra official Pi CLI flags for additional skills or resources.
 - `pi_log_mode`: `summary`, `quiet`, or `raw`. Raw Pi JSON is always saved to workspace logs.
+- `pi_stream_logs`: Legacy boolean log switch. Prefer `pi_log_mode`.
 - `env`: Environment forwarded to the child Pi process. Exported shell variables win over values in this file.
+
+Never commit real keys. Keep real values only in `dataelf.local.yaml`, shell exports, or another file selected with `DATAELF_CONFIG_FILE` that is not tracked by git. The committed example intentionally uses `xx` for API keys.
 
 Environment variable override examples:
 
@@ -156,14 +141,14 @@ Project-level Pi config lives in:
 .pi/agent/models.json
 ```
 
-`.pi/settings.json` is standard Pi project settings. It currently sets the default provider/model and has no project package enabled:
+`.pi/settings.json` is standard Pi project settings. It currently sets the default provider/model and declares the project web-access package:
 
 ```json
 {
   "defaultProvider": "boyuerich-openai",
   "defaultModel": "gpt-5.5",
   "defaultThinkingLevel": "medium",
-  "packages": []
+  "packages": ["npm:pi-web-access"]
 }
 ```
 
@@ -171,13 +156,15 @@ Project-level Pi config lives in:
 
 The Boyuerich provider entry sets `compat.supportsUsageInStreaming: false`. Keep that unless the provider changes its stream format: Pi's OpenAI-completions adapter expects normal streaming choice deltas, while this endpoint may emit usage-only chunks that otherwise make Pi fail before DataElf can parse the workspace artifacts.
 
+`.pi/agent/web-search.json` is the project-level `pi-web-access` config. It selects Tavily as the default search provider and disables the interactive curator workflow for non-interactive DataElf jobs. Keep API keys out of this file; use `dataelf.local.yaml env:` or shell exports for `TAVILY_API_KEY`.
+
 ## Pi Packages, Extensions, And Skills
 
 Pi packages are distribution bundles. A package can contain extensions, skills, prompt templates, and themes. Project npm packages install under `.pi/npm/`; that directory is generated and ignored by git.
 
 A Pi skill is usually a directory with `SKILL.md`, plus optional helper scripts and references. Skills mainly provide on-demand workflow instructions. Extensions provide runtime capabilities by registering tools, commands, providers, or hooks with Pi.
 
-DataElf does not hard-code third-party Pi packages. Add them through official Pi package management and keep package-specific configuration in official Pi locations or in `pi_extra_args`.
+DataElf does not hard-code package internals. Add packages through official Pi package management and keep package-specific configuration in official Pi locations or in `pi_extra_args`. The current project package is `pi-web-access`, which exposes web access tools such as `web_search`, `fetch_content`, and `get_search_content`.
 
 ## Insight Discovery Four-Phase Flow
 
@@ -227,22 +214,33 @@ The old `pi_stream_logs` boolean is still accepted for compatibility: `true` map
 
 ## Web Search
 
-Pi web search should be added through Pi skills or extensions, not hard-coded into the DataElf Python runner. One candidate is the community `brave-search` skill:
+Pi web search is provided through Pi packages, skills, or extensions, not hard-coded into the DataElf Python runner. The current project default is `pi-web-access` with Tavily as the provider.
 
 ```bash
-git clone https://github.com/badlogic/pi-skills /path/to/pi-skills
-cd /path/to/pi-skills/brave-search && npm install
+PI_CODING_AGENT_DIR=.pi/agent npm_config_cache=.npm-cache \
+  ./node_modules/.bin/pi install npm:pi-web-access --local --approve
 ```
 
-Then load it using official Pi mechanisms, for example:
+Project web-search behavior is configured in `.pi/agent/web-search.json`:
+
+```json
+{
+  "provider": "tavily",
+  "workflow": "none",
+  "webSearch": {
+    "enabled": true
+  }
+}
+```
+
+Put the Tavily API key in local config or export it in the shell:
 
 ```yaml
-pi_extra_args: "--skill /path/to/pi-skills/brave-search"
 env:
-  BRAVE_API_KEY: xxx
+  TAVILY_API_KEY: tvly-...
 ```
 
-Leaving `BRAVE_API_KEY` unset is fine as long as the Brave skill is not loaded.
+`pi-web-access` registers tools such as `web_search`, `fetch_content`, and `get_search_content`. In DataElf runs, the explorer should use AI Index as the primary structured source and use external web search to explain, challenge, or corroborate candidate signals. Raw web evidence should be saved under `raw/web/` and summarized into `tables/source_observations.csv` or `tables/external_findings.csv`.
 
 ## Discovery Workspace
 

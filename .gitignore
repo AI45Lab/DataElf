@@ -9,6 +9,7 @@ node_modules/
 .npm-cache/
 dataelf.local.yaml
 dataelf.local.yml
+DataElf_config*.txt
 .pi/agent/auth.json
 .pi/agent/sessions/
 .pi/agent/trust.json

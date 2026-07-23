@@ -133,7 +133,7 @@ def write_config_template(path: Path = DEFAULT_CONFIG_FILE, config: DataElfConfi
                 f"pi_mode: {cfg.pi_mode}",
                 f"pi_cwd: {cfg.pi_cwd or '.'}",
                 f"pi_timeout_seconds: {cfg.pi_timeout_seconds or ''}",
-                "# Put official Pi CLI resource flags here, for example: --skill /path/to/brave-search",
+                "# Put official Pi CLI resource flags here for extra skills/packages when needed.",
                 f"pi_extra_args: {cfg.pi_extra_args!r}",
                 f"pi_log_mode: {cfg.pi_log_mode or 'summary'}",
                 f"pi_stream_logs: {'' if cfg.pi_stream_logs is None else str(cfg.pi_stream_logs).lower()}",

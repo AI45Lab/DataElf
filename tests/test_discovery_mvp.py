@@ -212,7 +212,7 @@ cat > insights/insight_candidates.json <<'JSON'
       "external_support": [{"source_id": "web_pi_001", "summary": "Fake Pi web evidence placeholder."}],
       "counterarguments": ["The fake runner does not exercise real Pi skills."],
       "confidence": 0.64,
-      "next_questions": ["Run with the real Pi CLI and brave-search skill."]
+      "next_questions": ["Run with the real Pi CLI and pi-web-access package."]
     }
   ]
 }
@@ -600,7 +600,7 @@ def test_dataelf_config_file_loads_and_env_overrides(tmp_path: Path, monkeypatch
                 "pi_model: file-pi-model",
                 "pi_cwd: file-pi-cwd",
                 "pi_timeout_seconds: 123",
-                "pi_extra_args: --skill /tmp/brave-search",
+                "pi_extra_args: --skill /tmp/web-search-skill",
                 "pi_stream_logs: true",
                 "pi_log_mode: raw",
                 "env:",
@@ -633,7 +633,7 @@ def test_dataelf_config_file_loads_and_env_overrides(tmp_path: Path, monkeypatch
     assert config.pi_model == "env-pi-model"
     assert config.pi_cwd == Path("env-pi-cwd")
     assert config.pi_timeout_seconds == 123
-    assert config.pi_extra_args == "--skill /tmp/brave-search"
+    assert config.pi_extra_args == "--skill /tmp/web-search-skill"
     assert config.pi_stream_logs is False
     assert config.pi_log_mode == "summary"
     assert config.runtime_env["OPENAI_API_KEY"] == "env-openai"

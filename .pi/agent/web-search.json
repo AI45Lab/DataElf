@@ -1,0 +1,13 @@
+{
+  "provider": "tavily",
+  "workflow": "none",
+  "webSearch": {
+    "enabled": true
+  },
+  "allowBrowserCookies": false,
+  "githubClone": {
+    "enabled": true,
+    "maxRepoSizeMB": 350,
+    "cloneTimeoutSeconds": 30
+  }
+}

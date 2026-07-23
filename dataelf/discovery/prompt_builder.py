@@ -350,7 +350,7 @@ You are running under Pi CLI in JSON event stream mode.
 
 Use Pi's normal capabilities, built-in tools, and any explicitly loaded skills. DataElf's Python runner is only the orchestrator; do not expect it to provide custom Pi tools beyond the workspace, environment variables, and prompt.
 
-If a web-search skill such as `brave-search` is available, use it when external evidence is needed. If no relevant web skill or network capability is available, continue with AI Index and local evidence, then state the limitation in the final brief.
+If web-search tools such as `web_search`, `fetch_content`, or `get_search_content` are available from a loaded Pi package such as `pi-web-access`, use them when external evidence is needed. If no relevant web-search tool or network capability is available, continue with AI Index and local evidence, then state the limitation in the final brief.
 """
     return """## DeepAgentsCode Subagents
 
@@ -368,7 +368,7 @@ Use the DeepAgentsCode `task` tool to delegate when helpful. In particular, dele
 
 def _external_web_section(runner_name: str) -> str:
     if runner_name == "pi":
-        return "Use Pi's loaded web-search skills or shell-accessible search helpers when useful. The recommended community option is a Pi Agent Skill such as `brave-search`, loaded through Pi's official skill discovery/settings or with the official `--skill` CLI flag in `pi_extra_args`."
+        return "Use Pi's loaded web-search tools when useful. The project default is the `pi-web-access` package, which can expose tools such as `web_search`, `fetch_content`, and `get_search_content` and can use Tavily via `TAVILY_API_KEY`. Other Pi skills or shell-accessible search helpers may also be loaded through official Pi settings or `pi_extra_args`."
     return "Use DeepAgentsCode `web_search` and `fetch_url` when useful."
 
 

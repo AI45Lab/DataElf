@@ -1,0 +1,59 @@
+# DataElf example config. Safe to commit.
+# Copy this file to dataelf.local.yaml and replace xx values with real local secrets.
+# Environment variables with matching names override values in dataelf.local.yaml.
+
+workspace_dir: .dataelf
+sqlite_path: .dataelf/dataelf.sqlite
+raw_dir: .dataelf/raw
+workspaces_dir: .dataelf/workspaces
+fixtures_dir: fixtures/ai_index
+
+# Explorer selection. The current main path is Pi.
+insights_explorer: pi
+
+# Shared model field used by the dcode runner.
+model: openai:gpt-5.5
+
+# AI Index.
+ai_index_mode: api
+ai_index_base_url: https://index.shlab.org.cn/api/v2
+ai_index_api_key: xx
+
+enable_sqlite: false
+
+# DeepAgentsCode runner fallback config.
+dcode_binary: $HOME/.local/bin/dcode
+dcode_shell_allow_list: all
+dcode_extra_args: "--no-stream --max-turns 30"
+dcode_stream_logs: true
+
+# Pi runner config. Pi settings/packages stay in .pi/.
+pi_binary: ./node_modules/.bin/pi
+pi_model:
+pi_mode: json
+pi_cwd: .
+pi_timeout_seconds:
+pi_extra_args: ""
+pi_log_mode: summary
+pi_stream_logs:
+
+# Child-process environment for dcode/pi.
+# Keep real secrets only in dataelf.local.yaml or shell exports.
+env:
+  PI_CODING_AGENT_DIR: .pi/agent
+
+  # Pi model provider. .pi/agent/models.json references OPENAI_API_KEY.
+  OPENAI_API_KEY: xx
+  OPENAI_BASE_URL: https://api.boyuerichdata.opensphereai.com/v1
+  OPENAI_API_BASE: https://api.boyuerichdata.opensphereai.com/v1
+
+  # dcode / DeepAgentsCode fallback provider config.
+  DEEPAGENTS_CODE_OPENAI_API_KEY: xx
+  DEEPAGENTS_CODE_OPENAI_BASE_URL: https://api.boyuerichdata.opensphereai.com/v1
+  DEEPAGENTS_CODE_OPENAI_API_BASE: https://api.boyuerichdata.opensphereai.com/v1
+
+  # pi-web-access uses this for Tavily-backed web search.
+  TAVILY_API_KEY: xx
+
+  # Optional if a Brave-backed Pi skill/extension is loaded later.
+  # BRAVE_API_KEY: xx
