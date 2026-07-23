@@ -2,7 +2,5 @@
   "defaultProvider": "boyuerich-openai",
   "defaultModel": "gpt-5.5",
   "defaultThinkingLevel": "medium",
-  "packages": [
-    "npm:@quarkos/pi-fusion"
-  ]
+  "packages": []
 }

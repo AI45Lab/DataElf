@@ -350,8 +350,6 @@ You are running under Pi CLI in JSON event stream mode.
 
 Use Pi's normal capabilities, built-in tools, and any explicitly loaded skills. DataElf's Python runner is only the orchestrator; do not expect it to provide custom Pi tools beyond the workspace, environment variables, and prompt.
 
-If a `deliberate` tool from Pi Fusion is available, use it only after you already have non-empty candidate signals or a draft final ranking. It is optional review help for counterarguments, blind spots, and ranking decisions; it is not a replacement for AI Index analysis. If the tool fails or is unavailable, continue without it and write the required DataElf artifacts.
-
 If a web-search skill such as `brave-search` is available, use it when external evidence is needed. If no relevant web skill or network capability is available, continue with AI Index and local evidence, then state the limitation in the final brief.
 """
     return """## DeepAgentsCode Subagents
