@@ -9,7 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from dataelf.config import DEFAULT_CONFIG_FILE, DataElfConfig, write_config_template
-from dataelf.discovery.explorer_factory import normalize_insights_explorer_name
+from dataelf.discovery.explorer_factory import is_pi_family_explorer, normalize_insights_explorer_name
 from dataelf.discovery.workflow import run_discovery
 from dataelf.stores.sqlite_store import SQLiteStore
 from dataelf.tools.registry import list_tool_specs
@@ -57,10 +57,46 @@ def init() -> None:
 
 
 @app.command()
-def discover(query: str) -> None:
+def discover(
+    query: str,
+    insights_explorer: str | None = typer.Option(
+        None,
+        "--insights-explorer",
+        help="Override the configured insights explorer for this run.",
+    ),
+    ai_index_modeling: bool | None = typer.Option(
+        None,
+        "--ai-index-modeling/--no-ai-index-modeling",
+        help="Enable or disable the AI Index acquisition and ontology modeling stage.",
+    ),
+    ontology_template: str | None = typer.Option(
+        None,
+        "--ontology-template",
+        help="Use a fixed ontology template and skip Stage 1 model generation.",
+    ),
+) -> None:
     """Run a user-triggered insight discovery job."""
     _setup_logging()
     config = _config()
+    updates: dict[str, object] = {}
+    if insights_explorer and insights_explorer.strip():
+        updates["insights_explorer"] = insights_explorer.strip()
+    modeling = config.ai_index_modeling
+    if ai_index_modeling is not None:
+        modeling = modeling.model_copy(
+            update={
+                "enabled": ai_index_modeling,
+                **({"ontology_template": None} if not ai_index_modeling else {}),
+            }
+        )
+    if ontology_template and ontology_template.strip():
+        modeling = modeling.model_copy(update={"ontology_template": ontology_template.strip()})
+    if modeling.ontology_template and not modeling.enabled:
+        raise typer.BadParameter("--ontology-template requires --ai-index-modeling")
+    if modeling != config.ai_index_modeling:
+        updates["ai_index_modeling"] = modeling
+    if updates:
+        config = config.model_copy(update=updates)
     try:
         job = run_discovery(query, config)
     except Exception as exc:
@@ -73,7 +109,7 @@ def discover(query: str) -> None:
     explorer_name = normalize_insights_explorer_name(config.insights_explorer)
     console.print(f"Workspace: {workspace}")
     console.print(f"Explorer: {explorer_name}")
-    if explorer_name == "pi":
+    if is_pi_family_explorer(explorer_name):
         console.print(f"Requested model: {config.pi_model or '<pi default>'}")
         console.print(f"Pi events: {workspace / 'logs' / 'pi_events.jsonl'}")
         console.print(f"pi stdout: {workspace / 'logs' / 'pi_stdout.log'}")
@@ -83,6 +119,8 @@ def discover(query: str) -> None:
         console.print(f"Actual dcode model: {_read_dcode_model(workspace) or '<unknown>'}")
         console.print(f"dcode stdout: {workspace / 'logs' / 'dcode_stdout.log'}")
         console.print(f"dcode stderr: {workspace / 'logs' / 'dcode_stderr.log'}")
+    if config.ai_index_modeling.enabled:
+        console.print(f"AI Index modeling state: {workspace / 'modeling' / 'ai_index' / 'state.json'}")
     console.print(f"Insight candidates: {workspace / 'insights' / 'insight_candidates.json'}")
     console.print(f"Final brief: {workspace / 'insights' / 'final_brief.md'}")
     console.print(f"Review file: {workspace / 'reviews' / 'quality_review.json'}")

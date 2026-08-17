@@ -1,10 +1,29 @@
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, Field
 
 from dataelf.schemas import DiscoveryJob
+
+
+class ModelingArtifacts(BaseModel):
+    domain: str
+    kind: str
+    run_id: str
+    prompt_path: str
+    primary_artifact_path: str
+    manifest_path: str | None = None
+    validation_path: str | None = None
+    supporting_artifact_paths: dict[str, str] = Field(default_factory=dict)
+    metrics: dict[str, str | int | float | bool] = Field(default_factory=dict)
+
+
+class ModelingStageResult(BaseModel):
+    status: Literal["completed", "incomplete", "failed"]
+    artifacts: ModelingArtifacts | None = None
+    error_code: str | None = None
+    error_message: str | None = None
 
 
 class DiscoveryContext(BaseModel):
@@ -15,6 +34,7 @@ class DiscoveryContext(BaseModel):
     env: dict[str, str] = Field(default_factory=dict)
     domain_pack: dict[str, Any] = Field(default_factory=dict)
     config: dict[str, Any] = Field(default_factory=dict)
+    modeling_artifacts: ModelingArtifacts | None = None
 
 
 class DiscoveryResult(BaseModel):

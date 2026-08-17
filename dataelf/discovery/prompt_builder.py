@@ -15,6 +15,19 @@ def write_discovery_prompt(job: DiscoveryJob, context: DiscoveryContext) -> Path
     return prompt_path
 
 
+def resolve_discovery_prompt(job: DiscoveryJob, context: DiscoveryContext) -> Path:
+    artifacts = context.modeling_artifacts
+    if artifacts is None:
+        return write_discovery_prompt(job, context)
+    prompt_path = Path(artifacts.prompt_path).resolve()
+    workspace = Path(context.workspace_path).resolve()
+    if not prompt_path.is_relative_to(workspace):
+        raise ValueError(f"Modeling prompt must be inside the job workspace: {prompt_path}")
+    if not prompt_path.is_file():
+        raise FileNotFoundError(f"Modeling prompt does not exist: {prompt_path}")
+    return prompt_path
+
+
 def build_discovery_prompt(job: DiscoveryJob, context: DiscoveryContext) -> str:
     workspace_path = Path(context.workspace_path).resolve()
     scope_json = json.dumps(job.scope, ensure_ascii=False, indent=2)

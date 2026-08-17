@@ -29,7 +29,10 @@ def create_insights_explorer(config: DataElfConfig):
             stream_logs=config.pi_stream_logs,
             log_mode=config.pi_log_mode,
         )
-    raise ValueError(f"Unsupported DATAELF_INSIGHTS_EXPLORER: {config.insights_explorer!r}. Use 'deepagentscode'/'dcode' or 'pi'.")
+    raise ValueError(
+        f"Unsupported DATAELF_INSIGHTS_EXPLORER: {config.insights_explorer!r}. "
+        "Use 'deepagentscode'/'dcode' or 'pi'."
+    )
 
 
 def normalize_insights_explorer_name(value: str | None) -> str:
@@ -39,3 +42,7 @@ def normalize_insights_explorer_name(value: str | None) -> str:
     if raw in PI_EXPLORER_ALIASES:
         return "pi"
     return raw
+
+
+def is_pi_family_explorer(value: str | None) -> bool:
+    return normalize_insights_explorer_name(value) == "pi"

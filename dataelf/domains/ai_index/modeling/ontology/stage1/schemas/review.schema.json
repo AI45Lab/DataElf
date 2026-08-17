@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dataelf:schema:ontology-review:v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "verdict", "summary", "issues", "checkedEvidenceRefs"],
+  "properties": {
+    "schemaVersion": {"enum": ["dataelf-ontology-review.v1", "dataelf-ontology-review.v2"]},
+    "verdict": {"enum": ["approve", "revise", "unusable"]},
+    "summary": {"type": "string", "minLength": 1},
+    "checkedEvidenceRefs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["informationCompleteness", "sourceNavigability", "missingnessSemantics", "associationEndpoints", "observationMetrics", "multivalueConcepts", "relationAuthority", "competencyQuestionExecutability", "instanceIdentity", "constraintExecutability"],
+      "properties": {
+        "informationCompleteness": {"$ref": "#/$defs/check"},
+        "sourceNavigability": {"$ref": "#/$defs/check"},
+        "missingnessSemantics": {"$ref": "#/$defs/check"},
+        "associationEndpoints": {"$ref": "#/$defs/check"},
+        "observationMetrics": {"$ref": "#/$defs/check"},
+        "multivalueConcepts": {"$ref": "#/$defs/check"},
+        "relationAuthority": {"$ref": "#/$defs/check"},
+        "competencyQuestionExecutability": {"$ref": "#/$defs/check"},
+        "instanceIdentity": {"$ref": "#/$defs/check"},
+        "constraintExecutability": {"$ref": "#/$defs/check"}
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "category", "path", "message", "evidenceRefs", "requiredChange", "acceptanceCriteria"],
+        "properties": {
+          "severity": {"enum": ["critical", "high", "medium", "low"]},
+          "category": {"type": "string", "minLength": 1},
+          "path": {"type": "string", "minLength": 1},
+          "message": {"type": "string", "minLength": 1},
+          "evidenceRefs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "requiredChange": {"type": "string", "minLength": 1},
+          "acceptanceCriteria": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "summary", "evidenceRefs"],
+      "properties": {
+        "status": {"enum": ["pass", "fail"]},
+        "summary": {"type": "string", "minLength": 1},
+        "evidenceRefs": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
+    }
+  }
+}

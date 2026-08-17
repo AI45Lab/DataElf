@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dataelf:schema:normalization-lineage:v2",
+  "type": "object",
+  "required": ["schemaVersion", "sourceFingerprint", "sourceIndexSha256", "mappings", "metrics", "lineageSha256"],
+  "properties": {
+    "schemaVersion": {"const": "dataelf-normalization-lineage.v2"},
+    "sourceFingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sourceIndexSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "mappings": {"type": "object", "minProperties": 1},
+    "metrics": {"type": "object"},
+    "lineageSha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}
