@@ -1,0 +1,49 @@
+stage1_config: ../stage1/config.yaml
+
+compiler:
+  provider: openai
+  name: glm-5.2-1m
+  context_window: 200000
+  max_tokens: 2048
+  temperature: 0.0
+  request_timeout_seconds: 600
+  request_max_retries: 3
+  api_key_env: OPENAI_API_KEY
+  base_url_env: OPENAI_BASE_URL
+
+reviewer:
+  provider: openai
+  name: glm-5.2-1m
+  context_window: 200000
+  max_tokens: 8192
+  temperature: 0.0
+  request_timeout_seconds: 600
+  request_max_retries: 3
+  api_key_env: OPENAI_API_KEY
+  base_url_env: OPENAI_BASE_URL
+
+total_stage_timeout_seconds: 1800
+
+output:
+  artifacts_subdir: ontology/stage2
+  stable_suffix: ".rdf"
+  rdfxml_name: graph.rdf
+  ntriples_name: graph.nt
+  nquads_name: graph.nq
+  manifest_name: manifest.json
+  validation_name: validation.json
+
+vocabulary:
+  provenance_namespace: "urn:dataelf:ontology:stage2:"
+
+quality:
+  max_repair_rounds: 5
+  require_all_documents: true
+  require_all_records: true
+  require_all_fragments: true
+  require_reviewer_approve: true
+  manual_audit_required: false
+  blocking_severities:
+    - critical
+    - high
+    - medium

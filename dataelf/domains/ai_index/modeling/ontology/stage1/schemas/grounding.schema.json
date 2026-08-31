@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dataelf:schema:grounding-stage1:v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "sourceFingerprint", "tableClassifications", "columnClassifications",
+    "classEvidence", "objectPropertyEvidence", "datatypePropertyEvidence",
+    "entityObservationMappings", "accessPaths", "domainHintResolutions",
+    "competencyQuestions", "cqCoverage", "sourceCoverage"
+  ],
+  "properties": {
+    "schemaVersion": {"enum": ["dataelf-grounding.v1", "dataelf-grounding.v2"]},
+    "sourceFingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "tableClassifications": {"type": "object"},
+    "columnClassifications": {"type": "object"},
+    "classEvidence": {
+      "type": "object",
+      "additionalProperties": {"type": "array", "minItems": 1, "items": {"type": "object"}}
+    },
+    "objectPropertyEvidence": {
+      "type": "object",
+      "additionalProperties": {"type": "array", "minItems": 1, "items": {"type": "object"}}
+    },
+    "datatypePropertyEvidence": {
+      "type": "object",
+      "additionalProperties": {"type": "array", "minItems": 1, "items": {"type": "object"}}
+    },
+    "entityObservationMappings": {"type": "object"},
+    "accessPaths": {"type": "object"},
+    "domainHintResolutions": {"type": "object"},
+    "competencyQuestions": {"type": "array", "minItems": 1},
+    "cqCoverage": {"type": "object"},
+    "sourceCoverage": {"type": "object"}
+    ,"sourceBindings": {"type": "object"}
+    ,"sourceAccessPaths": {"type": "object"}
+    ,"rawPathClassifications": {"type": "object", "minProperties": 1}
+    ,"associationMappings": {"type": "object"}
+    ,"entityResolutionMappings": {"type": "object"}
+    ,"responseObservationMappings": {"type": "object"}
+    ,"relationAuthority": {"type": "object"}
+    ,"observationValueMappings": {"type": "object"}
+    ,"relationSnapshotMappings": {"type": "object"}
+    ,"iriGenerationMappings": {"type": "object"}
+    ,"shaclContract": {"type": "object"}
+    ,"normalizationEvidenceRefs": {"type": "array", "minItems": 1, "items": {"type": "string"}, "uniqueItems": true}
+  }
+}

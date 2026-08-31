@@ -12,7 +12,7 @@ from pathlib import Path
 from threading import Thread
 
 from dataelf.discovery.base import DiscoveryContext, DiscoveryResult
-from dataelf.discovery.prompt_builder import write_discovery_prompt
+from dataelf.discovery.prompt_builder import resolve_discovery_prompt
 from dataelf.discovery.result_parser import parse_discovery_result
 from dataelf.schemas import DiscoveryJob
 
@@ -80,7 +80,7 @@ class DeepAgentsCodeCliInsightsExplorer:
         stderr_path = logs_dir / "dcode_stderr.log"
 
         logger.info("Preparing DeepAgentsCode workspace: %s", workspace_path)
-        prompt_path = write_discovery_prompt(job, context)
+        prompt_path = resolve_discovery_prompt(job, context)
         logger.info("Discovery prompt written: %s", prompt_path)
         self._init_project_agents(workspace_path)
         command = self._build_command(prompt_path.read_text(encoding="utf-8"), context.model)

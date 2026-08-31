@@ -11,7 +11,7 @@ from pathlib import Path
 from threading import Thread
 
 from dataelf.discovery.base import DiscoveryContext, DiscoveryResult
-from dataelf.discovery.prompt_builder import write_discovery_prompt
+from dataelf.discovery.prompt_builder import resolve_discovery_prompt
 from dataelf.discovery.result_parser import parse_discovery_result
 from dataelf.schemas import DiscoveryJob
 
@@ -76,7 +76,7 @@ class PiCliInsightsExplorer:
         events_path = logs_dir / "pi_events.jsonl"
 
         logger.info("Preparing Pi workspace: %s", workspace_path)
-        prompt_path = write_discovery_prompt(job, context)
+        prompt_path = resolve_discovery_prompt(job, context)
         pi_binary = self._resolve_binary()
         if pi_binary is None:
             message = "Pi CLI not found. Install @earendil-works/pi-coding-agent, run npm install, or set DATAELF_PI_BINARY."
@@ -163,6 +163,10 @@ class PiCliInsightsExplorer:
         env["DATAELF_JOB_WORKSPACE"] = str(workspace_path)
         env["DATAELF_JOB_ID"] = job.job_id
         env["DATAELF_DOMAIN"] = context.domain
+        if context.modeling_artifacts is not None and context.modeling_artifacts.kind == "ontology_rdf":
+            env["DATAELF_PI_ONTOLOGY"] = "1"
+        else:
+            env.pop("DATAELF_PI_ONTOLOGY", None)
         if self.model:
             env["DATAELF_PI_MODEL"] = self.model
         env.setdefault("PI_SKIP_VERSION_CHECK", "1")

@@ -1,6 +1,9 @@
 domain: ai_index
 display_name: AI 科技情报
 
+modeling:
+  entrypoint: dataelf.domains.ai_index.modeling:create_modeler
+
 entities:
   Paper:
     table: papers

@@ -10,6 +10,7 @@ dependencies = [
   "pydantic>=2",
   "langgraph>=1",
   "pyyaml>=6",
+  "rdflib>=7",
 ]
 
 [project.optional-dependencies]
@@ -26,7 +27,12 @@ build-backend = "setuptools.build_meta"
 include = ["dataelf*"]
 
 [tool.setuptools.package-data]
-dataelf = ["domains/**/*.yaml"]
+dataelf = [
+  "domains/**/*.yaml",
+  "domains/**/templates/**/*.json",
+  "domains/ai_index/modeling/ontology/stage1/runtime/*.ts",
+  "domains/ai_index/modeling/ontology/stage1/schemas/*.json",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

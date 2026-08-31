@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "dataelf-ontology-template.v1",
+  "templateId": "ai_index_search",
+  "title": "AI Index Search Ontology",
+  "description": "Fixed three-layer ontology template for AI Index paper, scholar, and institution search responses.",
+  "supportedEndpoints": [
+    "/openapi/paper/search",
+    "/openapi/scholar/search",
+    "/openapi/institutions/search"
+  ],
+  "semanticPlan": {
+    "fundingEventPolicy": "omit_without_raw_instances",
+    "stableValuePolicy": "require_consensus",
+    "mutableMetricLayer": "observation",
+    "relationshipArrayPolicy": "observation_snapshot_before_projection",
+    "description": "Three-layer source-grounded AI Index search ontology with deterministic provenance, observation snapshots, and authority-aware domain projections.",
+    "paperSemantics": "A paper merged by its stable AI Index business identifier; response-specific values remain on PaperObservation.",
+    "scholarSemantics": "A scholar merged by its stable AI Index business identifier; response-specific values remain on ScholarObservation.",
+    "institutionSemantics": "An institution merged by its stable AI Index business identifier; mutable metrics remain on InstitutionObservation.",
+    "authorshipSemantics": "An ordered, observation-scoped authorship membership reified from paper author_ids; authorOrder is array_index + 1 and isFirstAuthor is array_index == 0.",
+    "provenanceSemantics": "A complete replayable AI Index response document identified by workspace-relative source path and SHA-256."
+  },
+  "compatibility": {
+    "topLevelRequired": [
+      "source",
+      "mode",
+      "method",
+      "endpoint",
+      "request",
+      "trace_id",
+      "data",
+      "raw"
+    ],
+    "topLevelOptional": [],
+    "requestRequired": ["page", "size", "sort_type"],
+    "requestOptional": ["domains", "sub_domains"],
+    "records": {
+      "/openapi/paper/search": {
+        "required": ["id", "title", "abstract", "published_at", "venue", "citation_count", "fields", "author_ids", "hotness"],
+        "optional": ["institution_ids", "awards"],
+        "fields": {
+          "id": "string",
+          "title": "string",
+          "abstract": "string",
+          "published_at": "string",
+          "venue": "string",
+          "citation_count": "integer",
+          "fields": "string_array",
+          "author_ids": "string_array",
+          "institution_ids": "string_array",
+          "awards": "string_array",
+          "hotness": "hotness"
+        }
+      },
+      "/openapi/scholar/search": {
+        "required": ["id", "name", "fields", "venues", "hotness"],
+        "optional": ["email", "homepage", "institution_ids", "paper_ids", "awards"],
+        "fields": {
+          "id": "string",
+          "name": "string",
+          "email": "string",
+          "homepage": "string",
+          "fields": "string_array",
+          "venues": "string_array",
+          "institution_ids": "string_array",
+          "paper_ids": "string_array",
+          "awards": "string_array",
+          "hotness": "hotness"
+        }
+      },
+      "/openapi/institutions/search": {
+        "required": ["id", "name", "country", "region", "fields", "funding_total_usd", "paper_count", "scholar_count", "hotness", "impact", "news", "related_paper_ids", "related_scholar_ids"],
+        "optional": [],
+        "fields": {
+          "id": "string",
+          "name": "string",
+          "country": "string",
+          "region": "string",
+          "fields": "string_array",
+          "funding_total_usd": "integer",
+          "paper_count": "integer",
+          "scholar_count": "integer",
+          "hotness": "hotness",
+          "impact": "impact",
+          "news": "news_array",
+          "related_paper_ids": "string_array",
+          "related_scholar_ids": "string_array"
+        }
+      }
+    }
+  },
+  "approval": {
+    "decision": "approve",
+    "basis": "Derived from the independently reviewed and manually audited AI Index three-layer ontology, then rebound and revalidated deterministically for every job.",
+    "baselineOntologySha256": "4529dc2910988802fc4cc63f8d02db26d6339b1f0822212d46184b6ee61be245",
+    "baselineReviewSha256": "ab6b58135e24a72ea8d562f81d74e4cfa35e5041580d2dd28b6548d106de7f1f"
+  }
+}

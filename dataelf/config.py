@@ -6,13 +6,16 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 DEFAULT_AI_INDEX_BASE_URL = "https://index.shlab.org.cn/api/v2"
 DEFAULT_AI_INDEX_API_KEY = "ak_0XWHy2OQpSKnaKHL"
 DEFAULT_AI_INDEX_MODE = "api"
 DEFAULT_ENABLE_SQLITE = False
 DEFAULT_INSIGHTS_EXPLORER = "deepagentscode"
+AI_INDEX_ONTOLOGY_ROOT = Path("dataelf/domains/ai_index/modeling/ontology")
+DEFAULT_AI_INDEX_STAGE1_CONFIG = AI_INDEX_ONTOLOGY_ROOT / "stage1/config.yaml"
+DEFAULT_AI_INDEX_STAGE2_CONFIG = AI_INDEX_ONTOLOGY_ROOT / "stage2/config.yaml"
 DEFAULT_CONFIG_FILE = Path("dataelf.local.yaml")
 CONFIG_FILE_CANDIDATES = (
     Path("dataelf.local.yaml"),
@@ -23,6 +26,33 @@ CONFIG_FILE_CANDIDATES = (
     Path(".dataelf/config.yml"),
     Path(".dataelf/config.json"),
 )
+
+
+class AIIndexModelingConfig(BaseModel):
+    enabled: bool = False
+    ontology_template: str | None = None
+    stage1_config: Path = Field(default_factory=lambda: DEFAULT_AI_INDEX_STAGE1_CONFIG)
+    stage2_config: Path = Field(default_factory=lambda: DEFAULT_AI_INDEX_STAGE2_CONFIG)
+    raw_page_size: int = Field(default=50, ge=1, le=50)
+    model_name: str | None = None
+    model_max_tokens: int | None = Field(default=None, ge=128)
+    stage1_process_timeout_seconds: int = Field(default=7200, ge=30)
+    stage1_request_timeout_seconds: int = Field(default=900, ge=30)
+    stage1_request_max_retries: int = Field(default=3, ge=0, le=10)
+    stage2_request_timeout_seconds: int = Field(default=600, ge=30)
+    stage2_request_max_retries: int = Field(default=3, ge=0, le=10)
+    stage2_total_timeout_seconds: int = Field(default=1800, ge=30)
+
+    @field_validator("ontology_template", "model_name", mode="before")
+    @classmethod
+    def normalize_optional_strings(cls, value: Any) -> str | None:
+        return _blank_to_none(value)
+
+    @model_validator(mode="after")
+    def validate_template_selection(self) -> "AIIndexModelingConfig":
+        if self.ontology_template and not self.enabled:
+            raise ValueError("ai_index_modeling.ontology_template requires ai_index_modeling.enabled=true")
+        return self
 
 
 class DataElfConfig(BaseModel):
@@ -49,11 +79,13 @@ class DataElfConfig(BaseModel):
     pi_extra_args: str = ""
     pi_stream_logs: bool | None = None
     pi_log_mode: str | None = None
+    ai_index_modeling: AIIndexModelingConfig = Field(default_factory=AIIndexModelingConfig)
     runtime_env: dict[str, str] = Field(default_factory=dict)
 
     @classmethod
     def from_env(cls) -> "DataElfConfig":
         file_values = load_config_file()
+        modeling_values = _config_section(file_values, "ai_index_modeling")
         workspace = Path(_env_or_config("DATAELF_WORKSPACE", file_values, "workspace_dir", ".dataelf"))
         return cls(
             workspace_dir=workspace,
@@ -79,6 +111,84 @@ class DataElfConfig(BaseModel):
             pi_extra_args=_env_or_config("DATAELF_PI_EXTRA_ARGS", file_values, "pi_extra_args", ""),
             pi_stream_logs=_env_optional_bool("DATAELF_PI_STREAM_LOGS", _config_optional_bool(file_values, "pi_stream_logs")),
             pi_log_mode=_blank_to_none(_env_or_config("DATAELF_PI_LOG_MODE", file_values, "pi_log_mode", None)),
+            ai_index_modeling=AIIndexModelingConfig(
+                enabled=_env_bool(
+                    "DATAELF_AI_INDEX_MODELING_ENABLED",
+                    _config_bool(modeling_values, "enabled", False),
+                ),
+                ontology_template=_blank_to_none(
+                    _env_or_config(
+                        "DATAELF_AI_INDEX_MODELING_ONTOLOGY_TEMPLATE",
+                        modeling_values,
+                        "ontology_template",
+                        None,
+                    )
+                ),
+                stage1_config=Path(
+                    _env_or_config(
+                        "DATAELF_AI_INDEX_MODELING_STAGE1_CONFIG",
+                        modeling_values,
+                        "stage1_config",
+                        DEFAULT_AI_INDEX_STAGE1_CONFIG,
+                    )
+                ),
+                stage2_config=Path(
+                    _env_or_config(
+                        "DATAELF_AI_INDEX_MODELING_STAGE2_CONFIG",
+                        modeling_values,
+                        "stage2_config",
+                        DEFAULT_AI_INDEX_STAGE2_CONFIG,
+                    )
+                ),
+                raw_page_size=_env_config_int(
+                    "DATAELF_AI_INDEX_MODELING_RAW_PAGE_SIZE", modeling_values, "raw_page_size", 50
+                ),
+                model_name=_blank_to_none(
+                    _env_or_config(
+                        "DATAELF_AI_INDEX_MODELING_MODEL_NAME", modeling_values, "model_name", None
+                    )
+                ),
+                model_max_tokens=_env_int(
+                    "DATAELF_AI_INDEX_MODELING_MODEL_MAX_TOKENS",
+                    _config_int(modeling_values, "model_max_tokens", None),
+                ),
+                stage1_process_timeout_seconds=_env_config_int(
+                    "DATAELF_AI_INDEX_MODELING_STAGE1_PROCESS_TIMEOUT_SECONDS",
+                    modeling_values,
+                    "stage1_process_timeout_seconds",
+                    7200,
+                ),
+                stage1_request_timeout_seconds=_env_config_int(
+                    "DATAELF_AI_INDEX_MODELING_STAGE1_REQUEST_TIMEOUT_SECONDS",
+                    modeling_values,
+                    "stage1_request_timeout_seconds",
+                    900,
+                ),
+                stage1_request_max_retries=_env_config_int(
+                    "DATAELF_AI_INDEX_MODELING_STAGE1_REQUEST_MAX_RETRIES",
+                    modeling_values,
+                    "stage1_request_max_retries",
+                    3,
+                ),
+                stage2_request_timeout_seconds=_env_config_int(
+                    "DATAELF_AI_INDEX_MODELING_STAGE2_REQUEST_TIMEOUT_SECONDS",
+                    modeling_values,
+                    "stage2_request_timeout_seconds",
+                    600,
+                ),
+                stage2_request_max_retries=_env_config_int(
+                    "DATAELF_AI_INDEX_MODELING_STAGE2_REQUEST_MAX_RETRIES",
+                    modeling_values,
+                    "stage2_request_max_retries",
+                    3,
+                ),
+                stage2_total_timeout_seconds=_env_config_int(
+                    "DATAELF_AI_INDEX_MODELING_STAGE2_TOTAL_TIMEOUT_SECONDS",
+                    modeling_values,
+                    "stage2_total_timeout_seconds",
+                    1800,
+                ),
+            ),
             runtime_env=_runtime_env(file_values),
         )
 
@@ -137,7 +247,22 @@ def write_config_template(path: Path = DEFAULT_CONFIG_FILE, config: DataElfConfi
                 f"pi_extra_args: {cfg.pi_extra_args!r}",
                 f"pi_log_mode: {cfg.pi_log_mode or 'summary'}",
                 f"pi_stream_logs: {'' if cfg.pi_stream_logs is None else str(cfg.pi_stream_logs).lower()}",
-                "# Optional child-process environment. Exported shell variables with the same name win.",
+                "# AI Index-owned acquisition and ontology modeling stage, independent of the explorer runtime.",
+                "ai_index_modeling:",
+                f"  enabled: {str(cfg.ai_index_modeling.enabled).lower()}",
+                f"  ontology_template: {cfg.ai_index_modeling.ontology_template or ''}",
+                f"  stage1_config: {cfg.ai_index_modeling.stage1_config}",
+                f"  stage2_config: {cfg.ai_index_modeling.stage2_config}",
+                f"  raw_page_size: {cfg.ai_index_modeling.raw_page_size}",
+                f"  model_name: {cfg.ai_index_modeling.model_name or ''}",
+                f"  model_max_tokens: {cfg.ai_index_modeling.model_max_tokens or ''}",
+                f"  stage1_process_timeout_seconds: {cfg.ai_index_modeling.stage1_process_timeout_seconds}",
+                f"  stage1_request_timeout_seconds: {cfg.ai_index_modeling.stage1_request_timeout_seconds}",
+                f"  stage1_request_max_retries: {cfg.ai_index_modeling.stage1_request_max_retries}",
+                f"  stage2_request_timeout_seconds: {cfg.ai_index_modeling.stage2_request_timeout_seconds}",
+                f"  stage2_request_max_retries: {cfg.ai_index_modeling.stage2_request_max_retries}",
+                f"  stage2_total_timeout_seconds: {cfg.ai_index_modeling.stage2_total_timeout_seconds}",
+                "# Optional modeling/runtime child-process environment. Exported shell variables with the same name win.",
                 "env: {}",
                 "",
             ]
@@ -162,6 +287,15 @@ def _env_or_config(env_name: str, config: dict[str, Any], key: str, default: Any
     if value is not None:
         return value
     return config.get(key, default)
+
+
+def _config_section(config: dict[str, Any], key: str) -> dict[str, Any]:
+    value = config.get(key)
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"DataElf config section {key!r} must be a mapping/object")
+    return value
 
 
 def _config_bool(config: dict[str, Any], key: str, default: bool) -> bool:
@@ -214,6 +348,11 @@ def _env_int(name: str, default: int | None = None) -> int | None:
         return int(value)
     except ValueError:
         return default
+
+
+def _env_config_int(name: str, config: dict[str, Any], key: str, default: int) -> int:
+    value = _env_int(name, _config_int(config, key, default))
+    return default if value is None else value
 
 
 def _blank_to_none(value: Any) -> Any:

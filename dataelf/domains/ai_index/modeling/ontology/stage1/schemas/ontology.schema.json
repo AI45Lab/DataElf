@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dataelf:schema:ontology-stage1:v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "metadata", "classes", "objectProperties", "datatypeProperties"],
+  "properties": {
+    "schemaVersion": {"enum": ["dataelf-ontology.v1", "dataelf-ontology.v2"]},
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "namespace", "title", "description", "version", "sourceFingerprint"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "namespace": {"type": "string", "minLength": 1},
+        "title": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1},
+        "version": {"type": "string", "minLength": 1},
+        "sourceFingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "classes": {"$ref": "#/$defs/classes"},
+    "objectProperties": {"$ref": "#/$defs/objectProperties"},
+    "datatypeProperties": {"$ref": "#/$defs/datatypeProperties"}
+  },
+  "$defs": {
+    "baseElement": {
+      "type": "object",
+      "required": ["uri", "label", "comment"],
+      "properties": {
+        "uri": {"type": "string", "minLength": 1},
+        "label": {"type": "string", "minLength": 1},
+        "comment": {"type": "string", "minLength": 1}
+      }
+    },
+    "classes": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["uri", "label", "comment", "kind"],
+        "properties": {
+          "uri": {"type": "string", "minLength": 1},
+          "label": {"type": "string", "minLength": 1},
+          "comment": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["entity", "observation", "event", "association", "metric", "provenance", "concept"]},
+          "subClassOf": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+        }
+      }
+    },
+    "objectProperties": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["uri", "label", "comment", "domain", "range"],
+        "properties": {
+          "uri": {"type": "string"},
+          "label": {"type": "string"},
+          "comment": {"type": "string"},
+          "domain": {"type": "string"},
+          "range": {"type": "string"},
+          "inverseOf": {"type": "string"},
+          "subPropertyOf": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+        }
+      }
+    },
+    "datatypeProperties": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["uri", "label", "comment", "domain", "range"],
+        "properties": {
+          "uri": {"type": "string"},
+          "label": {"type": "string"},
+          "comment": {"type": "string"},
+          "domain": {"type": "string"},
+          "range": {"type": "string"}
+        }
+      }
+    }
+  }
+}
