@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 DEFAULT_AI_INDEX_BASE_URL = "https://index.shlab.org.cn/api/v2"
@@ -43,13 +43,6 @@ class AIIndexModelingConfig(BaseModel):
     @classmethod
     def normalize_optional_strings(cls, value: Any) -> str | None:
         return None if value == "" else value
-
-    @model_validator(mode="after")
-    def validate_template_selection(self) -> "AIIndexModelingConfig":
-        if self.ontology_template and not self.enabled:
-            raise ValueError("domains.ai_index.modeling.ontology_template requires enabled=true")
-        return self
-
 
 class AIIndexDomainConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")

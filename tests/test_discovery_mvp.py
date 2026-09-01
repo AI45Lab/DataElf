@@ -356,6 +356,22 @@ def test_flat_legacy_config_is_rejected(tmp_path: Path, monkeypatch: pytest.Monk
         DataElfConfig.from_env()
 
 
+def test_disabled_ai_index_modeling_preserves_dormant_settings() -> None:
+    domain = AIIndexDomainConfig.from_mapping({
+        "modeling": {
+            "enabled": False,
+            "ontology_template": "ai_index_search",
+            "stage1_config": "not-loaded-while-disabled/stage1.yaml",
+            "stage2_config": "not-loaded-while-disabled/stage2.yaml",
+            "model_name": "deepseek-v4-flash",
+        },
+    })
+
+    assert domain.modeling.enabled is False
+    assert domain.modeling.ontology_template == "ai_index_search"
+    assert domain.modeling.model_name == "deepseek-v4-flash"
+
+
 def test_cli_discover_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     pi = _write_fake_pi(tmp_path)
     monkeypatch.chdir(tmp_path)
