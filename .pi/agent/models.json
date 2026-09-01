@@ -24,6 +24,26 @@
             "supportsUsageInStreaming": false,
             "maxTokensField": "max_tokens"
           }
+        },
+        {
+          "id": "deepseek-v4-pro",
+          "name": "DeepSeek V4 Pro (Boyuerich OpenAI-compatible)",
+          "reasoning": false,
+          "input": ["text"],
+          "contextWindow": 128000,
+          "maxTokens": 65536,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "compat": {
+            "supportsDeveloperRole": false,
+            "supportsReasoningEffort": false,
+            "supportsUsageInStreaming": false,
+            "maxTokensField": "max_tokens"
+          }
         }
       ]
     }

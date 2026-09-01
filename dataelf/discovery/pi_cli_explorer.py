@@ -177,6 +177,8 @@ class PiCliInsightsExplorer:
             env.pop("DATAELF_PI_ONTOLOGY", None)
         if self.model:
             env["DATAELF_PI_MODEL"] = self.model
+        if "NPM_CONFIG_CACHE" not in env and "npm_config_cache" not in env:
+            env["NPM_CONFIG_CACHE"] = str((self.cwd / ".pi" / "npm-cache").resolve())
         env.setdefault("PI_SKIP_VERSION_CHECK", "1")
         env.setdefault("PI_TELEMETRY", "0")
         return env
@@ -228,6 +230,8 @@ _ENV_ALLOWLIST = {
     "PI_OFFLINE",
     "PI_SKIP_VERSION_CHECK",
     "PI_TELEMETRY",
+    "NPM_CONFIG_CACHE",
+    "npm_config_cache",
 }
 _SECRET_KEY_MARKERS = ("KEY", "TOKEN", "SECRET", "PASSWORD")
 

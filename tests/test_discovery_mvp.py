@@ -35,6 +35,8 @@ from dataelf.domains.ai_index.config import (
     DEFAULT_AI_INDEX_MODE,
 )
 from dataelf.domains.ai_index.connector import AIIndexConnector, AI_INDEX_ENDPOINTS
+from dataelf.domains.ai_index.prompt import build_ai_index_prompt
+from dataelf.domains.ai_index.review import review_ai_index
 from dataelf.domains.ai_index.table_builder import read_table
 from dataelf.schemas import new_id
 from dataelf.stores.sqlite_store import SQLiteStore
@@ -262,8 +264,37 @@ def test_ai_index_workflow_keeps_discover_cli_behavior(tmp_path: Path) -> None:
     assert (workspace / "raw" / "ai_index").is_dir()
     assert (workspace / "tables" / "papers.csv").is_file()
     assert (workspace / "insights" / "insight_candidates.json").is_file()
+    pi_env = json.loads((workspace / "logs" / "pi_env_redacted.json").read_text(encoding="utf-8"))
+    assert pi_env["NPM_CONFIG_CACHE"] == str((Path.cwd() / ".pi" / "npm-cache").resolve())
     assert json.loads((workspace / "workspace_index.json").read_text(encoding="utf-8"))["result_ids"] == ["ins_pi_001"]
     assert {item.artifact_id for item in job.artifacts} >= {"candidate_signals", "insight_candidates", "final_brief"}
+
+
+def test_ai_index_prompt_and_review_enforce_requested_output_limit(tmp_path: Path) -> None:
+    spec = JobSpec(
+        domain="ai_index",
+        objective="find 1 insight",
+        parameters={"expected_outputs": 1},
+    )
+    job = DiscoveryJob(job_id="job_limit", spec=spec, workspace_path=str(tmp_path))
+    context = DiscoveryContext(
+        workspace_path=str(tmp_path),
+        spec=spec,
+        manifest=DomainRegistry().load_manifest("ai_index"),
+    )
+    prompt = build_ai_index_prompt(job, context)
+    assert "select at most 1" in prompt
+    assert "Every selected insight should cite" in prompt
+
+    insights_dir = tmp_path / "insights"
+    insights_dir.mkdir()
+    (insights_dir / "insight_candidates.json").write_text(
+        json.dumps({"insight_candidates": [{"insight_id": "one"}, {"insight_id": "two"}]}),
+        encoding="utf-8",
+    )
+    review = review_ai_index(job, tmp_path)
+    assert review.status == "failed"
+    assert "exceeding the requested maximum of 1" in " ".join(review.warnings)
 
 
 def test_missing_pi_fails_before_output_validation(tmp_path: Path) -> None:
@@ -344,6 +375,13 @@ def test_config_template_uses_only_nested_schema(tmp_path: Path) -> None:
     assert "insights_explorer:" not in text
     assert "ai_index_modeling:" not in text
     assert "dcode" not in text.lower()
+
+
+def test_pi_project_provider_uses_runtime_credentials() -> None:
+    models = json.loads((Path(__file__).resolve().parents[1] / ".pi" / "agent" / "models.json").read_text())
+    provider = models["providers"]["boyuerich-openai"]
+    assert provider["apiKey"] == "$OPENAI_API_KEY"
+    assert {model["id"] for model in provider["models"]} >= {"gpt-5.5", "deepseek-v4-pro"}
 
 
 def test_flat_legacy_config_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

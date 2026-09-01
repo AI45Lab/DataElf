@@ -25,9 +25,20 @@ def review_ai_index(job: DiscoveryJob, workspace: Path) -> ReviewResult:
     insights = payload.get("insight_candidates", []) if isinstance(payload, dict) else []
     scripts = list((workspace / "scripts").glob("*.py"))
     deep_dives = list((workspace / "deep_dives").glob("*.md"))
-    metrics: dict[str, int] = {"insight_count": len(insights), "script_count": len(scripts), "deep_dive_count": len(deep_dives)}
+    expected_outputs = _expected_outputs(job)
+    metrics: dict[str, int] = {
+        "insight_count": len(insights),
+        "expected_output_count": expected_outputs,
+        "script_count": len(scripts),
+        "deep_dive_count": len(deep_dives),
+    }
+    exceeds_requested_count = len(insights) > expected_outputs
     if not 1 <= len(insights) <= 5:
         warnings.append("Expected 1-5 insight candidates.")
+    if exceeds_requested_count:
+        warnings.append(
+            f"Produced {len(insights)} insights, exceeding the requested maximum of {expected_outputs}."
+        )
     if not scripts:
         warnings.append("No Python analysis scripts found under scripts/*.py.")
     if not deep_dives:
@@ -51,7 +62,7 @@ def review_ai_index(job: DiscoveryJob, workspace: Path) -> ReviewResult:
                 warnings.append(f"Insight {index} confidence should be between 0 and 1.")
         except (TypeError, ValueError):
             warnings.append(f"Insight {index} confidence should be numeric.")
-    status = "failed" if not insights else ("pass_with_warnings" if warnings else "pass")
+    status = "failed" if not insights or exceeds_requested_count else ("pass_with_warnings" if warnings else "pass")
     return _result(job, status, warnings, metrics)
 
 
@@ -67,6 +78,13 @@ def _csv_has_rows(path: Path) -> bool:
         return False
     with path.open("r", encoding="utf-8", newline="") as handle:
         return any(True for _ in csv.DictReader(handle))
+
+
+def _expected_outputs(job: DiscoveryJob) -> int:
+    try:
+        return max(1, min(int(job.spec.parameters.get("expected_outputs", 3)), 5))
+    except (TypeError, ValueError):
+        return 3
 
 
 __all__ = ["REQUIRED_INSIGHT_FIELDS", "review_ai_index"]

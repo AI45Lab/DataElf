@@ -6,6 +6,12 @@ from dataelf.discovery.contracts import DiscoveryContext, DiscoveryJob
 def build_ai_index_prompt(job: DiscoveryJob, context: DiscoveryContext) -> str:
     modeled = any(artifact.kind == "ontology_rdf" for artifact in context.artifacts)
     source = _rdf_source() if modeled else _table_source()
+    expected_outputs = _expected_outputs(job)
+    analysis_requirement = (
+        "Every selected insight should cite executed Python analysis artifacts when enough evidence exists."
+        if expected_outputs == 1
+        else f"At least {min(2, expected_outputs)} selected insights should cite executed Python analysis artifacts when enough evidence exists."
+    )
     return f"""You are DataElf's AI technology-intelligence analyst. Discover non-obvious, evidence-backed insights; do not merely summarize fields or produce top-N rankings.
 
 ## Evidence source
@@ -17,7 +23,7 @@ You may use external web search to explain or challenge an AI Index signal. Save
 ## Required method
 
 1. Breadth scan: generate 8-12 varied candidate signals and write `insights/candidate_signals.json`.
-2. Selection: score novelty, magnitude, relation complexity, strategic relevance, actionability, low-base risk, and obviousness risk; select at most 3.
+2. Selection: score novelty, magnitude, relation complexity, strategic relevance, actionability, low-base risk, and obviousness risk; select at most {expected_outputs}. Never exceed the requested output count.
 3. Deep dive: write and execute reusable Python analysis under `scripts/`, save derived evidence under `tables/`, and write a non-empty report under `deep_dives/` for each selected signal.
 4. Synthesis: write `insights/insight_candidates.json` and `insights/final_brief.md`.
 
@@ -27,7 +33,7 @@ Keep the run bounded. Prefer one compact analysis script per phase and stop acqu
 
 - Cover at least two insight forms when evidence permits: mechanism, structural relationship, anomaly, opportunity/risk, contradiction, ecosystem gap, or timing.
 - Connect at least two entity or evidence types in each final insight.
-- At least two insights should cite executed Python analysis artifacts when enough evidence exists.
+- {analysis_requirement}
 - Check counterarguments, alternative explanations, low-base effects, provenance quality, and uncertainty.
 - Produce fewer strong insights rather than filling a quota with weak claims.
 
@@ -35,6 +41,13 @@ Each item in `insight_candidates` must include: `insight_id`, `title`, `thesis`,
 
 User objective: {job.spec.objective}
 """
+
+
+def _expected_outputs(job: DiscoveryJob) -> int:
+    try:
+        return max(1, min(int(job.spec.parameters.get("expected_outputs", 3)), 5))
+    except (TypeError, ValueError):
+        return 3
 
 
 def _table_source() -> str:
