@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import logging
 from pathlib import Path
 
@@ -9,16 +8,13 @@ from rich.console import Console
 from rich.table import Table
 
 from dataelf.config import DEFAULT_CONFIG_FILE, DataElfConfig, write_config_template
-from dataelf.discovery.explorer_factory import is_pi_family_explorer, normalize_insights_explorer_name
+from dataelf.domains.ai_index.config import AIIndexDomainConfig
 from dataelf.discovery.workflow import run_discovery
 from dataelf.stores.sqlite_store import SQLiteStore
-from dataelf.tools.registry import list_tool_specs
 
 app = typer.Typer(help="DataElf Insight Discovery CLI")
 job_app = typer.Typer(help="Inspect discovery jobs")
-tools_app = typer.Typer(help="Inspect DataElf tools")
 app.add_typer(job_app, name="job")
-app.add_typer(tools_app, name="tools")
 console = Console()
 
 
@@ -27,9 +23,9 @@ def _config() -> DataElfConfig:
 
 
 def _store(config: DataElfConfig) -> SQLiteStore:
-    if not config.enable_sqlite:
+    if not config.runtime.enable_sqlite:
         raise RuntimeError("SQLite job registry is disabled. Set DATAELF_ENABLE_SQLITE=1 to enable job lookup commands.")
-    store = SQLiteStore(config.sqlite_path)
+    store = SQLiteStore(config.runtime.sqlite_path)
     store.init_schema()
     return store
 
@@ -43,28 +39,26 @@ def init() -> None:
     """Initialize the local DataElf workspace."""
     config = _config()
     config.ensure_dirs()
+    if "ai_index" not in config.domains:
+        domains = dict(config.domains)
+        domains["ai_index"] = AIIndexDomainConfig.from_mapping({}).model_dump(mode="json")
+        config = config.model_copy(update={"domains": domains})
     config_file = write_config_template(DEFAULT_CONFIG_FILE, config)
-    console.print(f"Initialized DataElf workspace: [bold]{config.workspace_dir.resolve()}[/bold]")
+    console.print(f"Initialized DataElf workspace: [bold]{config.runtime.workspace_dir.resolve()}[/bold]")
     console.print(f"Config file: {config_file.resolve()}")
-    if config.enable_sqlite:
+    if config.runtime.enable_sqlite:
         store = _store(config)
         store.close()
-        console.print(f"SQLite: {config.sqlite_path.resolve()}")
+        console.print(f"SQLite: {config.runtime.sqlite_path.resolve()}")
     else:
         console.print("SQLite: disabled (set DATAELF_ENABLE_SQLITE=1 to enable job registry commands)")
-    console.print(f"Raw cache: {config.raw_dir.resolve()}")
-    console.print(f"Discovery workspaces: {config.workspaces_dir.resolve()}")
+    console.print(f"Discovery workspaces: {config.runtime.workspaces_dir.resolve()}")
 
 
 @app.command()
 def discover(
     query: str,
-    insights_explorer: str | None = typer.Option(
-        None,
-        "--insights-explorer",
-        help="Override the configured insights explorer for this run.",
-    ),
-    ai_index_modeling: bool | None = typer.Option(
+    modeling_enabled: bool | None = typer.Option(
         None,
         "--ai-index-modeling/--no-ai-index-modeling",
         help="Enable or disable the AI Index acquisition and ontology modeling stage.",
@@ -78,25 +72,23 @@ def discover(
     """Run a user-triggered insight discovery job."""
     _setup_logging()
     config = _config()
-    updates: dict[str, object] = {}
-    if insights_explorer and insights_explorer.strip():
-        updates["insights_explorer"] = insights_explorer.strip()
-    modeling = config.ai_index_modeling
-    if ai_index_modeling is not None:
+    domain = AIIndexDomainConfig.from_mapping(config.domain_config("ai_index"))
+    modeling = domain.modeling
+    if modeling_enabled is not None:
         modeling = modeling.model_copy(
             update={
-                "enabled": ai_index_modeling,
-                **({"ontology_template": None} if not ai_index_modeling else {}),
+                "enabled": modeling_enabled,
+                **({"ontology_template": None} if not modeling_enabled else {}),
             }
         )
     if ontology_template and ontology_template.strip():
         modeling = modeling.model_copy(update={"ontology_template": ontology_template.strip()})
     if modeling.ontology_template and not modeling.enabled:
         raise typer.BadParameter("--ontology-template requires --ai-index-modeling")
-    if modeling != config.ai_index_modeling:
-        updates["ai_index_modeling"] = modeling
-    if updates:
-        config = config.model_copy(update=updates)
+    if modeling != domain.modeling:
+        domains = dict(config.domains)
+        domains["ai_index"] = domain.model_copy(update={"modeling": modeling}).model_dump(mode="python")
+        config = config.model_copy(update={"domains": domains})
     try:
         job = run_discovery(query, config)
     except Exception as exc:
@@ -106,30 +98,23 @@ def discover(
     status_style = "green" if job.status == "completed" else "red"
     console.print(f"[{status_style}]Discovery job {job.status}:[/{status_style}] {job.job_id}")
     workspace = Path(job.workspace_path).resolve()
-    explorer_name = normalize_insights_explorer_name(config.insights_explorer)
     console.print(f"Workspace: {workspace}")
-    console.print(f"Explorer: {explorer_name}")
-    if is_pi_family_explorer(explorer_name):
-        console.print(f"Requested model: {config.pi_model or '<pi default>'}")
-        console.print(f"Pi events: {workspace / 'logs' / 'pi_events.jsonl'}")
-        console.print(f"pi stdout: {workspace / 'logs' / 'pi_stdout.log'}")
-        console.print(f"pi stderr: {workspace / 'logs' / 'pi_stderr.log'}")
-    else:
-        console.print(f"Requested model: {config.model or '<dcode default>'}")
-        console.print(f"Actual dcode model: {_read_dcode_model(workspace) or '<unknown>'}")
-        console.print(f"dcode stdout: {workspace / 'logs' / 'dcode_stdout.log'}")
-        console.print(f"dcode stderr: {workspace / 'logs' / 'dcode_stderr.log'}")
-    if config.ai_index_modeling.enabled:
+    console.print("Explorer: pi")
+    console.print(f"Requested model: {config.explorer.pi.model or '<pi default>'}")
+    console.print(f"Pi events: {workspace / 'logs' / 'pi_events.jsonl'}")
+    console.print(f"pi stdout: {workspace / 'logs' / 'pi_stdout.log'}")
+    console.print(f"pi stderr: {workspace / 'logs' / 'pi_stderr.log'}")
+    if modeling.enabled:
         console.print(f"AI Index modeling state: {workspace / 'modeling' / 'ai_index' / 'state.json'}")
     console.print(f"Insight candidates: {workspace / 'insights' / 'insight_candidates.json'}")
     console.print(f"Final brief: {workspace / 'insights' / 'final_brief.md'}")
     console.print(f"Review file: {workspace / 'reviews' / 'quality_review.json'}")
-    if config.enable_sqlite:
+    if config.runtime.enable_sqlite:
         console.print(f"Registry review: dataelf job review {job.job_id}")
         console.print(f"Registry logs: dataelf job logs {job.job_id}")
     if job.status == "failed":
-        if job.error:
-            console.print(f"[red]Error:[/red] {job.error}")
+        if job.error_code:
+            console.print(f"[red]Error:[/red] {job.error_code}: {job.error_message or ''}")
         raise typer.Exit(code=1)
 
 
@@ -137,7 +122,7 @@ def discover(
 def job_workspace(job_id: str) -> None:
     """Show a discovery job workspace path."""
     config = _config()
-    if not config.enable_sqlite:
+    if not config.runtime.enable_sqlite:
         _print_sqlite_disabled()
         return
     store = _store(config)
@@ -171,7 +156,7 @@ def job_review(job_id: str) -> None:
 def job_logs(job_id: str) -> None:
     """Show workflow logs for a discovery job."""
     config = _config()
-    if not config.enable_sqlite:
+    if not config.runtime.enable_sqlite:
         _print_sqlite_disabled()
         return
     store = _store(config)
@@ -186,21 +171,9 @@ def job_logs(job_id: str) -> None:
     store.close()
 
 
-@tools_app.command("list")
-def tools_list() -> None:
-    """List DataElf controlled tools."""
-    table = Table(title="DataElf Tools")
-    table.add_column("name")
-    table.add_column("permission")
-    table.add_column("description")
-    for spec in list_tool_specs():
-        table.add_row(spec.name, spec.permission, spec.description)
-    console.print(table)
-
-
 def _print_job_file(job_id: str, relative_path: str) -> None:
     config = _config()
-    if not config.enable_sqlite:
+    if not config.runtime.enable_sqlite:
         _print_sqlite_disabled()
         return
     store = _store(config)
@@ -222,14 +195,3 @@ def _print_sqlite_disabled() -> None:
         "[yellow]SQLite job registry is disabled by default.[/yellow]\n"
         "Use the workspace path printed by `dataelf discover`, or set DATAELF_ENABLE_SQLITE=1 before running jobs."
     )
-
-
-def _read_dcode_model(workspace: Path) -> str | None:
-    for relative in ["logs/dcode_stdout.log", "logs/dcode_synthesis_retry_stdout.log"]:
-        path = workspace / relative
-        if not path.exists():
-            continue
-        match = re.search(r"\bModel:\s*([^|\n]+)", path.read_text(encoding="utf-8", errors="replace"))
-        if match:
-            return match.group(1).strip()
-    return None

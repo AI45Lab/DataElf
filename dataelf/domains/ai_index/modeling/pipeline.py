@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from dataelf.config import AIIndexModelingConfig, DataElfConfig
-from dataelf.discovery.base import DiscoveryContext, ModelingArtifacts, ModelingStageResult
+from dataelf.discovery.artifacts import relative_artifact_path
+from dataelf.discovery.contracts import ArtifactRef, DiscoveryContext, DiscoveryJob, ModelingStageResult
+from dataelf.domains.ai_index.config import AIIndexDomainConfig
 from dataelf.domains.ai_index.modeling.acquisition import AIIndexRawCollector
 from dataelf.domains.ai_index.modeling.contracts import (
     AI_INDEX_MODELING_RAW_ACQUISITION_FAILED,
@@ -16,10 +17,8 @@ from dataelf.domains.ai_index.modeling.contracts import (
     RawAcquisitionResult,
 )
 from dataelf.domains.ai_index.modeling.ontology_runner import validate_ontology_result
-from dataelf.domains.ai_index.modeling.prompt import write_ai_index_modeling_prompt
 from dataelf.domains.ai_index.modeling.state import AIIndexModelingStateStore
 from dataelf.domains.ai_index.modeling.subprocess_runner import run_ontology_subprocess
-from dataelf.schemas import DiscoveryJob
 
 
 EXPECTED_ENDPOINTS = {
@@ -30,14 +29,15 @@ EXPECTED_ENDPOINTS = {
 
 
 class AIIndexModeler:
-    def __init__(self, dataelf_config: DataElfConfig):
-        self.dataelf_config = dataelf_config
-        self.config = dataelf_config.ai_index_modeling
+    def __init__(self, domain_config: AIIndexDomainConfig, runtime_env: dict[str, str]):
+        self.domain_config = domain_config
+        self.runtime_env = runtime_env
+        self.config = domain_config.modeling
         self.collector = AIIndexRawCollector(
-            mode=dataelf_config.ai_index_mode,
-            base_url=dataelf_config.ai_index_base_url,
-            api_key=dataelf_config.ai_index_api_key,
-            fixtures_dir=dataelf_config.fixtures_dir,
+            mode=domain_config.source.mode,
+            base_url=domain_config.source.base_url,
+            api_key=domain_config.source.api_key,
+            fixtures_dir=domain_config.source.fixtures_dir,
             page_size=self.config.raw_page_size,
         )
 
@@ -70,7 +70,7 @@ class AIIndexModeler:
             metrics={"mode": "template" if self.config.ontology_template else "dynamic"},
         )
         try:
-            ontology = run_ontology_subprocess(workspace, self.config, self.dataelf_config.runtime_env)
+            ontology = run_ontology_subprocess(workspace, self.config, self.runtime_env)
         except KeyboardInterrupt:
             stage = _worker_stage(workspace)
             state.transition(
@@ -90,21 +90,28 @@ class AIIndexModeler:
                 stage="rdf",
                 ontology=ontology,
             )
-        prompt_path = write_ai_index_modeling_prompt(job, context, ontology).resolve()
-        artifacts = _modeling_artifacts(ontology, prompt_path, self.config)
+        artifacts = _modeling_artifacts(workspace, ontology)
+        primary = next(artifact for artifact in artifacts if artifact.artifact_id == "ai_index_rdf_nquads")
         state.transition(
             "completed",
             stage="rdf",
             runIds={"stage1": ontology.stage1_run_id, "stage2": ontology.stage2_run_id},
             artifactPaths={
-                "primary": artifacts.primary_artifact_path,
-                "manifest": artifacts.manifest_path,
-                "validation": artifacts.validation_path,
-                "prompt": artifacts.prompt_path,
+                "primary": str((workspace / primary.path).resolve()),
+                "manifest": ontology.manifest_path,
+                "validation": ontology.validation_path,
             },
-            metrics=artifacts.metrics,
+            metrics={"artifactCount": len(artifacts)},
         )
-        return ModelingStageResult(status="completed", artifacts=artifacts)
+        return ModelingStageResult(
+            status="completed",
+            artifacts=artifacts,
+            metrics={
+                "stage1Mode": "template" if self.config.ontology_template else "dynamic",
+                "stage1AttemptCount": 0 if self.config.ontology_template else 1,
+                **({"stage1ModelCalls": 0} if self.config.ontology_template else {}),
+            },
+        )
 
     @staticmethod
     def _fail(
@@ -152,38 +159,31 @@ def _invalid_acquisition_reason(acquisition: RawAcquisitionResult) -> str | None
     return None
 
 
-def _modeling_artifacts(
-    ontology: OntologyRunResult,
-    prompt_path: Path,
-    config: AIIndexModelingConfig,
-) -> ModelingArtifacts:
+def _modeling_artifacts(workspace: Path, ontology: OntologyRunResult) -> list[ArtifactRef]:
     assert ontology.nquads_path and ontology.stage1_bundle
     run_id = ontology.stage2_run_id or ontology.stage1_run_id or "ai_index_modeling"
-    supporting = {
-        key: value
-        for key, value in {
-            "stage1_bundle": ontology.stage1_bundle,
-            "stage2_bundle": ontology.stage2_bundle,
-            "rdfxml": ontology.rdfxml_path,
-            "ntriples": ontology.ntriples_path,
-        }.items()
-        if value
+    values = {
+        "ai_index_rdf_nquads": ("ontology_rdf", ontology.nquads_path, "application/n-quads"),
+        "ai_index_rdf_ntriples": ("ontology_rdf", ontology.ntriples_path, "application/n-triples"),
+        "ai_index_rdfxml": ("ontology_rdf", ontology.rdfxml_path, "application/rdf+xml"),
+        "ai_index_modeling_manifest": ("modeling_manifest", ontology.manifest_path, "application/json"),
+        "ai_index_modeling_validation": ("modeling_validation", ontology.validation_path, "application/json"),
+        "ai_index_stage1_bundle": ("modeling_bundle", ontology.stage1_bundle, None),
+        "ai_index_stage2_bundle": ("modeling_bundle", ontology.stage2_bundle, None),
     }
-    return ModelingArtifacts(
-        domain="ai_index",
-        kind="ontology_rdf",
-        run_id=run_id,
-        prompt_path=str(prompt_path),
-        primary_artifact_path=ontology.nquads_path,
-        manifest_path=ontology.manifest_path,
-        validation_path=ontology.validation_path,
-        supporting_artifact_paths=supporting,
-        metrics={
-            "stage1Mode": "template" if config.ontology_template else "dynamic",
-            "stage1AttemptCount": 0 if config.ontology_template else 1,
-            **({"stage1ModelCalls": 0} if config.ontology_template else {}),
-        },
-    )
+    return [
+        ArtifactRef(
+            artifact_id=artifact_id,
+            kind=kind,
+            path=relative_artifact_path(workspace, path),
+            role="evidence",
+            producer_stage="domain_modeling",
+            media_type=media_type,
+            provenance={"domain": "ai_index", "run_id": run_id},
+        )
+        for artifact_id, (kind, path, media_type) in values.items()
+        if path
+    ]
 
 
 def _compact_ontology_paths(ontology: OntologyRunResult) -> dict[str, str]:

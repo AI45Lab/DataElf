@@ -1,9 +1,18 @@
 domain: ai_index
+version: "1"
 display_name: AI 科技情报
+plugin: dataelf.domains.ai_index.plugin:create_plugin
+capabilities:
+  - dynamic_data_access
+  - ontology_modeling
+  - external_search
+workspace_dirs:
+  - raw/ai_index
+  - raw/web
+  - deep_dives
+  - insights
 
-modeling:
-  entrypoint: dataelf.domains.ai_index.modeling:create_modeler
-
+# AI Index-specific ontology hints. These are consumed only inside this domain.
 entities:
   Paper:
     table: papers
@@ -55,39 +64,3 @@ relations:
     table: funding_rounds
     source_field: institution_id
     target_field: funding_id
-
-tools:
-  - search_papers
-  - search_scholars
-  - search_institutions
-  - fetch_institution_funding
-
-workspace_tables:
-  - papers.csv
-  - paper_author.csv
-  - paper_institution.csv
-  - paper_yearly_counts.csv
-  - paper_awards.csv
-  - institutions.csv
-  - institution_awards.csv
-  - institution_venues.csv
-  - scholars.csv
-  - scholar_institution.csv
-  - scholar_yearly_counts.csv
-  - scholar_awards.csv
-  - scholar_venues.csv
-  - funding.csv
-  - funding_summary.csv
-  - funding_rounds.csv
-  - funding_investors.csv
-  - institution_investments.csv
-  - source_observations.csv
-  - external_findings.csv
-
-default_discovery_strategies:
-  - topic_growth
-  - institution_ranking_jump
-  - citation_velocity
-  - benchmark_emergence
-  - scholar_activity_shift
-  - cross_source_signal

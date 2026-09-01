@@ -7,7 +7,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from dataelf.domains.ai_index.modeling.ontology.common.artifacts import atomic_write_json, read_json_object
-from dataelf.config import AIIndexModelingConfig
+from dataelf.domains.ai_index.config import AIIndexModelingConfig
 from dataelf.domains.ai_index.modeling.contracts import OntologyRunResult
 from dataelf.domains.ai_index.modeling.ontology_runner import AIIndexOntologyRunner
 

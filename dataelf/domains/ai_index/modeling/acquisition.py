@@ -7,7 +7,7 @@ from typing import Any
 
 from dataelf.domains.ai_index.modeling.contracts import RawAcquisitionRecord, RawAcquisitionResult
 from dataelf.domains.ai_index.connector import AIIndexConnector
-from dataelf.schemas import DiscoveryJob
+from dataelf.discovery.contracts import DiscoveryJob
 
 
 class AIIndexRawCollector:
@@ -68,8 +68,8 @@ class AIIndexRawCollector:
         query: dict[str, Any] = {"page": 1, "size": self.page_size}
         if mode == "fixture":
             return query
-        domains = job.scope.get("domains")
-        sub_domains = job.scope.get("sub_domains")
+        domains = job.spec.parameters.get("domains")
+        sub_domains = job.spec.parameters.get("sub_domains")
         if isinstance(domains, list) and domains:
             query["domains"] = [str(item) for item in domains]
         if isinstance(sub_domains, list) and sub_domains:

@@ -8,15 +8,14 @@ from threading import RLock
 from typing import Any
 
 from dataelf.schemas import (
-    DiscoveryJob,
     DomainObject,
     DomainRelation,
-    QualityReviewResult,
     RawArtifact,
     RecordEnvelope,
     new_id,
     now_utc,
 )
+from dataelf.discovery.contracts import DiscoveryJob, ReviewResult
 
 
 def _json(data: Any) -> str:
@@ -49,31 +48,26 @@ class SQLiteStore:
         with self._lock:
             self.conn.executescript(
                 """
-            CREATE TABLE IF NOT EXISTS discovery_jobs (
+            CREATE TABLE IF NOT EXISTS jobs (
               job_id TEXT PRIMARY KEY,
-              trigger_type TEXT NOT NULL,
-              job_type TEXT NOT NULL,
-              seed_query TEXT,
-              trigger_event_id TEXT,
-              trigger_event_json TEXT,
-              scope_json TEXT NOT NULL,
-              constraints_json TEXT NOT NULL,
+              domain TEXT NOT NULL,
+              objective TEXT NOT NULL,
               status TEXT NOT NULL,
               workspace_path TEXT NOT NULL,
-              insight_candidate_ids_json TEXT NOT NULL,
               state_json TEXT NOT NULL,
               created_at TEXT NOT NULL,
               updated_at TEXT NOT NULL,
-              error TEXT
+              error_code TEXT,
+              error_message TEXT
             );
 
-            CREATE TABLE IF NOT EXISTS quality_reviews (
+            CREATE TABLE IF NOT EXISTS reviews (
               review_id TEXT PRIMARY KEY,
               job_id TEXT NOT NULL,
-              review_status TEXT NOT NULL,
+              status TEXT NOT NULL,
               warnings_json TEXT NOT NULL,
               recommended_revision INTEGER NOT NULL,
-              payload_json TEXT NOT NULL,
+              metrics_json TEXT NOT NULL,
               created_at TEXT NOT NULL
             );
 
@@ -136,93 +130,81 @@ class SQLiteStore:
         with self._lock:
             self.conn.execute(
                 """
-            INSERT INTO discovery_jobs(
-              job_id,trigger_type,job_type,seed_query,trigger_event_id,trigger_event_json,
-              scope_json,constraints_json,status,workspace_path,insight_candidate_ids_json,
-              state_json,created_at,updated_at,error
+            INSERT INTO jobs(
+              job_id,domain,objective,status,workspace_path,state_json,created_at,updated_at,error_code,error_message
             )
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            VALUES(?,?,?,?,?,?,?,?,?,?)
             ON CONFLICT(job_id) DO UPDATE SET
-              trigger_type=excluded.trigger_type,
-              job_type=excluded.job_type,
-              seed_query=excluded.seed_query,
-              trigger_event_id=excluded.trigger_event_id,
-              trigger_event_json=excluded.trigger_event_json,
-              scope_json=excluded.scope_json,
-              constraints_json=excluded.constraints_json,
+              domain=excluded.domain,
+              objective=excluded.objective,
               status=excluded.status,
               workspace_path=excluded.workspace_path,
-              insight_candidate_ids_json=excluded.insight_candidate_ids_json,
               state_json=excluded.state_json,
               updated_at=excluded.updated_at,
-              error=excluded.error
+              error_code=excluded.error_code,
+              error_message=excluded.error_message
             """,
                 (
                     job.job_id,
-                    job.trigger_type,
-                    job.job_type,
-                    job.seed_query,
-                    job.trigger_event_id,
-                    _json(job.trigger_event) if job.trigger_event is not None else None,
-                    _json(job.scope),
-                    _json(job.constraints),
+                    job.spec.domain,
+                    job.spec.objective,
                     job.status,
                     job.workspace_path,
-                    _json(job.insight_candidate_ids),
                     job.model_dump_json(),
                     _iso(job.created_at),
                     _iso(job.updated_at),
-                    job.error,
+                    job.error_code,
+                    job.error_message,
                 ),
             )
             self.conn.commit()
 
     def get_discovery_job(self, job_id: str) -> DiscoveryJob | None:
         with self._lock:
-            row = self.conn.execute("SELECT state_json FROM discovery_jobs WHERE job_id=?", (job_id,)).fetchone()
+            row = self.conn.execute("SELECT state_json FROM jobs WHERE job_id=?", (job_id,)).fetchone()
         return DiscoveryJob.model_validate_json(row["state_json"]) if row else None
 
     def list_discovery_jobs(self) -> list[DiscoveryJob]:
         with self._lock:
-            rows = self.conn.execute("SELECT state_json FROM discovery_jobs ORDER BY created_at DESC").fetchall()
+            rows = self.conn.execute("SELECT state_json FROM jobs ORDER BY created_at DESC").fetchall()
         return [DiscoveryJob.model_validate_json(row["state_json"]) for row in rows]
 
-    def save_quality_review(self, review: QualityReviewResult) -> None:
+    def save_quality_review(self, review: ReviewResult) -> None:
         with self._lock:
             self.conn.execute(
                 """
-            INSERT OR REPLACE INTO quality_reviews(
-              review_id,job_id,review_status,warnings_json,recommended_revision,payload_json,created_at
+            INSERT OR REPLACE INTO reviews(
+              review_id,job_id,status,warnings_json,recommended_revision,metrics_json,created_at
             )
             VALUES(?,?,?,?,?,?,?)
             """,
                 (
                     review.review_id,
                     review.job_id,
-                    review.review_status,
+                    review.status,
                     _json(review.warnings),
                     1 if review.recommended_revision else 0,
-                    _json(review.payload),
+                    _json(review.metrics),
                     _iso(review.created_at),
                 ),
             )
             self.conn.commit()
 
-    def get_latest_quality_review(self, job_id: str) -> QualityReviewResult | None:
+    def get_latest_quality_review(self, job_id: str) -> ReviewResult | None:
         with self._lock:
             row = self.conn.execute(
-                "SELECT * FROM quality_reviews WHERE job_id=? ORDER BY created_at DESC LIMIT 1",
+                "SELECT * FROM reviews WHERE job_id=? ORDER BY created_at DESC LIMIT 1",
                 (job_id,),
             ).fetchone()
         if not row:
             return None
-        return QualityReviewResult(
+        return ReviewResult(
             review_id=row["review_id"],
             job_id=row["job_id"],
-            review_status=row["review_status"],
+            status=row["status"],
             warnings=_loads(row["warnings_json"], []),
             recommended_revision=bool(row["recommended_revision"]),
-            payload=_loads(row["payload_json"], {}),
+            metrics=_loads(row["metrics_json"], {}),
             created_at=datetime.fromisoformat(row["created_at"]),
         )
 

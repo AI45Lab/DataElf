@@ -10,10 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from threading import Thread
 
-from dataelf.discovery.base import DiscoveryContext, DiscoveryResult
-from dataelf.discovery.prompt_builder import resolve_discovery_prompt
-from dataelf.discovery.result_parser import parse_discovery_result
-from dataelf.schemas import DiscoveryJob
+from dataelf.discovery.contracts import ArtifactRef, DiscoveryContext, DiscoveryJob, ExplorerRunResult
 
 
 DEFAULT_PI_MODE = "json"
@@ -66,7 +63,7 @@ class PiCliInsightsExplorer:
         self.approve_project = approve_project
         self.log_mode = _resolve_log_mode(log_mode=log_mode, stream_logs=stream_logs)
 
-    def run(self, job: DiscoveryJob, context: DiscoveryContext) -> DiscoveryResult:
+    def run(self, job: DiscoveryJob, context: DiscoveryContext) -> ExplorerRunResult:
         workspace_path = Path(context.workspace_path)
         workspace_path.mkdir(parents=True, exist_ok=True)
         logs_dir = workspace_path / "logs"
@@ -76,13 +73,23 @@ class PiCliInsightsExplorer:
         events_path = logs_dir / "pi_events.jsonl"
 
         logger.info("Preparing Pi workspace: %s", workspace_path)
-        prompt_path = resolve_discovery_prompt(job, context)
+        if not context.prompt_path:
+            return ExplorerRunResult(
+                status="failed", error_code="PI_PROMPT_MISSING",
+                error_message="Discovery prompt was not composed before Pi execution.",
+            )
+        prompt_path = Path(context.prompt_path).resolve()
+        if not prompt_path.is_file() or not prompt_path.is_relative_to(workspace_path.resolve()):
+            return ExplorerRunResult(
+                status="failed", error_code="PI_PROMPT_INVALID",
+                error_message=f"Discovery prompt is missing or outside workspace: {prompt_path}",
+            )
         pi_binary = self._resolve_binary()
         if pi_binary is None:
             message = "Pi CLI not found. Install @earendil-works/pi-coding-agent, run npm install, or set DATAELF_PI_BINARY."
             stdout_path.write_text("", encoding="utf-8")
             stderr_path.write_text(message + "\n", encoding="utf-8")
-            return DiscoveryResult(job_id=job.job_id, status="failed", workspace_path=str(workspace_path), warnings=[message], error=PI_BINARY_NOT_FOUND)
+            return ExplorerRunResult(status="failed", warnings=[message], error_code=PI_BINARY_NOT_FOUND, error_message=message)
 
         command = self._build_command(pi_binary, prompt_path)
         env = self._build_env(workspace_path, job, context)
@@ -104,27 +111,28 @@ class PiCliInsightsExplorer:
             stdout_path.write_text(stdout, encoding="utf-8")
             stderr_path.write_text(stderr, encoding="utf-8")
             _write_json_events(stdout, events_path)
-            result = parse_discovery_result(workspace_path, job_id=job.job_id)
-            result.status = "failed"
-            result.warnings.append(f"Pi CLI timed out after {timeout} seconds.")
-            result.error = PI_PROCESS_TIMEOUT
-            return result
+            return ExplorerRunResult(
+                status="failed", artifacts=_log_artifacts(workspace_path),
+                warnings=[f"Pi CLI timed out after {timeout} seconds."],
+                error_code=PI_PROCESS_TIMEOUT, error_message=f"Pi CLI timed out after {timeout} seconds.",
+            )
 
         stdout_path.write_text(completed.stdout or "", encoding="utf-8")
         stderr_path.write_text(completed.stderr or "", encoding="utf-8")
         event_warnings = _write_json_events(completed.stdout or "", events_path)
 
-        result = parse_discovery_result(workspace_path, job_id=job.job_id)
-        result.warnings.extend(event_warnings)
         if completed.returncode != 0:
-            result.status = "failed"
-            result.warnings.append(f"Pi CLI exited with code {completed.returncode}. See logs/pi_stderr.log.")
-            result.error = f"{PI_PROCESS_NONZERO_EXIT}:{completed.returncode}"
-        elif event_warnings and result.error is None:
-            result.error = PI_EVENT_PARSE_ERROR
-            result.status = "failed"
-        logger.info("Pi artifacts parsed with status=%s warnings=%s", result.status, len(result.warnings))
-        return result
+            message = f"Pi CLI exited with code {completed.returncode}. See logs/pi_stderr.log."
+            return ExplorerRunResult(
+                status="failed", artifacts=_log_artifacts(workspace_path), warnings=[*event_warnings, message],
+                error_code=f"{PI_PROCESS_NONZERO_EXIT}:{completed.returncode}", error_message=message,
+            )
+        if event_warnings:
+            return ExplorerRunResult(
+                status="failed", artifacts=_log_artifacts(workspace_path), warnings=event_warnings,
+                error_code=PI_EVENT_PARSE_ERROR, error_message="Pi emitted malformed JSON events.",
+            )
+        return ExplorerRunResult(status="completed", artifacts=_log_artifacts(workspace_path))
 
     def _resolve_binary(self) -> str | None:
         if self.pi_binary:
@@ -162,8 +170,8 @@ class PiCliInsightsExplorer:
         env["DATAELF_WORKSPACE"] = str(workspace_path)
         env["DATAELF_JOB_WORKSPACE"] = str(workspace_path)
         env["DATAELF_JOB_ID"] = job.job_id
-        env["DATAELF_DOMAIN"] = context.domain
-        if context.modeling_artifacts is not None and context.modeling_artifacts.kind == "ontology_rdf":
+        env["DATAELF_DOMAIN"] = context.spec.domain
+        if any(artifact.kind == "ontology_rdf" for artifact in context.artifacts):
             env["DATAELF_PI_ONTOLOGY"] = "1"
         else:
             env.pop("DATAELF_PI_ONTOLOGY", None)
@@ -172,6 +180,22 @@ class PiCliInsightsExplorer:
         env.setdefault("PI_SKIP_VERSION_CHECK", "1")
         env.setdefault("PI_TELEMETRY", "0")
         return env
+
+
+def _log_artifacts(workspace: Path) -> list[ArtifactRef]:
+    result: list[ArtifactRef] = []
+    for artifact_id, relative, media_type in [
+        ("pi_stdout", "logs/pi_stdout.log", "text/plain"),
+        ("pi_stderr", "logs/pi_stderr.log", "text/plain"),
+        ("pi_events", "logs/pi_events.jsonl", "application/x-ndjson"),
+        ("pi_command", "logs/pi_command.json", "application/json"),
+    ]:
+        if (workspace / relative).is_file():
+            result.append(ArtifactRef(
+                artifact_id=artifact_id, kind="runtime_log", path=relative, role="log",
+                producer_stage="explorer", media_type=media_type,
+            ))
+    return result
 
 
 @dataclass
@@ -191,10 +215,6 @@ _ENV_ALLOWLIST = {
     "USER",
     "LOGNAME",
     "PYTHONPATH",
-    "AI_INDEX_BASE_URL",
-    "AI_INDEX_API_KEY",
-    "DATAELF_AI_INDEX_MODE",
-    "TAVILY_API_KEY",
     "BRAVE_API_KEY",
     "OPENAI_API_KEY",
     "OPENAI_BASE_URL",
@@ -446,7 +466,7 @@ def _write_json(path: Path, payload: object) -> None:
 
 
 def _timeout_seconds(job: DiscoveryJob) -> int:
-    minutes = job.constraints.get("max_runtime_minutes", 30)
+    minutes = job.spec.constraints.get("max_runtime_minutes", 30)
     try:
         return max(60, int(float(minutes) * 60))
     except (TypeError, ValueError):

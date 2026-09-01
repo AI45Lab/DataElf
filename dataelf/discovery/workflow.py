@@ -2,35 +2,34 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, Protocol
 
 from dataelf.config import DataElfConfig
-from dataelf.discovery.base import DiscoveryContext, ModelingStageResult
-from dataelf.discovery.domain_modeling import create_domain_modeler
+from dataelf.discovery.artifacts import ArtifactContractError, validate_outputs, validate_stage_artifacts, write_artifact_manifest
+from dataelf.discovery.contracts import (
+    ArtifactRef,
+    DiscoveryContext,
+    DiscoveryJob,
+    DomainPlugin,
+    JobSpec,
+    ReviewResult,
+)
 from dataelf.discovery.domain_registry import DomainRegistry
-from dataelf.discovery.explorer_factory import create_insights_explorer, is_pi_family_explorer, normalize_insights_explorer_name
-from dataelf.discovery.quality_review import review_workspace
-from dataelf.discovery.result_parser import load_insight_candidate_ids
+from dataelf.discovery.explorer_factory import create_explorer
+from dataelf.discovery.prompt_builder import write_discovery_prompt
 from dataelf.discovery.workspace import prepare_workspace
-from dataelf.domains.ai_index.client import AIIndexClient
-from dataelf.domains.ai_index.connector import AIIndexConnector
-from dataelf.schemas import DiscoveryJob, new_id, now_utc
+from dataelf.schemas import new_id, now_utc
 from dataelf.stores.sqlite_store import SQLiteStore
+
 
 logger = logging.getLogger("dataelf.discovery")
 
 
-class StoreLike:
-    def save_discovery_job(self, job: DiscoveryJob) -> None:
-        ...
-
-    def add_trace_event(self, job_id: str, event_type: str, payload: dict[str, Any]) -> str:
-        ...
-
-    def save_quality_review(self, review: Any) -> None:
-        ...
+class StoreLike(Protocol):
+    def save_discovery_job(self, job: DiscoveryJob) -> None: ...
+    def add_trace_event(self, job_id: str, event_type: str, payload: dict[str, Any]) -> str: ...
+    def save_quality_review(self, review: ReviewResult) -> None: ...
 
 
 class NullStore:
@@ -38,359 +37,189 @@ class NullStore:
         return None
 
     def add_trace_event(self, job_id: str, event_type: str, payload: dict[str, Any]) -> str:
-        logger.debug("trace_event skipped because sqlite is disabled: %s %s %s", job_id, event_type, payload)
+        logger.debug("trace skipped: %s %s %s", job_id, event_type, payload)
         return ""
 
-    def save_quality_review(self, review: Any) -> None:
+    def save_quality_review(self, review: ReviewResult) -> None:
         return None
 
 
-class DiscoveryWorkflowState(TypedDict, total=False):
-    user_query: str
-    config: DataElfConfig
-    store: StoreLike
-    domain_registry: DomainRegistry
-    domain_pack: dict[str, Any]
-    client: AIIndexClient
-    context: DiscoveryContext
-    modeling_result: ModelingStageResult
-    job: DiscoveryJob
-    quality_review: dict[str, Any]
-
-
 def run_discovery(user_query: str, config: DataElfConfig) -> DiscoveryJob:
+    return run_job(JobSpec(domain="ai_index", objective=user_query), config)
+
+
+def run_job(spec: JobSpec, config: DataElfConfig, registry: DomainRegistry | None = None) -> DiscoveryJob:
     config.ensure_dirs()
-    logger.info("Starting discovery workflow.")
-    graph = build_discovery_workflow()
-    result = graph.invoke({"user_query": user_query, "config": config})
-    logger.info("Discovery workflow finished with status=%s.", result["job"].status)
-    return result["job"]
-
-
-def initialize_job(user_query: str, config: DataElfConfig, store: StoreLike) -> DiscoveryJob:
-    job_id = new_id("job")
-    workspace_path = config.workspaces_dir / job_id
-    logger.info("Initializing discovery job %s.", job_id)
-    job = DiscoveryJob(
-        job_id=job_id,
-        trigger_type="user",
-        job_type="user_requested_discovery",
-        seed_query=user_query,
-        status="running",
-        workspace_path=str(workspace_path),
-        constraints={"max_api_calls": 80, "max_web_searches": 20, "max_runtime_minutes": 30},
+    store = _create_store(config)
+    plugin = (registry or DomainRegistry()).load_plugin(spec.domain, config)
+    spec = plugin.normalize_spec(spec)
+    job = _initialize_job(spec, config, store)
+    workspace = prepare_workspace(Path(job.workspace_path), spec)
+    job.artifacts.append(ArtifactRef(
+        artifact_id="job_spec", kind="job_spec", path="job_spec.json", role="input",
+        producer_stage="core", media_type="application/json",
+    ))
+    context = DiscoveryContext(
+        workspace_path=str(workspace), spec=spec, manifest=plugin.manifest,
+        model=config.explorer.pi.model, env=dict(config.env),
     )
-    store.save_discovery_job(job)
-    store.add_trace_event(job.job_id, "job_initialized", {"seed_query": user_query, "workspace_path": str(workspace_path)})
-    return job
 
-
-def parse_discovery_intent(job: DiscoveryJob, store: StoreLike) -> DiscoveryJob:
-    query = job.seed_query or ""
-    logger.info("Parsing discovery intent for job %s.", job.job_id)
-    topic = _extract_topic(query)
-    scope: dict[str, Any] = {
-        "domain": "ai_index",
-        "topic": topic,
-        "goal": "discover_insights",
-        "domains": ["LLMs"] if "llm" in query.lower() or "Agentic" in topic else [],
-        "sub_domains": ["Agentic LLMs"] if "agent" in query.lower() or "智能体" in query else [],
-        "time_window": "last_6_months" if "半年" in query or "最近" in query else "last_6_months",
-        "expected_outputs": _extract_expected_outputs(query),
-        "need_web_search": "联网" in query or "web" in query.lower() or "search" in query.lower(),
-        "need_code_analysis": True,
-    }
-    if not scope["domains"]:
-        scope["domains"] = ["LLMs"]
-    if not scope["sub_domains"]:
-        scope["sub_domains"] = ["Agentic LLMs"]
-    job.scope = scope
-    job.updated_at = now_utc()
-    store.save_discovery_job(job)
-    store.add_trace_event(job.job_id, "intent_parse", {"scope": scope})
-    return job
-
-
-def build_discovery_workflow():
+    preparation = plugin.prepare(spec, str(workspace), config)
+    _trace_stage(store, job, "domain_prepare", preparation)
+    if preparation.status != "completed":
+        return _fail(job, store, workspace, "domain_prepare", preparation.error_code, preparation.error_message)
     try:
-        from langgraph.graph import END, StateGraph
-    except ImportError as exc:
-        raise RuntimeError("langgraph is not installed. Run `uv pip install -e .` or `pip install -e .`.") from exc
+        validate_stage_artifacts(workspace, preparation.artifacts)
+    except ArtifactContractError as exc:
+        return _fail(job, store, workspace, "domain_prepare", "STAGE_ARTIFACT_INVALID", str(exc))
+    job.artifacts.extend(preparation.artifacts)
+    context = context.model_copy(update={
+        "domain_context": preparation.context,
+        "env": {**context.env, **preparation.env},
+        "artifacts": list(job.artifacts),
+    })
 
-    def prepare(state: dict[str, Any]) -> dict[str, Any]:
-        config: DataElfConfig = state["config"]
-        if config.enable_sqlite:
-            store: StoreLike = SQLiteStore(config.sqlite_path)
-            store.init_schema()
-        else:
-            store = NullStore()
-        return {"store": store, "domain_registry": DomainRegistry()}
+    modeler = plugin.create_modeler(spec, config)
+    if modeler is not None:
+        modeling = modeler.run(job, context)
+        _trace_stage(store, job, "domain_modeling", modeling)
+        if modeling.status != "completed":
+            return _fail(job, store, workspace, "domain_modeling", modeling.error_code, modeling.error_message)
+        try:
+            validate_stage_artifacts(workspace, modeling.artifacts)
+        except ArtifactContractError as exc:
+            return _fail(job, store, workspace, "domain_modeling", "STAGE_ARTIFACT_INVALID", str(exc))
+        job.artifacts.extend(modeling.artifacts)
+        context = context.model_copy(update={
+            "domain_context": {**context.domain_context, **modeling.context},
+            "env": {**context.env, **modeling.env},
+            "artifacts": list(job.artifacts),
+        })
 
-    def init_job_node(state: dict[str, Any]) -> dict[str, Any]:
-        return {"job": initialize_job(state["user_query"], state["config"], state["store"])}
-
-    def intent_node(state: dict[str, Any]) -> dict[str, Any]:
-        return {"job": parse_discovery_intent(state["job"], state["store"])}
-
-    def load_domain_pack_node(state: dict[str, Any]) -> dict[str, Any]:
-        job: DiscoveryJob = state["job"]
-        domain = job.scope.get("domain", "ai_index")
-        logger.info("Loading domain pack: %s.", domain)
-        pack = state["domain_registry"].load_domain_pack(domain)
-        state["store"].add_trace_event(job.job_id, "domain_pack_loaded", {"domain": domain, "tools": pack.get("tools", [])})
-        return {"domain_pack": pack}
-
-    def prepare_workspace_node(state: dict[str, Any]) -> dict[str, Any]:
-        job: DiscoveryJob = state["job"]
-        logger.info("Preparing workspace: %s.", job.workspace_path)
-        workspace = prepare_workspace(Path(job.workspace_path), domain=job.scope.get("domain", "ai_index"))
-        state["store"].add_trace_event(job.job_id, "workspace_prepared", {"workspace_path": str(workspace)})
-        return {}
-
-    def prepare_context_node(state: dict[str, Any]) -> dict[str, Any]:
-        config: DataElfConfig = state["config"]
-        job: DiscoveryJob = state["job"]
-        explorer_name = normalize_insights_explorer_name(config.insights_explorer)
-        explorer_model = config.pi_model if is_pi_family_explorer(explorer_name) else config.model
-        context = DiscoveryContext(
-            workspace_path=job.workspace_path,
-            domain=job.scope.get("domain", "ai_index"),
-            model=explorer_model,
-            env={
-                **config.runtime_env,
-                "DATAELF_AI_INDEX_MODE": config.ai_index_mode,
-                "AI_INDEX_BASE_URL": config.ai_index_base_url,
-                "AI_INDEX_API_KEY": config.ai_index_api_key,
-            },
-            domain_pack=state["domain_pack"],
-            config={**config.model_dump(mode="json"), "insights_explorer": explorer_name},
+    contract = plugin.output_contract(spec)
+    prompt_path = write_discovery_prompt(job, context, plugin.build_prompt(job, context), contract)
+    job.artifacts.append(ArtifactRef(
+        artifact_id="discovery_prompt", kind="prompt", path="prompts/discovery_prompt.md",
+        role="input", producer_stage="prompt_composer", media_type="text/markdown",
+    ))
+    context = context.model_copy(update={"prompt_path": str(prompt_path)})
+    explorer = create_explorer(config)
+    explorer_result = explorer.run(job, context)
+    job.artifacts.extend(explorer_result.artifacts)
+    try:
+        validate_stage_artifacts(workspace, explorer_result.artifacts)
+    except ArtifactContractError as exc:
+        return _fail(job, store, workspace, "explorer", "STAGE_ARTIFACT_INVALID", str(exc))
+    _trace_stage(store, job, "explorer", explorer_result)
+    if explorer_result.status != "completed":
+        return _fail(
+            job, store, workspace, "explorer", explorer_result.error_code,
+            explorer_result.error_message or "Pi explorer failed.",
         )
-        return {"context": context}
 
-    def domain_modeling_node(state: dict[str, Any]) -> dict[str, Any]:
-        job: DiscoveryJob = state["job"]
-        modeler = create_domain_modeler(state["domain_pack"], state["config"])
-        if modeler is None:
-            return {}
-        logger.info("Starting domain modeling for job %s.", job.job_id)
-        state["store"].add_trace_event(job.job_id, "domain_modeling_start", {"domain": state["context"].domain})
-        result = modeler.run(job, state["context"])
-        if result.status != "completed" or result.artifacts is None:
-            job.status = "failed"
-            job.error = result.error_code or "DOMAIN_MODELING_FAILED"
-            job.updated_at = now_utc()
-            state["store"].save_discovery_job(job)
-            state["store"].add_trace_event(
-                job.job_id,
-                "domain_modeling_failed",
-                {"status": result.status, "error_code": result.error_code, "error_message": result.error_message},
-            )
-            return {"job": job, "modeling_result": result}
-        context = state["context"].model_copy(update={"modeling_artifacts": result.artifacts})
-        state["store"].add_trace_event(
-            job.job_id,
-            "domain_modeling_completed",
-            {
-                "domain": result.artifacts.domain,
-                "kind": result.artifacts.kind,
-                "run_id": result.artifacts.run_id,
-                "primary_artifact_path": result.artifacts.primary_artifact_path,
-                "metrics": result.artifacts.metrics,
-            },
-        )
-        return {"context": context, "modeling_result": result}
+    try:
+        outputs, contract_warnings = validate_outputs(workspace, contract)
+    except ArtifactContractError as exc:
+        return _fail(job, store, workspace, "output_validation", "OUTPUT_CONTRACT_FAILED", str(exc))
+    job.artifacts.extend(outputs)
+    store.add_trace_event(job.job_id, "outputs_validated", {
+        "contract_id": contract.contract_id,
+        "artifact_ids": [item.artifact_id for item in outputs],
+        "warnings": contract_warnings,
+    })
 
-    def route_after_domain_modeling(state: dict[str, Any]) -> str:
-        job: DiscoveryJob = state["job"]
-        return "finalize" if job.status == "failed" or job.error else "insights_explore"
+    review = plugin.review(job, str(workspace))
+    if contract_warnings:
+        review.warnings.extend(contract_warnings)
+        if review.status == "pass":
+            review.status = "pass_with_warnings"
+        review.recommended_revision = True
+    _write_review(workspace, review)
+    store.save_quality_review(review)
+    store.add_trace_event(job.job_id, "domain_review_completed", review.model_dump(mode="json"))
+    if review.status == "failed":
+        return _finalize(job, store, workspace, plugin, review, "DOMAIN_REVIEW_FAILED", "Domain review failed.")
+    return _finalize(job, store, workspace, plugin, review)
 
-    def insights_explore_node(state: dict[str, Any]) -> dict[str, Any]:
-        config: DataElfConfig = state["config"]
-        job: DiscoveryJob = state["job"]
-        logger.info("Starting insights_explore for job %s.", job.job_id)
-        connector = AIIndexConnector(
-            mode=config.ai_index_mode,
-            base_url=config.ai_index_base_url,
-            api_key=config.ai_index_api_key,
-            fixtures_dir=config.fixtures_dir,
-            workspace_path=Path(job.workspace_path),
-        )
-        client = AIIndexClient(connector=connector, workspace_path=Path(job.workspace_path))
-        explorer_name = normalize_insights_explorer_name(config.insights_explorer)
-        explorer = create_insights_explorer(config)
-        context: DiscoveryContext = state["context"]
-        state["store"].add_trace_event(job.job_id, "insights_explore_start", {"mode": config.ai_index_mode, "explorer": explorer_name})
-        result = explorer.run(job, context)
-        logger.info("insights_explore finished with status=%s for job %s.", result.status, job.job_id)
-        job.insight_candidate_ids = load_insight_candidate_ids(Path(job.workspace_path))
-        job.updated_at = now_utc()
-        if result.error:
-            job.error = result.error or "insights_explore_failed"
-            job.status = "failed"
-        state["store"].save_discovery_job(job)
-        state["store"].add_trace_event(
-            job.job_id,
-            "insights_explore_completed",
-            {"result": result.model_dump(mode="json"), "insight_candidate_ids": job.insight_candidate_ids},
-        )
-        return {"job": job, "client": client}
 
-    def route_after_insights_explore(state: dict[str, Any]) -> str:
-        job: DiscoveryJob = state["job"]
-        if job.status == "failed" or job.error:
-            logger.info("Skipping quality review because insights_explore failed for job %s.", job.job_id)
-            return "finalize"
-        return "quality_review"
+def _create_store(config: DataElfConfig) -> StoreLike:
+    if not config.runtime.enable_sqlite:
+        return NullStore()
+    store = SQLiteStore(config.runtime.sqlite_path)
+    store.init_schema()
+    return store
 
-    def quality_review_node(state: dict[str, Any]) -> dict[str, Any]:
-        job: DiscoveryJob = state["job"]
-        logger.info("Running quality review for job %s.", job.job_id)
-        review = review_workspace(job.job_id, Path(job.workspace_path))
-        state["store"].save_quality_review(review)
-        (Path(job.workspace_path) / "reviews" / "quality_review.json").write_text(
-            review.model_dump_json(indent=2) + "\n",
-            encoding="utf-8",
-        )
-        state["store"].add_trace_event(
-            job.job_id,
-            "quality_review_completed",
-            {"review_status": review.review_status, "warnings": review.warnings},
-        )
-        return {"quality_review": review.model_dump(mode="json")}
 
-    def finalize_node(state: dict[str, Any]) -> dict[str, Any]:
-        job: DiscoveryJob = state["job"]
-        review = state.get("quality_review", {})
-        logger.info("Finalizing job %s.", job.job_id)
-        if job.status != "failed":
-            job.status = "completed" if review.get("review_status") != "failed" else "failed"
-        job.updated_at = now_utc()
-        if job.status == "failed" and not job.error:
-            job.error = "quality_review_failed"
-        if job.status == "failed" and not review:
-            failed_stage, failure_status, error_code = _skipped_review_failure(state)
-            review = _write_skipped_quality_review(
-                job,
-                failed_stage=failed_stage,
-                failure_status=failure_status,
-                error_code=error_code,
-            )
-        state["store"].save_discovery_job(job)
-        _write_workspace_index(job, review)
-        state["store"].add_trace_event(job.job_id, "job_finalized", {"status": job.status})
-        return {"job": job}
-
-    workflow = StateGraph(DiscoveryWorkflowState)
-    workflow.add_node("prepare", prepare)
-    workflow.add_node("init_job", init_job_node)
-    workflow.add_node("intent_parse", intent_node)
-    workflow.add_node("load_domain_pack", load_domain_pack_node)
-    workflow.add_node("prepare_workspace", prepare_workspace_node)
-    workflow.add_node("prepare_context", prepare_context_node)
-    workflow.add_node("domain_modeling", domain_modeling_node)
-    workflow.add_node("insights_explore", insights_explore_node)
-    workflow.add_node("quality_review", quality_review_node)
-    workflow.add_node("finalize", finalize_node)
-    workflow.set_entry_point("prepare")
-    workflow.add_edge("prepare", "init_job")
-    workflow.add_edge("init_job", "intent_parse")
-    workflow.add_edge("intent_parse", "load_domain_pack")
-    workflow.add_edge("load_domain_pack", "prepare_workspace")
-    workflow.add_edge("prepare_workspace", "prepare_context")
-    workflow.add_edge("prepare_context", "domain_modeling")
-    workflow.add_conditional_edges(
-        "domain_modeling",
-        route_after_domain_modeling,
-        {"insights_explore": "insights_explore", "finalize": "finalize"},
+def _initialize_job(spec: JobSpec, config: DataElfConfig, store: StoreLike) -> DiscoveryJob:
+    job_id = new_id("job")
+    job = DiscoveryJob(
+        job_id=job_id, spec=spec, status="running",
+        workspace_path=str(config.runtime.workspaces_dir / job_id),
     )
-    workflow.add_conditional_edges(
-        "insights_explore",
-        route_after_insights_explore,
-        {"quality_review": "quality_review", "finalize": "finalize"},
+    store.save_discovery_job(job)
+    store.add_trace_event(job.job_id, "job_initialized", {
+        "domain": spec.domain, "objective": spec.objective, "workspace_path": job.workspace_path,
+    })
+    return job
+
+
+def _trace_stage(store: StoreLike, job: DiscoveryJob, stage: str, result: Any) -> None:
+    store.add_trace_event(job.job_id, f"{stage}_completed", result.model_dump(mode="json"))
+
+
+def _fail(
+    job: DiscoveryJob,
+    store: StoreLike,
+    workspace: Path,
+    stage: str,
+    error_code: str | None,
+    error_message: str | None,
+) -> DiscoveryJob:
+    code = error_code or f"{stage.upper()}_FAILED"
+    message = error_message or f"{stage} failed."
+    review = ReviewResult(
+        review_id=new_id("review"), job_id=job.job_id, status="skipped",
+        warnings=[f"Skipped because {stage} failed ({code}): {message}"],
+        metrics={"failed_stage": stage},
     )
-    workflow.add_edge("quality_review", "finalize")
-    workflow.add_edge("finalize", END)
-    return workflow.compile()
+    _write_review(workspace, review)
+    store.save_quality_review(review)
+    return _finalize(job, store, workspace, None, review, code, message)
 
 
-def _extract_topic(query: str) -> str:
-    match = re.search(r"围绕\s*([^，,]+)", query)
-    if match:
-        return match.group(1).strip()
-    if "Agentic" in query or "agent" in query.lower():
-        return "Agentic LLMs"
-    return "AI science intelligence"
-
-
-def _extract_expected_outputs(query: str) -> int:
-    digit = re.search(r"(\d+)\s*个", query)
-    if digit:
-        return max(1, min(int(digit.group(1)), 5))
-    chinese = {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5}
-    for token, value in chinese.items():
-        if f"{token}个" in query:
-            return value
-    return 3
-
-
-def _write_workspace_index(job: DiscoveryJob, review: dict[str, Any]) -> None:
-    path = Path(job.workspace_path) / "workspace_index.json"
-    payload = {
+def _finalize(
+    job: DiscoveryJob,
+    store: StoreLike,
+    workspace: Path,
+    plugin: DomainPlugin | None,
+    review: ReviewResult,
+    error_code: str | None = None,
+    error_message: str | None = None,
+) -> DiscoveryJob:
+    job.status = "failed" if error_code else "completed"
+    job.error_code = error_code
+    job.error_message = error_message
+    job.updated_at = now_utc()
+    write_artifact_manifest(workspace, job.artifacts)
+    result_ids = plugin.result_ids(str(workspace)) if plugin and not error_code else []
+    index = {
         "job_id": job.job_id,
         "status": job.status,
-        "seed_query": job.seed_query,
-        "scope": job.scope,
-        "insight_candidate_ids": job.insight_candidate_ids,
-        "quality_review": review,
-        "key_files": {
-            "candidate_signals": "insights/candidate_signals.json",
-            "insight_candidates": "insights/insight_candidates.json",
-            "final_brief": "insights/final_brief.md",
-            "quality_review": "reviews/quality_review.json",
-        },
+        "spec": job.spec.model_dump(mode="json"),
+        "error": {"code": error_code, "message": error_message} if error_code else None,
+        "result_ids": result_ids,
+        "review": review.model_dump(mode="json"),
+        "artifact_manifest": "artifact_manifest.json",
     }
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (workspace / "workspace_index.json").write_text(json.dumps(index, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    store.save_discovery_job(job)
+    store.add_trace_event(job.job_id, "job_finalized", {"status": job.status, "error_code": error_code})
+    return job
 
 
-def _skipped_review_failure(state: dict[str, Any]) -> tuple[str, str, str]:
-    job: DiscoveryJob = state["job"]
-    modeling_result: ModelingStageResult | None = state.get("modeling_result")
-    if modeling_result is not None and modeling_result.status != "completed":
-        return (
-            "domain_modeling",
-            modeling_result.status,
-            modeling_result.error_code or job.error or "DOMAIN_MODELING_FAILED",
-        )
-    return (
-        "insights_explore",
-        "failed",
-        job.error or "INSIGHTS_EXPLORE_FAILED",
-    )
+def _write_review(workspace: Path, review: ReviewResult) -> None:
+    path = workspace / "reviews" / "quality_review.json"
+    path.write_text(review.model_dump_json(indent=2) + "\n", encoding="utf-8")
 
 
-def _write_skipped_quality_review(
-    job: DiscoveryJob,
-    *,
-    failed_stage: str,
-    failure_status: str,
-    error_code: str,
-) -> dict[str, Any]:
-    reason = f"Skipped because {failed_stage} ended with status={failure_status} ({error_code})."
-    payload = {
-        "review_id": None,
-        "job_id": job.job_id,
-        "review_status": "skipped",
-        "warnings": [reason],
-        "recommended_revision": False,
-        "payload": {
-            "reason": reason,
-            "failed_stage": failed_stage,
-            "failure_status": failure_status,
-            "error_code": error_code,
-        },
-        "created_at": now_utc().isoformat(),
-    }
-    path = Path(job.workspace_path) / "reviews" / "quality_review.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    return payload
+__all__ = ["NullStore", "run_discovery", "run_job"]

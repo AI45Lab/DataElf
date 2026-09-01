@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from dataelf.config import DataElfConfig
+from dataelf.domains.ai_index.config import AIIndexDomainConfig
 from dataelf.domains.ai_index.connector import AIIndexConnector
 from dataelf.domains.ai_index.table_builder import _items, normalize_institutions_response, normalize_papers_response, normalize_scholars_response, update_tables_from_response, write_tables
 
@@ -21,13 +22,14 @@ class AIIndexClient:
     @classmethod
     def from_env(cls, workspace_path: str | Path | None = None) -> "AIIndexClient":
         config = DataElfConfig.from_env()
+        domain = AIIndexDomainConfig.from_mapping(config.domain_config("ai_index"))
         env_workspace = os.getenv("DATAELF_JOB_WORKSPACE") or os.getenv("DATAELF_WORKSPACE")
         path = Path(workspace_path) if workspace_path else Path(env_workspace) if env_workspace else None
         connector = AIIndexConnector(
-            mode=config.ai_index_mode,
-            base_url=config.ai_index_base_url,
-            api_key=config.ai_index_api_key,
-            fixtures_dir=config.fixtures_dir,
+            mode=domain.source.mode,
+            base_url=domain.source.base_url,
+            api_key=domain.source.api_key,
+            fixtures_dir=domain.source.fixtures_dir,
             workspace_path=path,
         )
         return cls(connector=connector, workspace_path=path)

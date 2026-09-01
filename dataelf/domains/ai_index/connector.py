@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from urllib import error, request
 
-from dataelf.config import DEFAULT_AI_INDEX_API_KEY, DEFAULT_AI_INDEX_BASE_URL
+from dataelf.domains.ai_index.config import DEFAULT_AI_INDEX_API_KEY, DEFAULT_AI_INDEX_BASE_URL
 
 
 AI_INDEX_ENDPOINTS = {

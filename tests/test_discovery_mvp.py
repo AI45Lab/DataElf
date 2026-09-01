@@ -2,174 +2,42 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
+import pytest
 from typer.testing import CliRunner
 
 from dataelf.cli import app
-from dataelf.config import DEFAULT_AI_INDEX_API_KEY, DEFAULT_AI_INDEX_BASE_URL, DEFAULT_AI_INDEX_MODE, DEFAULT_INSIGHTS_EXPLORER, DataElfConfig, write_config_template
-from dataelf.discovery.base import DiscoveryContext
-from dataelf.discovery.deepagents_code_cli_explorer import DEFAULT_DCODE_EXTRA_ARGS, DEFAULT_SHELL_ALLOW_LIST, DeepAgentsCodeCliInsightsExplorer
+from dataelf.config import DataElfConfig, ExplorerConfig, PiConfig, RuntimeConfig, write_config_template
+from dataelf.discovery.artifacts import ArtifactContractError, validate_outputs
+from dataelf.discovery.contracts import (
+    ArtifactRef,
+    DiscoveryContext,
+    DiscoveryJob,
+    DomainManifest,
+    JobSpec,
+    ModelingStageResult,
+    OutputArtifactSpec,
+    OutputContract,
+    ReviewResult,
+    StageResult,
+)
 from dataelf.discovery.domain_registry import DomainRegistry
-from dataelf.discovery.explorer_factory import normalize_insights_explorer_name
-from dataelf.discovery.pi_cli_explorer import PI_BINARY_NOT_FOUND, PiCliInsightsExplorer, _summarize_pi_event
-from dataelf.discovery.quality_review import review_workspace
-from dataelf.discovery.workflow import run_discovery
+from dataelf.discovery.pi_cli_explorer import _summarize_pi_event
+from dataelf.discovery.workflow import run_discovery, run_job
 from dataelf.discovery.workspace import prepare_workspace
 from dataelf.domains.ai_index.client import AIIndexClient
+from dataelf.domains.ai_index.config import (
+    AIIndexDomainConfig,
+    AIIndexSourceConfig,
+    DEFAULT_AI_INDEX_API_KEY,
+    DEFAULT_AI_INDEX_BASE_URL,
+    DEFAULT_AI_INDEX_MODE,
+)
 from dataelf.domains.ai_index.connector import AIIndexConnector, AI_INDEX_ENDPOINTS
-from dataelf.domains.ai_index.table_builder import read_table, update_tables_from_response
+from dataelf.domains.ai_index.table_builder import read_table
+from dataelf.schemas import new_id
 from dataelf.stores.sqlite_store import SQLiteStore
-from dataelf.schemas import DiscoveryJob
-
-
-def _write_fake_dcode(tmp_path: Path) -> Path:
-    path = tmp_path / "fake_dcode"
-    path.write_text(
-        """#!/usr/bin/env bash
-set -euo pipefail
-mkdir -p insights scripts deep_dives tables raw/web logs
-echo "App: fake | Agent: agent | Model: fake-model | Thread: fake"
-cat > insights/candidate_signals.json <<'JSON'
-{
-  "candidate_signals": [
-    {
-      "signal_id": "sig_001",
-      "signal_type": "institution_anomaly",
-      "summary": "OpenAgent Lab shows unusual AI agent momentum across papers and funding context.",
-      "why_might_matter": "The signal links institution momentum with research output and external validation needs.",
-      "supporting_tables": ["papers.csv", "institutions.csv", "funding_summary.csv"],
-      "related_entities": ["Institution", "Paper", "FundingEvent"],
-      "suggested_deep_dive": ["Join institution heat with paper clusters"],
-      "initial_score": {"novelty": 0.7, "magnitude": 0.8, "strategic_relevance": 0.75},
-      "status": "needs_deep_dive"
-    }
-  ]
-}
-JSON
-cat > insights/insight_candidates.json <<'JSON'
-{
-  "insight_candidates": [
-    {
-      "insight_id": "ins_001",
-      "title": "Agentic LLM momentum is clustering around execution-capable institutions",
-      "thesis": "The signal combines AI Index paper activity, institution momentum, and a checked external source placeholder rather than a simple ranking.",
-      "why_now": "Recent workspace tables and external validation notes appear together in this run.",
-      "supporting_signals": ["sig_001"],
-      "analysis_artifacts": ["scripts/analyze_signal.py", "deep_dives/sig_001.md"],
-      "related_entities": ["Topic:Agentic LLMs", "Institution:OpenAgent Lab", "Paper:Agent Benchmarks"],
-      "external_support": [{"source_id": "web_001", "summary": "External search placeholder for fake dcode test."}],
-      "counterarguments": ["The fake runner does not prove external adoption."],
-      "confidence": 0.61,
-      "next_questions": ["Validate benchmark adoption with live web search."]
-    }
-  ]
-}
-JSON
-cat > insights/final_brief.md <<'MD'
-# Insight Discovery Brief
-
-Fake DeepAgentsCode output for tests.
-MD
-cat > scripts/analyze_signal.py <<'PY'
-print("analysis artifact")
-PY
-cat > deep_dives/sig_001.md <<'MD'
-# sig_001
-
-Deep dive artifact for fake dcode.
-MD
-cat > tables/external_findings.csv <<'CSV'
-finding_id,source_id,finding_type,summary,supports,challenges,confidence,url,source_raw
-finding_001,web_001,web_search,External fake finding,ins_001,,0.5,https://example.com,
-CSV
-echo "fake dcode completed"
-""",
-        encoding="utf-8",
-    )
-    path.chmod(0o755)
-    return path
-
-
-def _write_failed_fake_dcode(tmp_path: Path) -> Path:
-    path = tmp_path / "failed_fake_dcode"
-    path.write_text(
-        """#!/usr/bin/env bash
-set -euo pipefail
-echo "App: fake | Agent: agent | Model: failing-model | Thread: fake"
-echo "fake dcode hard failure" >&2
-exit 1
-""",
-        encoding="utf-8",
-    )
-    path.chmod(0o755)
-    return path
-
-
-def _write_retry_fake_dcode(tmp_path: Path) -> Path:
-    path = tmp_path / "retry_fake_dcode"
-    path.write_text(
-        """#!/usr/bin/env bash
-set -euo pipefail
-mkdir -p insights scripts deep_dives tables logs
-if [ ! -f .retry_seen ]; then
-  touch .retry_seen
-  cat > insights/candidate_signals.json <<'JSON'
-{
-  "candidate_signals": [
-    {
-      "signal_id": "sig_001",
-      "signal_type": "paper_cluster",
-      "summary": "A partial signal survived the first DeepAgentsCode run.",
-      "why_might_matter": "The retry should synthesize this signal without restarting collection.",
-      "supporting_tables": ["papers.csv"],
-      "related_entities": ["Paper"],
-      "suggested_deep_dive": ["Use existing scripts"],
-      "initial_score": {"novelty": 0.7, "magnitude": 0.6, "strategic_relevance": 0.8},
-      "status": "needs_deep_dive"
-    }
-  ]
-}
-JSON
-  cat > insights/insight_candidates.json <<'JSON'
-{"insight_candidates":[]}
-JSON
-  echo "first run failed after partial artifacts" >&2
-  exit 1
-fi
-cat > insights/insight_candidates.json <<'JSON'
-{
-  "insight_candidates": [
-    {
-      "insight_id": "ins_retry_001",
-      "title": "Retry synthesis converted a partial signal into an insight",
-      "thesis": "A synthesis-only retry can finish file artifacts after a remote dcode failure.",
-      "why_now": "The first run already produced candidate signals and analysis files.",
-      "supporting_signals": ["sig_001"],
-      "analysis_artifacts": ["scripts/retry_analysis.py", "deep_dives/sig_001.md"],
-      "related_entities": ["Paper:Partial signal"],
-      "external_support": [],
-      "counterarguments": ["This is a fake dcode retry test."],
-      "confidence": 0.5,
-      "next_questions": ["Run with real dcode."]
-    }
-  ]
-}
-JSON
-cat > insights/final_brief.md <<'MD'
-# Retry brief
-MD
-cat > scripts/retry_analysis.py <<'PY'
-print("retry")
-PY
-cat > deep_dives/sig_001.md <<'MD'
-# Retry deep dive
-MD
-echo "retry completed"
-""",
-        encoding="utf-8",
-    )
-    path.chmod(0o755)
-    return path
 
 
 def _write_fake_pi(tmp_path: Path) -> Path:
@@ -177,63 +45,24 @@ def _write_fake_pi(tmp_path: Path) -> Path:
     path.write_text(
         """#!/usr/bin/env bash
 set -euo pipefail
-printf '{"type":"session","version":3,"id":"fake-pi","timestamp":"2026-01-01T00:00:00Z","cwd":"%s"}\n' "$PWD"
+printf '{"type":"session","version":3,"id":"fake-pi","cwd":"%s"}\n' "$PWD"
 cd "$DATAELF_WORKSPACE"
-mkdir -p insights scripts deep_dives tables raw/web logs
-echo '{"type":"agent_start"}'
-cat > insights/candidate_signals.json <<'JSON'
-{
-  "candidate_signals": [
-    {
-      "signal_id": "sig_pi_001",
-      "signal_type": "ecosystem_gap",
-      "summary": "Pi runner can produce DataElf candidate signals through workspace artifacts.",
-      "why_might_matter": "The signal verifies the Pi orchestration contract without depending on Pi internals.",
-      "supporting_tables": ["papers.csv"],
-      "related_entities": ["Paper", "Tool"],
-      "suggested_deep_dive": ["Check Pi artifact handoff"],
-      "initial_score": {"novelty": 0.7, "magnitude": 0.6, "strategic_relevance": 0.8},
-      "status": "needs_deep_dive"
-    }
-  ]
-}
+if [ "$DATAELF_DOMAIN" = "fake" ]; then
+  mkdir -p fake
+  printf '{"items":[{"id":"fake_001"}]}\n' > fake/result.json
+else
+  mkdir -p insights scripts deep_dives tables raw/web
+  cat > insights/candidate_signals.json <<'JSON'
+{"candidate_signals":[{"signal_id":"sig_pi_001","signal_type":"ecosystem_gap","summary":"Artifact ownership is explicit.","why_might_matter":"The runtime is domain-neutral.","supporting_tables":["papers.csv"],"related_entities":["Paper","Institution"],"suggested_deep_dive":["Validate boundaries"],"initial_score":{"novelty":0.7},"status":"needs_deep_dive"}]}
 JSON
-cat > insights/insight_candidates.json <<'JSON'
-{
-  "insight_candidates": [
-    {
-      "insight_id": "ins_pi_001",
-      "title": "Pi can act as a DataElf explorer while DataElf keeps artifact ownership",
-      "thesis": "The Pi CLI runner writes the same structured insight files as the dcode runner, keeping DataElf core stable.",
-      "why_now": "DataElf is adding a parallel Pi explorer after benchmark evaluation.",
-      "supporting_signals": ["sig_pi_001"],
-      "analysis_artifacts": ["scripts/pi_analysis.py", "deep_dives/sig_pi_001.md"],
-      "related_entities": ["Runtime:Pi", "Workspace:DataElf"],
-      "external_support": [{"source_id": "web_pi_001", "summary": "Fake Pi web evidence placeholder."}],
-      "counterarguments": ["The fake runner does not exercise real Pi skills."],
-      "confidence": 0.64,
-      "next_questions": ["Run with the real Pi CLI and brave-search skill."]
-    }
-  ]
-}
+  cat > insights/insight_candidates.json <<'JSON'
+{"insight_candidates":[{"insight_id":"ins_pi_001","title":"Domain ownership is explicit","thesis":"AI Index behavior is supplied by a plugin while the core validates artifacts.","why_now":"The multi-domain refactor removes core coupling.","supporting_signals":["sig_pi_001"],"analysis_artifacts":["scripts/pi_analysis.py","deep_dives/sig_pi_001.md"],"related_entities":["Paper:x","Institution:y"],"external_support":[{"source_id":"web_1","summary":"test"}],"counterarguments":["This is a fixture run."],"confidence":0.7,"next_questions":["Run live."]}]}
 JSON
-cat > insights/final_brief.md <<'MD'
-# Pi Insight Discovery Brief
-
-Fake Pi output for tests.
-MD
-cat > scripts/pi_analysis.py <<'PY'
-print("pi analysis artifact")
-PY
-cat > deep_dives/sig_pi_001.md <<'MD'
-# sig_pi_001
-
-Deep dive artifact for fake Pi.
-MD
-cat > tables/external_findings.csv <<'CSV'
-finding_id,source_id,finding_type,summary,supports,challenges,confidence,url,source_raw
-finding_pi_001,web_pi_001,web_search,External fake Pi finding,ins_pi_001,,0.5,https://example.com/pi,
-CSV
+  printf '# AI Index brief\n' > insights/final_brief.md
+  printf 'print("analysis")\n' > scripts/pi_analysis.py
+  printf '# Deep dive\n' > deep_dives/sig_pi_001.md
+  printf 'finding_id,summary\nf1,test\n' > tables/external_findings.csv
+fi
 echo '{"type":"agent_end","messages":[]}'
 """,
         encoding="utf-8",
@@ -242,473 +71,316 @@ echo '{"type":"agent_end","messages":[]}'
     return path
 
 
-def test_workspace_domain_pack_and_ai_index_client_fixture(tmp_path: Path) -> None:
-    workspace = prepare_workspace(tmp_path / "workspace")
-    pack = DomainRegistry().load_domain_pack("ai_index")
-    assert pack["domain"] == "ai_index"
-    assert "search_papers" in pack["tools"]
-
-    connector = AIIndexConnector(mode="fixture", fixtures_dir=Path("fixtures/ai_index"), workspace_path=workspace)
-    client = AIIndexClient(connector=connector, workspace_path=workspace)
-    response = client.search_papers(sub_domains=["AI Agent"], sort_type="heat", page=1, size=5)
-
-    assert response["endpoint"] == AI_INDEX_ENDPOINTS["search_papers"]
-    assert (workspace / "raw" / "ai_index").exists()
-    assert read_table(workspace, "papers")
-    assert read_table(workspace, "paper_author")
-    assert read_table(workspace, "paper_institution")
-    assert (workspace / "tables" / "paper_yearly_counts.csv").exists()
-    assert (workspace / "tables" / "paper_awards.csv").exists()
-
-    client.search_scholars(sub_domains=["AI Agent"], sort_type="heat", page=1, size=5)
-    client.search_institutions(sub_domains=["AI Agent"], sort_type="heat", page=1, size=5)
-    client.fetch_institution_funding("inst_openagent_lab")
-
-    assert read_table(workspace, "scholars")
-    assert read_table(workspace, "scholar_institution")
-    assert read_table(workspace, "scholar_venues")
-    assert read_table(workspace, "institutions")
-    assert read_table(workspace, "funding_summary")[0]["total_funding_value_usd"] == "50000000"
-    assert read_table(workspace, "funding")
-    assert (workspace / "tables" / "funding_investors.csv").exists()
-    assert (workspace / "tables" / "papers.csv").exists()
-
-
-def test_ai_index_table_builder_handles_openapi_shaped_entities(tmp_path: Path) -> None:
-    workspace = prepare_workspace(tmp_path / "workspace")
-    raw_uri = str(workspace / "raw" / "ai_index" / "sample.json")
-
-    update_tables_from_response(
-        workspace,
-        {
-            "endpoint": AI_INDEX_ENDPOINTS["search_papers"],
-            "raw_uri": raw_uri,
-            "data": {
-                "list": [
-                    {
-                        "id": "paper_1",
-                        "title": "Agent Benchmarks",
-                        "first_authors": ["Alice Chen"],
-                        "corresponding_authors": ["Bob Li"],
-                        "institution_id": "inst_1",
-                        "institution": "OpenAgent Lab",
-                        "conference_name": "NeurIPS",
-                        "conference_abbreviation": "NeurIPS",
-                        "count_by_year": [{"year": 2026, "cited_by_count": 42}],
-                        "conf_award_info": {"conf": "NeurIPS", "year": 2026, "awards": [{"key": "spotlight", "title": "Spotlight"}]},
-                    }
-                ]
-            },
-        },
-    )
-    update_tables_from_response(
-        workspace,
-        {
-            "endpoint": AI_INDEX_ENDPOINTS["search_institutions"],
-            "raw_uri": raw_uri,
-            "data": {
-                "list": [
-                    {
-                        "id": "inst_1",
-                        "name": "OpenAgent Lab",
-                        "country_code": "US",
-                        "conference_names": ["NeurIPS"],
-                        "journal_names": ["Nature Machine Intelligence"],
-                        "award_list": [{"conf": "NeurIPS", "year": 2026, "awards": [{"key": "best", "title": "Best Paper"}]}],
-                        "index_radar_display": {"academic_impact": 91, "capital_signal": 80, "total_score": 88},
-                    }
-                ]
-            },
-        },
-    )
-    update_tables_from_response(
-        workspace,
-        {
-            "endpoint": AI_INDEX_ENDPOINTS["search_scholars"],
-            "raw_uri": raw_uri,
-            "data": {
-                "list": [
-                    {
-                        "id": "scholar_1",
-                        "display_name": "Alice Chen",
-                        "institution_id": "inst_1",
-                        "institution": "OpenAgent Lab",
-                        "count_by_year": [{"year": 2026, "cited_by_count": 12}],
-                        "conference_names": ["NeurIPS"],
-                        "award_list": [{"conf": "NeurIPS", "year": 2026, "awards": [{"key": "oral", "title": "Oral"}]}],
-                    }
-                ]
-            },
-        },
-    )
-    update_tables_from_response(
-        workspace,
-        {
-            "endpoint": AI_INDEX_ENDPOINTS["fetch_institution_funding"].format(institution_id="inst_1"),
-            "request": {"institution_id": "inst_1"},
-            "raw_uri": raw_uri,
-            "data": {
-                "summary": {"total_funding": {"currency": "USD", "value": 100, "value_usd": 100}, "funding_round_count": 1},
-                "funding": {
-                    "financials_highlights": {"num_investors": 2, "num_lead_investors": 1},
-                    "funding_rounds": [
-                        {
-                            "id": "round_1",
-                            "uuid": "uuid_1",
-                            "title": "Seed Round",
-                            "announced_on": "2026-01-01",
-                            "money_raised": {"currency": "USD", "value": 100, "value_usd": 100},
-                            "lead_investors": [{"id": "investor_1", "value": "Example Capital"}],
-                        }
-                    ],
-                    "investors": [
-                        {
-                            "id": "record_1",
-                            "type": "investment",
-                            "lead_investor": True,
-                            "funding_round": {"id": "round_1", "value": "Seed Round"},
-                            "investor": {"id": "investor_1", "value": "Example Capital", "type": "organization"},
-                        }
-                    ],
-                },
-                "invested": {"investments": []},
-            },
-        },
-    )
-
-    assert read_table(workspace, "paper_yearly_counts")[0]["cited_by_count"] == "42"
-    assert read_table(workspace, "paper_awards")[0]["award_title"] == "Spotlight"
-    assert read_table(workspace, "institution_venues")[0]["venue_name"] == "NeurIPS"
-    assert read_table(workspace, "institution_awards")[0]["award_title"] == "Best Paper"
-    assert read_table(workspace, "scholar_yearly_counts")[0]["year"] == "2026"
-    assert read_table(workspace, "scholar_awards")[0]["award_key"] == "oral"
-    assert read_table(workspace, "funding_rounds")[0]["funding_id"] == "round_1"
-    assert read_table(workspace, "funding_investors")[0]["investor_name"] == "Example Capital"
-
-
-def test_discovery_workflow_creates_job_workspace_and_review(tmp_path: Path, monkeypatch) -> None:
-    fake_dcode = _write_fake_dcode(tmp_path)
-    monkeypatch.setenv("DATAELF_DCODE_BINARY", str(fake_dcode))
-    config = DataElfConfig(
+def _config(tmp_path: Path, pi_binary: Path, *, sqlite: bool = False) -> DataElfConfig:
+    runtime = RuntimeConfig(
         workspace_dir=tmp_path / ".dataelf",
         sqlite_path=tmp_path / ".dataelf" / "dataelf.sqlite",
-        raw_dir=tmp_path / ".dataelf" / "raw",
         workspaces_dir=tmp_path / ".dataelf" / "workspaces",
-        fixtures_dir=Path("fixtures/ai_index"),
-        ai_index_mode="fixture",
+        enable_sqlite=sqlite,
     )
-    job = run_discovery("围绕 Agentic LLMs，基于 AI Index 和联网搜索，发现最近值得关注的 3 个 insight", config)
-
-    workspace = Path(job.workspace_path)
-    assert job.status == "completed"
-    assert job.trigger_type == "user"
-    assert job.insight_candidate_ids
-    assert (workspace / "insights" / "candidate_signals.json").exists()
-    assert (workspace / "insights" / "insight_candidates.json").exists()
-    assert (workspace / "insights" / "final_brief.md").exists()
-    assert (workspace / "prompts" / "discovery_prompt.md").exists()
-    assert (workspace / "logs" / "dcode_stdout.log").exists()
-    assert (workspace / ".deepagents" / "agents" / "breadth-scout" / "AGENTS.md").exists()
-    assert (workspace / "workspace_index.json").exists()
-
-    review = json.loads((workspace / "reviews" / "quality_review.json").read_text(encoding="utf-8"))
-    assert review["review_status"] in {"pass", "pass_with_warnings"}
-    assert not config.sqlite_path.exists()
+    ai = AIIndexDomainConfig(source=AIIndexSourceConfig(mode="fixture", fixtures_dir=Path("fixtures/ai_index")))
+    return DataElfConfig(
+        runtime=runtime,
+        explorer=ExplorerConfig(pi=PiConfig(binary=str(pi_binary), model="openai/gpt-test")),
+        domains={"ai_index": ai.model_dump(mode="python")},
+    )
 
 
-def test_discovery_workflow_can_use_pi_explorer(tmp_path: Path, monkeypatch) -> None:
-    fake_pi = _write_fake_pi(tmp_path)
-    monkeypatch.setenv("DATAELF_INSIGHTS_EXPLORER", "pi")
-    monkeypatch.setenv("DATAELF_PI_BINARY", str(fake_pi))
+class FakeModeler:
+    def run(self, job: DiscoveryJob, context: DiscoveryContext) -> ModelingStageResult:
+        workspace = Path(context.workspace_path)
+        path = workspace / "fake" / "evidence.txt"
+        path.write_text("modeled\n", encoding="utf-8")
+        return ModelingStageResult(
+            status="completed",
+            artifacts=[ArtifactRef(
+                artifact_id="fake_evidence", kind="fake_model", path="fake/evidence.txt",
+                role="evidence", producer_stage="domain_modeling", media_type="text/plain",
+            )],
+        )
+
+
+class FailingModeler:
+    def run(self, job: DiscoveryJob, context: DiscoveryContext) -> ModelingStageResult:
+        return ModelingStageResult(
+            status="failed", error_code="FAKE_MODEL_FAILED", error_message="expected test failure",
+        )
+
+
+class FakePlugin:
+    def __init__(self, manifest: DomainManifest):
+        self.manifest = manifest
+
+    def normalize_spec(self, spec: JobSpec) -> JobSpec:
+        return spec
+
+    def prepare(self, spec: JobSpec, workspace_path: str, config: Any) -> StageResult:
+        (Path(workspace_path) / "fake").mkdir(parents=True, exist_ok=True)
+        return StageResult(status="completed", context={"prepared": True}, env={"FAKE_READY": "1"})
+
+    def create_modeler(self, spec: JobSpec, config: Any) -> FakeModeler | None:
+        if spec.modeling_strategy == "fail_model":
+            return FailingModeler()
+        return FakeModeler() if spec.modeling_strategy == "fake_model" else None
+
+    def build_prompt(self, job: DiscoveryJob, context: DiscoveryContext) -> str:
+        return "Analyze the fake input and create the declared result."
+
+    def output_contract(self, spec: JobSpec) -> OutputContract:
+        return OutputContract(
+            contract_id="fake.result",
+            artifacts=[OutputArtifactSpec(
+                artifact_id="fake_result", path="fake/result.json", kind="result",
+                media_type="application/json", json_root="items",
+            )],
+        )
+
+    def review(self, job: DiscoveryJob, workspace_path: str) -> ReviewResult:
+        return ReviewResult(review_id=new_id("review"), job_id=job.job_id, status="pass")
+
+    def result_ids(self, workspace_path: str) -> list[str]:
+        return ["fake_001"]
+
+
+def create_fake_plugin(config: DataElfConfig, manifest: DomainManifest) -> FakePlugin:
+    return FakePlugin(manifest)
+
+
+def _fake_registry(tmp_path: Path) -> DomainRegistry:
+    root = tmp_path / "domains"
+    domain = root / "fake"
+    domain.mkdir(parents=True)
+    (domain / "domain.yaml").write_text(
+        "\n".join([
+            "domain: fake", "version: '1'", "display_name: Fake",
+            f"plugin: {__name__}:create_fake_plugin", "capabilities: [modeling]", "workspace_dirs: [fake]", "",
+        ]),
+        encoding="utf-8",
+    )
+    return DomainRegistry(root)
+
+
+def test_core_workspace_is_domain_neutral(tmp_path: Path) -> None:
+    workspace = prepare_workspace(tmp_path / "workspace", JobSpec(domain="fake", objective="test"))
+    assert (workspace / "raw").is_dir()
+    assert (workspace / "artifacts").is_dir()
+    assert not (workspace / "raw" / "ai_index").exists()
+    assert not (workspace / "insights" / "insight_candidates.json").exists()
+    assert json.loads((workspace / "job_spec.json").read_text(encoding="utf-8"))["domain"] == "fake"
+
+
+def test_job_and_manifest_reject_path_traversal() -> None:
+    with pytest.raises(ValueError):
+        JobSpec(domain="../fake", objective="test")
+    with pytest.raises(ValueError):
+        DomainManifest(
+            domain="fake", version="1", display_name="Fake", plugin="x:y",
+            workspace_dirs=["../escape"],
+        )
+
+
+def test_registry_loads_typed_manifest_and_plugin() -> None:
+    config = DataElfConfig()
+    manifest = DomainRegistry().load_manifest("ai_index")
+    plugin = DomainRegistry().load_plugin("ai_index", config)
+    assert manifest.domain == "ai_index"
+    assert manifest.plugin == "dataelf.domains.ai_index.plugin:create_plugin"
+    assert plugin.manifest == manifest
+
+
+def test_discovery_core_has_no_domain_imports() -> None:
+    discovery = Path(__file__).resolve().parents[1] / "dataelf" / "discovery"
+    offenders = [
+        path.name for path in discovery.glob("*.py")
+        if "dataelf.domains" in path.read_text(encoding="utf-8")
+    ]
+    assert offenders == []
+
+
+def test_fake_domain_runs_without_core_changes(tmp_path: Path) -> None:
+    pi = _write_fake_pi(tmp_path)
     config = DataElfConfig(
-        workspace_dir=tmp_path / ".dataelf",
-        sqlite_path=tmp_path / ".dataelf" / "dataelf.sqlite",
-        raw_dir=tmp_path / ".dataelf" / "raw",
-        workspaces_dir=tmp_path / ".dataelf" / "workspaces",
-        fixtures_dir=Path("fixtures/ai_index"),
-        ai_index_mode="fixture",
-        insights_explorer="pi",
-        pi_binary=str(fake_pi),
-        pi_model="openai/gpt-4o",
+        runtime=RuntimeConfig(
+            workspace_dir=tmp_path / ".dataelf",
+            sqlite_path=tmp_path / ".dataelf" / "dataelf.sqlite",
+            workspaces_dir=tmp_path / ".dataelf" / "workspaces",
+        ),
+        explorer=ExplorerConfig(pi=PiConfig(binary=str(pi))),
     )
-
-    job = run_discovery("围绕 Agentic LLMs，发现 1 个 insight", config)
-
+    job = run_job(
+        JobSpec(domain="fake", objective="test fake domain", modeling_strategy="fake_model"),
+        config,
+        registry=_fake_registry(tmp_path),
+    )
     workspace = Path(job.workspace_path)
     assert job.status == "completed"
-    assert job.insight_candidate_ids == ["ins_pi_001"]
-    assert (workspace / "logs" / "pi_stdout.log").exists()
-    assert (workspace / "logs" / "pi_stderr.log").exists()
-    assert (workspace / "logs" / "pi_events.jsonl").exists()
-    assert (workspace / "logs" / "pi_command.json").exists()
-    command_log = json.loads((workspace / "logs" / "pi_command.json").read_text(encoding="utf-8"))
-    command = command_log["command"]
-    assert "--mode" in command
-    assert "--approve" in command
-    assert "--model" in command
-    assert "openai/gpt-4o" in command
-    assert command_log["cwd"] == str(Path(__file__).resolve().parents[1])
-    assert command_log["workspace_path"] == str(workspace)
+    assert {item.artifact_id for item in job.artifacts} >= {"fake_evidence", "fake_result", "pi_events"}
+    assert json.loads((workspace / "workspace_index.json").read_text(encoding="utf-8"))["result_ids"] == ["fake_001"]
     prompt = (workspace / "prompts" / "discovery_prompt.md").read_text(encoding="utf-8")
-    assert "Pi Runtime" in prompt
-    assert "process working directory may be the DataElf repository root" in prompt
-    assert "DeepAgentsCode Subagents" not in prompt
+    assert "fake/evidence.txt" in prompt
+    assert "fake/result.json" in prompt
 
 
-def test_discovery_workflow_can_use_sqlite_when_enabled(tmp_path: Path, monkeypatch) -> None:
-    fake_dcode = _write_fake_dcode(tmp_path)
-    monkeypatch.setenv("DATAELF_DCODE_BINARY", str(fake_dcode))
-    config = DataElfConfig(
-        workspace_dir=tmp_path / ".dataelf",
-        sqlite_path=tmp_path / ".dataelf" / "dataelf.sqlite",
-        raw_dir=tmp_path / ".dataelf" / "raw",
-        workspaces_dir=tmp_path / ".dataelf" / "workspaces",
-        fixtures_dir=Path("fixtures/ai_index"),
-        ai_index_mode="fixture",
-        enable_sqlite=True,
+def test_output_contract_rejects_workspace_escape(tmp_path: Path) -> None:
+    contract = OutputContract(
+        contract_id="unsafe",
+        artifacts=[OutputArtifactSpec(artifact_id="x", path="../x.json", kind="x")],
     )
-    job = run_discovery("围绕 Agentic LLMs，发现 1 个 insight", config)
+    with pytest.raises(ArtifactContractError, match="escapes workspace"):
+        validate_outputs(tmp_path, contract)
 
-    store = SQLiteStore(config.sqlite_path)
+
+def test_modeling_failure_is_attributed_to_domain_modeling(tmp_path: Path) -> None:
+    pi = _write_fake_pi(tmp_path)
+    config = DataElfConfig(
+        runtime=RuntimeConfig(
+            workspace_dir=tmp_path / ".dataelf",
+            sqlite_path=tmp_path / ".dataelf" / "dataelf.sqlite",
+            workspaces_dir=tmp_path / ".dataelf" / "workspaces",
+        ),
+        explorer=ExplorerConfig(pi=PiConfig(binary=str(pi))),
+    )
+    job = run_job(
+        JobSpec(domain="fake", objective="fail", modeling_strategy="fail_model"),
+        config,
+        registry=_fake_registry(tmp_path),
+    )
+    review = json.loads((Path(job.workspace_path) / "reviews" / "quality_review.json").read_text(encoding="utf-8"))
+    assert job.status == "failed"
+    assert job.error_code == "FAKE_MODEL_FAILED"
+    assert review["metrics"]["failed_stage"] == "domain_modeling"
+    assert not (Path(job.workspace_path) / "logs" / "pi_command.json").exists()
+
+
+def test_ai_index_workflow_keeps_discover_cli_behavior(tmp_path: Path) -> None:
+    config = _config(tmp_path, _write_fake_pi(tmp_path))
+    job = run_discovery("围绕 Agentic LLMs，发现 1 个 insight", config)
+    workspace = Path(job.workspace_path)
+    assert job.status == "completed"
+    assert job.spec.domain == "ai_index"
+    assert job.spec.parameters["expected_outputs"] == 1
+    assert (workspace / "raw" / "ai_index").is_dir()
+    assert (workspace / "tables" / "papers.csv").is_file()
+    assert (workspace / "insights" / "insight_candidates.json").is_file()
+    assert json.loads((workspace / "workspace_index.json").read_text(encoding="utf-8"))["result_ids"] == ["ins_pi_001"]
+    assert {item.artifact_id for item in job.artifacts} >= {"candidate_signals", "insight_candidates", "final_brief"}
+
+
+def test_missing_pi_fails_before_output_validation(tmp_path: Path) -> None:
+    config = _config(tmp_path, tmp_path / "missing_pi")
+    job = run_discovery("test", config)
+    review = json.loads((Path(job.workspace_path) / "reviews" / "quality_review.json").read_text(encoding="utf-8"))
+    assert job.status == "failed"
+    assert job.error_code == "PI_BINARY_NOT_FOUND"
+    assert review["status"] == "skipped"
+    assert review["metrics"]["failed_stage"] == "explorer"
+
+
+def test_sqlite_stores_new_job_and_review_contract(tmp_path: Path) -> None:
+    config = _config(tmp_path, _write_fake_pi(tmp_path), sqlite=True)
+    job = run_discovery("test", config)
+    store = SQLiteStore(config.runtime.sqlite_path)
     store.init_schema()
-    assert store.get_discovery_job(job.job_id) is not None
-    assert store.get_latest_quality_review(job.job_id) is not None
+    assert store.get_discovery_job(job.job_id) == job
+    review = store.get_latest_quality_review(job.job_id)
+    assert review is not None and review.status in {"pass", "pass_with_warnings"}
     store.close()
 
 
-def test_discovery_workflow_skips_quality_review_when_explore_fails(tmp_path: Path, monkeypatch) -> None:
-    fake_dcode = _write_failed_fake_dcode(tmp_path)
-    monkeypatch.setenv("DATAELF_DCODE_BINARY", str(fake_dcode))
-    config = DataElfConfig(
-        workspace_dir=tmp_path / ".dataelf",
-        sqlite_path=tmp_path / ".dataelf" / "dataelf.sqlite",
-        raw_dir=tmp_path / ".dataelf" / "raw",
-        workspaces_dir=tmp_path / ".dataelf" / "workspaces",
-        fixtures_dir=Path("fixtures/ai_index"),
-        ai_index_mode="fixture",
-    )
-
-    job = run_discovery("围绕 Agentic LLMs，发现 1 个 insight", config)
-
-    assert job.status == "failed"
-    assert job.error == "dcode_exit_1"
-    review = json.loads((Path(job.workspace_path) / "reviews" / "quality_review.json").read_text(encoding="utf-8"))
-    assert review["review_status"] == "skipped"
+def test_ai_index_client_fixture_still_works(tmp_path: Path) -> None:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    connector = AIIndexConnector(mode="fixture", fixtures_dir=Path("fixtures/ai_index"), workspace_path=workspace)
+    client = AIIndexClient(connector=connector, workspace_path=workspace)
+    response = client.search_papers(sub_domains=["AI Agent"], sort_type="heat", page=1, size=5)
+    assert response["endpoint"] == AI_INDEX_ENDPOINTS["search_papers"]
+    assert read_table(workspace, "papers")
+    assert read_table(workspace, "paper_author")
+    client.search_scholars(page=1, size=5)
+    client.search_institutions(page=1, size=5)
+    client.fetch_institution_funding("inst_openagent_lab")
+    assert read_table(workspace, "funding_summary")[0]["total_funding_value_usd"] == "50000000"
 
 
-def test_quality_review_detects_missing_candidates(tmp_path: Path) -> None:
-    workspace = prepare_workspace(tmp_path / "workspace")
-    (workspace / "insights" / "insight_candidates.json").write_text('{"insight_candidates":[]}\n', encoding="utf-8")
-    review = review_workspace("job_test", workspace)
-    assert review.review_status == "failed"
-    assert review.recommended_revision
-
-
-def test_deepagents_code_cli_missing_binary_is_clear(tmp_path: Path) -> None:
-    workspace = prepare_workspace(tmp_path / "workspace")
-    job = DiscoveryJob(job_id="job_missing_dcode", workspace_path=str(workspace), seed_query="test")
-    explorer = DeepAgentsCodeCliInsightsExplorer(dcode_binary=str(tmp_path / "missing_dcode"))
-
-    result = explorer.run(job, DiscoveryContext(workspace_path=str(workspace), domain="ai_index"))
-
-    assert result.status == "failed"
-    assert "DeepAgentsCode CLI not found" in (result.error or "")
-    assert "DeepAgentsCode CLI not found" in (workspace / "logs" / "dcode_stderr.log").read_text(encoding="utf-8")
-
-
-def test_pi_cli_missing_binary_is_clear(tmp_path: Path) -> None:
-    workspace = prepare_workspace(tmp_path / "workspace")
-    job = DiscoveryJob(job_id="job_missing_pi", workspace_path=str(workspace), seed_query="test")
-    explorer = PiCliInsightsExplorer(pi_binary=str(tmp_path / "missing_pi"))
-
-    result = explorer.run(job, DiscoveryContext(workspace_path=str(workspace), domain="ai_index", config={"insights_explorer": "pi"}))
-
-    assert result.status == "failed"
-    assert result.error == PI_BINARY_NOT_FOUND
-    assert "Pi CLI not found" in (workspace / "logs" / "pi_stderr.log").read_text(encoding="utf-8")
-
-
-def test_deepagents_code_cli_retries_synthesis_after_partial_failure(tmp_path: Path) -> None:
-    fake_dcode = _write_retry_fake_dcode(tmp_path)
-    workspace = prepare_workspace(tmp_path / "workspace")
-    job = DiscoveryJob(job_id="job_retry_dcode", workspace_path=str(workspace), seed_query="test")
-    explorer = DeepAgentsCodeCliInsightsExplorer(dcode_binary=str(fake_dcode))
-
-    result = explorer.run(job, DiscoveryContext(workspace_path=str(workspace), domain="ai_index"))
-
-    assert result.status in {"completed", "incomplete"}
-    assert result.error is None
-    assert "Initial DeepAgentsCode run exited with code 1" in result.warnings[0]
-    assert (workspace / "logs" / "dcode_synthesis_retry_stdout.log").exists()
-    data = json.loads((workspace / "insights" / "insight_candidates.json").read_text(encoding="utf-8"))
-    assert data["insight_candidates"][0]["insight_id"] == "ins_retry_001"
-
-
-def test_cli_discover_smoke(tmp_path: Path, monkeypatch) -> None:
-    fake_dcode = _write_fake_dcode(tmp_path)
-    fixtures = tmp_path / "fixtures" / "ai_index"
-    fixtures.mkdir(parents=True)
-    source = Path(__file__).resolve().parents[1] / "fixtures" / "ai_index"
-    for name in ["institutions.json", "papers.json", "scholars.json", "schema_graph.yaml"]:
-        (fixtures / name).write_text((source / name).read_text(encoding="utf-8"), encoding="utf-8")
-    monkeypatch.setenv("DATAELF_WORKSPACE", str(tmp_path / ".dataelf"))
-    monkeypatch.setenv("DATAELF_FIXTURES_DIR", str(fixtures))
-    monkeypatch.setenv("DATAELF_AI_INDEX_MODE", "fixture")
-    monkeypatch.setenv("DATAELF_INSIGHTS_EXPLORER", "deepagentscode")
-    monkeypatch.setenv("DATAELF_DCODE_BINARY", str(fake_dcode))
-
-    result = CliRunner().invoke(
-        app,
-        ["discover", "围绕 Agentic LLMs，基于 AI Index 和联网搜索，发现最近值得关注的 3 个 insight"],
-    )
-
-    assert result.exit_code == 0
-    assert "Discovery job completed" in result.output
-    assert "Explorer: deepagentscode" in result.output
-    assert "Actual dcode model: fake-model" in result.output
-    assert (tmp_path / ".dataelf" / "workspaces").exists()
-
-
-def test_ai_index_api_defaults_match_provided_curl() -> None:
-    assert DEFAULT_AI_INDEX_MODE == "api"
-    assert DEFAULT_AI_INDEX_BASE_URL == "https://index.shlab.org.cn/api/v2"
-    assert DEFAULT_AI_INDEX_API_KEY == "ak_0XWHy2OQpSKnaKHL"
-    assert AI_INDEX_ENDPOINTS["fetch_institution_funding"] == "/openapi/institutions/{institution_id}/funding-profile"
-
-
-def test_insights_explorer_defaults_and_aliases() -> None:
-    assert DEFAULT_INSIGHTS_EXPLORER == "deepagentscode"
-    assert normalize_insights_explorer_name("dcode") == "deepagentscode"
-    assert normalize_insights_explorer_name("deepagents-code") == "deepagentscode"
-    assert normalize_insights_explorer_name("pi") == "pi"
-
-
-def test_dataelf_config_file_loads_and_env_overrides(tmp_path: Path, monkeypatch) -> None:
-    config_path = tmp_path / "dataelf.yaml"
-    config_path.write_text(
-        "\n".join(
-            [
-                "workspace_dir: file_workspace",
-                "fixtures_dir: file_fixtures",
-                "model: file-model",
-                "ai_index_mode: fixture",
-                "enable_sqlite: true",
-                "insights_explorer: pi",
-                "dcode_binary: file-dcode",
-                "dcode_extra_args: --max-turns 7",
-                "pi_binary: file-pi",
-                "pi_model: file-pi-model",
-                "pi_cwd: file-pi-cwd",
-                "pi_timeout_seconds: 123",
-                "pi_extra_args: --skill /tmp/brave-search",
-                "pi_stream_logs: true",
-                "pi_log_mode: raw",
-                "env:",
-                "  OPENAI_API_KEY: file-openai",
-                "  TAVILY_API_KEY: file-tavily",
-                "",
-            ]
-        ),
+def test_nested_config_file_and_environment_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    path = tmp_path / "dataelf.yaml"
+    path.write_text(
+        """runtime:
+  workspace_dir: file-workspace
+  enable_sqlite: true
+explorer:
+  type: pi
+  pi:
+    binary: file-pi
+    model: file-model
+domains:
+  ai_index:
+    source:
+      mode: fixture
+      fixtures_dir: file-fixtures
+env:
+  OPENAI_API_KEY: file-key
+""",
         encoding="utf-8",
     )
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("DATAELF_MODEL", "env-model")
-    monkeypatch.setenv("DATAELF_PI_MODEL", "env-pi-model")
-    monkeypatch.setenv("DATAELF_PI_CWD", "env-pi-cwd")
-    monkeypatch.setenv("DATAELF_PI_STREAM_LOGS", "false")
-    monkeypatch.setenv("DATAELF_PI_LOG_MODE", "summary")
-    monkeypatch.setenv("OPENAI_API_KEY", "env-openai")
-
+    monkeypatch.setenv("DATAELF_PI_MODEL", "env-model")
+    monkeypatch.setenv("OPENAI_API_KEY", "env-key")
     config = DataElfConfig.from_env()
-
-    assert config.workspace_dir == Path("file_workspace")
-    assert config.fixtures_dir == Path("file_fixtures")
-    assert config.model == "env-model"
-    assert config.ai_index_mode == "fixture"
-    assert config.enable_sqlite
-    assert config.insights_explorer == "pi"
-    assert config.dcode_binary == "file-dcode"
-    assert config.dcode_extra_args == "--max-turns 7"
-    assert config.pi_binary == "file-pi"
-    assert config.pi_model == "env-pi-model"
-    assert config.pi_cwd == Path("env-pi-cwd")
-    assert config.pi_timeout_seconds == 123
-    assert config.pi_extra_args == "--skill /tmp/brave-search"
-    assert config.pi_stream_logs is False
-    assert config.pi_log_mode == "summary"
-    assert config.runtime_env["OPENAI_API_KEY"] == "env-openai"
-    assert config.runtime_env["TAVILY_API_KEY"] == "file-tavily"
+    ai = AIIndexDomainConfig.from_mapping(config.domain_config("ai_index"))
+    assert config.runtime.workspace_dir == Path("file-workspace")
+    assert config.runtime.enable_sqlite
+    assert config.explorer.pi.binary == "file-pi"
+    assert config.explorer.pi.model == "env-model"
+    assert ai.source.mode == "fixture"
+    assert ai.source.fixtures_dir == Path("file-fixtures")
+    assert config.env["OPENAI_API_KEY"] == "env-key"
 
 
-def test_pi_event_summary_compacts_noisy_json_payload() -> None:
-    event = {
-        "role": "assistant",
-        "content": [
-            {
-                "type": "toolCall",
-                "name": "bash",
-                "arguments": {
-                    "command": "python - <<'PY'\nprint('very long payload')\nPY" + "x" * 500,
-                },
-            }
-        ],
+def test_config_template_uses_only_nested_schema(tmp_path: Path) -> None:
+    path = write_config_template(tmp_path / "dataelf.local.yaml", DataElfConfig())
+    text = path.read_text(encoding="utf-8")
+    assert "runtime:" in text and "explorer:" in text and "domains:" in text
+    assert "insights_explorer:" not in text
+    assert "ai_index_modeling:" not in text
+    assert "dcode" not in text.lower()
+
+
+def test_flat_legacy_config_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (tmp_path / "dataelf.yaml").write_text(
+        "workspace_dir: .dataelf\ninsights_explorer: pi\nai_index_mode: fixture\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(ValueError, match="Unknown DataElf config keys"):
+        DataElfConfig.from_env()
+
+
+def test_cli_discover_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pi = _write_fake_pi(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("DATAELF_WORKSPACE", str(tmp_path / ".dataelf"))
+    monkeypatch.setenv("DATAELF_PI_BINARY", str(pi))
+    monkeypatch.setenv("DATAELF_AI_INDEX_MODE", "fixture")
+    monkeypatch.setenv("DATAELF_FIXTURES_DIR", str(Path(__file__).resolve().parents[1] / "fixtures" / "ai_index"))
+    result = CliRunner().invoke(app, ["discover", "围绕 Agentic LLMs，发现 1 个 insight"])
+    assert result.exit_code == 0
+    assert "Discovery job completed" in result.output
+    assert "Explorer: pi" in result.output
+
+
+def test_ai_index_defaults_and_pi_event_summary() -> None:
+    assert DEFAULT_AI_INDEX_MODE == "api"
+    assert DEFAULT_AI_INDEX_BASE_URL == "https://index.shlab.org.cn/api/v2"
+    assert DEFAULT_AI_INDEX_API_KEY == "ak_0XWHy2OQpSKnaKHL"
+    domain = AIIndexDomainConfig.from_mapping({})
+    assert domain.modeling.stage1_config.is_file()
+    assert domain.modeling.stage2_config.is_file()
+    summary = _summarize_pi_event(json.dumps({
+        "role": "assistant", "content": [{"type": "toolCall", "name": "bash", "arguments": {"command": "x" * 500}}],
         "usage": {"input": 12, "output": 3, "totalTokens": 15},
-    }
-
-    summary = _summarize_pi_event(json.dumps(event))
-
+    }))
     assert summary is not None
     assert "assistant: tool call: bash" in summary
     assert "tokens in=12 out=3 total=15" in summary
     assert len(summary) < 360
-
-
-def test_pi_event_summary_suppresses_streaming_deltas() -> None:
-    assert _summarize_pi_event('{"type":"message_update","content":[{"type":"text","text":"noisy"}]}') is None
-    assert _summarize_pi_event('{"type":"message_end","content":[{"type":"text","text":"large final payload"}]}') is None
-    assert _summarize_pi_event('{"type":"turn_start"}') is None
-    assert _summarize_pi_event('{"type":"turn_end"}') is None
-    assert _summarize_pi_event('{"type":"tool_execution_start"}') is None
-    assert _summarize_pi_event('{"type":"tool_execution_update","toolName":"bash","content":"partial output"}') is None
-    assert _summarize_pi_event('{"type":"tool_execution_end"}') is None
-
-
-def test_dataelf_init_config_template_is_not_overwritten(tmp_path: Path) -> None:
-    path = tmp_path / ".dataelf" / "config.yaml"
-    first = write_config_template(path, DataElfConfig(model="first-model"))
-    second = write_config_template(path, DataElfConfig(model="second-model"))
-
-    assert first == second
-    assert "first-model" in path.read_text(encoding="utf-8")
-    assert "second-model" not in path.read_text(encoding="utf-8")
-
-
-def test_dcode_shell_allow_list_defaults_to_all() -> None:
-    assert DEFAULT_SHELL_ALLOW_LIST == "all"
-    assert DeepAgentsCodeCliInsightsExplorer().shell_allow_list == "all"
-
-
-def test_dcode_extra_args_are_appended_and_agents_are_not_overwritten(tmp_path: Path) -> None:
-    explorer = DeepAgentsCodeCliInsightsExplorer(extra_args='--max-turns 2 --no-mcp')
-    command = explorer._build_command("hello", "openai:gpt-5.5")
-    assert command[-5:] == ["--max-turns", "2", "--no-mcp", "-n", "hello"]
-    assert "-M" in command
-    assert "--model" not in command
-    assert "--model-params" in command
-    assert '{"use_responses_api": false}' in command
-    assert "--max-turns" in command
-    assert "--no-mcp" in command
-    assert DEFAULT_DCODE_EXTRA_ARGS == ""
-
-    custom_params = DeepAgentsCodeCliInsightsExplorer(extra_args='--model-params {"temperature":0}')._build_command(
-        "hello",
-        "openai:gpt-5.5",
-    )
-    assert custom_params.count("--model-params") == 1
-
-    workspace = tmp_path / "workspace"
-    custom_agent = workspace / ".deepagents" / "agents" / "breadth-scout" / "AGENTS.md"
-    custom_agent.parent.mkdir(parents=True)
-    custom_agent.write_text("custom", encoding="utf-8")
-    explorer._init_project_agents(workspace)
-    assert custom_agent.read_text(encoding="utf-8") == "custom"

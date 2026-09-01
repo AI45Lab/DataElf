@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from dataelf.domains.ai_index.modeling.ontology.common.artifacts import atomic_write_json
-from dataelf.config import AIIndexModelingConfig
+from dataelf.domains.ai_index.config import AIIndexModelingConfig
 from dataelf.domains.ai_index.modeling.contracts import (
     AI_INDEX_MODELING_STAGE1_INCOMPLETE,
     AI_INDEX_MODELING_STAGE2_FAILED,
