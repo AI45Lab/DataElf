@@ -81,10 +81,11 @@ def discover(
                 **({"ontology_template": None} if not modeling_enabled else {}),
             }
         )
-    if ontology_template and ontology_template.strip():
-        modeling = modeling.model_copy(update={"ontology_template": ontology_template.strip()})
-    if modeling.ontology_template and not modeling.enabled:
-        raise typer.BadParameter("--ontology-template requires --ai-index-modeling")
+    requested_template = ontology_template.strip() if ontology_template and ontology_template.strip() else None
+    if requested_template:
+        modeling = modeling.model_copy(update={"ontology_template": requested_template})
+        if not modeling.enabled:
+            raise typer.BadParameter("--ontology-template requires --ai-index-modeling")
     if modeling != domain.modeling:
         domains = dict(config.domains)
         domains["ai_index"] = domain.model_copy(update={"modeling": modeling}).model_dump(mode="python")

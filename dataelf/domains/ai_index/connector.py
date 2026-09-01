@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from typing import Any
 from urllib import error, request
+from urllib.parse import urlsplit
 
 from dataelf.domains.ai_index.config import DEFAULT_AI_INDEX_API_KEY, DEFAULT_AI_INDEX_BASE_URL
 
@@ -30,8 +31,16 @@ class AIIndexConnector:
         workspace_path: Path | None = None,
         timeout_seconds: int = 30,
     ):
+        if mode not in {"api", "fixture"}:
+            raise ValueError(f"Unsupported AI Index source mode: {mode!r}; use 'api' or 'fixture'")
+        if mode == "api":
+            parsed = urlsplit(base_url.strip())
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                raise ValueError("AI Index api mode requires a valid HTTP(S) base_url")
+            if not api_key.strip():
+                raise ValueError("AI Index api mode requires a non-empty api_key")
         self.mode = mode
-        self.base_url = base_url.rstrip("/")
+        self.base_url = base_url.strip().rstrip("/")
         self.api_key = api_key
         self.fixtures_dir = fixtures_dir or Path("fixtures/ai_index")
         self.workspace_path = workspace_path

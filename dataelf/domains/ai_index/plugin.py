@@ -26,6 +26,7 @@ class AIIndexDomainPlugin:
     def __init__(self, config: DataElfConfig, manifest: DomainManifest):
         self.manifest = manifest
         self.config = AIIndexDomainConfig.from_mapping(config.domain_config(manifest.domain))
+        self.config.validate_for_run()
         self.runtime_env = dict(config.env)
 
     def normalize_spec(self, spec: JobSpec) -> JobSpec:

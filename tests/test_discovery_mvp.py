@@ -356,6 +356,26 @@ def test_flat_legacy_config_is_rejected(tmp_path: Path, monkeypatch: pytest.Monk
         DataElfConfig.from_env()
 
 
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        ("domains:\n  ai_index: true\n", "domains.ai_index must be a mapping/object"),
+        ("runtime:\n  enable_sqlite: ture\n", "Expected a boolean value"),
+        ("explorer:\n  pi:\n    timeout_seconds: -1\n", "greater than or equal to 1"),
+    ],
+)
+def test_malformed_nested_config_is_rejected(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    payload: str,
+    message: str,
+) -> None:
+    (tmp_path / "dataelf.yaml").write_text(payload, encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(ValueError, match=message):
+        DataElfConfig.from_env()
+
+
 def test_disabled_ai_index_modeling_preserves_dormant_settings() -> None:
     domain = AIIndexDomainConfig.from_mapping({
         "modeling": {
@@ -370,10 +390,59 @@ def test_disabled_ai_index_modeling_preserves_dormant_settings() -> None:
     assert domain.modeling.enabled is False
     assert domain.modeling.ontology_template == "ai_index_search"
     assert domain.modeling.model_name == "deepseek-v4-flash"
+    domain.validate_for_run()
+
+
+def test_ai_index_active_config_is_preflighted() -> None:
+    with pytest.raises(ValueError, match="Input should be 'api' or 'fixture'"):
+        AIIndexDomainConfig.from_mapping({"source": {"mode": "fixtures"}})
+
+    empty_api = AIIndexDomainConfig.from_mapping({
+        "source": {"mode": "api", "base_url": "", "api_key": ""},
+    })
+    with pytest.raises(ValueError, match="base_url"):
+        empty_api.validate_for_run()
+
+    missing_stages = AIIndexDomainConfig.from_mapping({
+        "modeling": {
+            "enabled": True,
+            "stage1_config": "missing/stage1.yaml",
+            "stage2_config": "missing/stage2.yaml",
+        },
+    })
+    with pytest.raises(ValueError, match="stage1_config is not a file"):
+        missing_stages.validate_for_run()
+
+    unknown_template = AIIndexDomainConfig.from_mapping({
+        "modeling": {"enabled": True, "ontology_template": "does_not_exist"},
+    })
+    with pytest.raises(ValueError, match="unknown ontology template"):
+        unknown_template.validate_for_run()
+
+
+def test_optional_modeling_strings_are_trimmed() -> None:
+    domain = AIIndexDomainConfig.from_mapping({
+        "modeling": {"enabled": False, "ontology_template": "   ", "model_name": " model-name  "},
+    })
+    assert domain.modeling.ontology_template is None
+    assert domain.modeling.model_name == "model-name"
 
 
 def test_cli_discover_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     pi = _write_fake_pi(tmp_path)
+    (tmp_path / "dataelf.local.yaml").write_text(
+        """
+domains:
+  ai_index:
+    modeling:
+      enabled: false
+      ontology_template: ai_index_search
+      stage1_config: not-loaded-while-disabled/stage1.yaml
+      stage2_config: not-loaded-while-disabled/stage2.yaml
+      model_name: deepseek-v4-flash
+""",
+        encoding="utf-8",
+    )
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("DATAELF_WORKSPACE", str(tmp_path / ".dataelf"))
     monkeypatch.setenv("DATAELF_PI_BINARY", str(pi))
@@ -383,6 +452,23 @@ def test_cli_discover_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert result.exit_code == 0
     assert "Discovery job completed" in result.output
     assert "Explorer: pi" in result.output
+
+
+def test_cli_rejects_explicit_template_when_modeling_is_disabled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "dataelf.local.yaml").write_text(
+        "domains:\n  ai_index:\n    modeling:\n      enabled: false\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(
+        app,
+        ["discover", "test", "--ontology-template", "ai_index_search"],
+    )
+    assert result.exit_code == 2
+    assert "requires --ai-index-modeling" in result.output
 
 
 def test_ai_index_defaults_and_pi_event_summary() -> None:

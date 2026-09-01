@@ -30,7 +30,7 @@ class PiConfig(BaseModel):
     model: str | None = None
     mode: str = "json"
     cwd: Path | None = None
-    timeout_seconds: int | None = None
+    timeout_seconds: int | None = Field(default=None, ge=1)
     extra_args: str = ""
     log_mode: Literal["quiet", "summary", "raw"] = "summary"
 
@@ -80,7 +80,11 @@ class DataElfConfig(BaseModel):
             extra_args=str(_env("DATAELF_PI_EXTRA_ARGS", pi_values.get("extra_args", ""))),
             log_mode=str(_env("DATAELF_PI_LOG_MODE", pi_values.get("log_mode", "summary"))),
         )
-        domains = {key: dict(value) for key, value in domains_values.items() if isinstance(value, dict)}
+        domains: dict[str, dict[str, Any]] = {}
+        for key, value in domains_values.items():
+            if not isinstance(key, str) or not isinstance(value, dict):
+                raise ValueError(f"DataElf config section domains.{key} must be a mapping/object")
+            domains[key] = dict(value)
         runtime_env = {str(key): str(value) for key, value in _section(values, "env").items() if value is not None}
         for key in _CHILD_ENV_KEYS:
             if os.getenv(key) is not None:
@@ -159,7 +163,12 @@ def _env(name: str, default: Any) -> Any:
 def _bool(value: Any) -> bool:
     if isinstance(value, bool):
         return value
-    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"Expected a boolean value, got {value!r}")
 
 
 def _optional(value: Any) -> str | None:
