@@ -34,7 +34,7 @@ npm install
 Populate the project-local Pi Fusion package declared in `.pi/settings.json`:
 
 ```bash
-PI_CODING_AGENT_DIR=.pi/agent npm_config_cache=.npm-cache \
+PI_CODING_AGENT_DIR=.pi/agent npm_config_cache=.pi/npm-cache \
   ./node_modules/.bin/pi install npm:@quarkos/pi-fusion --local --approve
 ```
 
@@ -197,6 +197,8 @@ Set `runtime.enable_sqlite: true` only when job lookup commands are required. Th
 ## Pi
 
 Project Pi settings live in `.pi/settings.json`, `.pi/agent/models.json`, and `pi-harness.config.json`. `pi-harness.config.json` belongs to `@quarkos/pi-fusion` and is resolved from the configured Pi working directory.
+
+DataElf selects the Explorer model through `explorer.pi.model` (for example, `boyuerich-openai/deepseek-v4-pro`). Pi owns the provider registry, endpoint, protocol, and model metadata in `.pi/agent/models.json`; credentials should be supplied through the local `env` mapping (for example, `OPENAI_API_KEY`) and referenced by the provider configuration. `.pi/settings.json` supplies Pi's fallback provider/model only when DataElf does not pass an explicit model.
 
 `explorer.pi.log_mode` can be `quiet`, `summary`, or `raw`. Raw JSON events are always saved to `logs/pi_events.jsonl`; terminal verbosity does not change the artifact contract.
 
