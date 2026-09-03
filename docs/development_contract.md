@@ -370,7 +370,37 @@ dataelf/domains/example/
 
 可以按 case 复杂度拆分文件，但 ownership 不变：connector/adapter 负责数据访问、raw persistence 和 provenance；normalizer/table builder 负责稳定结构化表示；modeler 负责可选语义建模；prompt 负责领域分析方法；output contract 负责文件接口；reviewer 负责领域质量。
 
-## 10. Minimum test contract
+## 10. 接入新 case 的最短路径
+
+新 case 的推荐开发顺序如下：
+
+1. **先定义 case contract**：明确输入数据、需要保留的 raw/provenance、分析用 tables、可选 modeling 产物、正式输出文件和领域质量标准。不要先改 core workflow。
+2. **创建 domain package**：新增 `dataelf/domains/<name>/`、`domain.yaml`、`config.py` 和 `plugin.py`。先让 manifest 能被 `DomainRegistry` 加载。
+3. **实现 typed config**：把所有 case 参数放在 `domains.<name>`，用 domain-owned Pydantic model 校验；为 API 和 fixture/offline 测试定义清楚必填项和环境变量覆盖规则。
+4. **实现 `prepare()`**：创建 domain workspace 目录，接入 connector/adapter，保存 raw，生成 normalized tables，返回 `StageResult(context, env, artifacts)`。
+5. **按需实现 modeling**：不需要建模就让 `create_modeler()` 返回 `None`；需要时实现 domain-owned modeler，并返回 workspace 内的 `ModelingStageResult` artifacts。建模失败必须在 explorer 前终止。
+6. **实现 prompt、output contract 和 review**：`build_prompt()` 只写领域分析方法；`output_contract()` 声明相对 workspace 的正式文件；`review()` 检查领域语义、证据、数量和质量，不重复 generic validator。
+7. **先用 fake Pi 跑通 core**：通过 `run_job(JobSpec(domain="<name>", ...), config, registry=...)` 做离线端到端测试，确认不需要改 `dataelf/discovery/`。现有最小参考是 `tests/test_discovery_mvp.py` 中的 `FakePlugin`、`_fake_registry()` 和 `test_fake_domain_runs_without_core_changes()`。
+8. **再接真实数据和真实 Pi**：先跑 fixture/offline tests，再做显式 smoke/integration test；保留 job workspace、review、artifact manifest 和日志用于诊断。
+
+完成后，新增 case 的主链路应是：
+
+```text
+domain.yaml
+  -> DomainRegistry.load_plugin()
+  -> normalize_spec()
+  -> prepare()
+  -> optional create_modeler()
+  -> build_prompt() + core prompt composer
+  -> Pi explorer
+  -> output_contract() validation
+  -> review()
+  -> result_ids() / workspace_index.json
+```
+
+如果新增 case 必须修改 core workflow、给 explorer 增加 domain 分支、把参数放到顶层 flat config，或依赖另一个 job 的隐式文件，说明边界设计有问题，应先重新划分 ownership。
+
+## 11. Minimum test contract
 
 每个新 domain 至少覆盖：
 
@@ -396,7 +426,7 @@ dataelf/domains/example/
 .venv/bin/python -m compileall -q dataelf
 ```
 
-## 11. Review checklist
+## 12. Review checklist
 
 提交新 case 前逐项确认：
 
