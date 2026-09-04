@@ -24,7 +24,7 @@ from dataelf.discovery.contracts import (
 )
 from dataelf.discovery.domain_registry import DomainRegistry
 from dataelf.discovery.pi_cli_explorer import _summarize_pi_event
-from dataelf.discovery.workflow import run_discovery, run_job
+from dataelf.discovery.workflow import run_job
 from dataelf.discovery.workspace import prepare_workspace
 from dataelf.domains.ai_index.client import AIIndexClient
 from dataelf.domains.ai_index.config import (
@@ -254,9 +254,9 @@ def test_modeling_failure_is_attributed_to_domain_modeling(tmp_path: Path) -> No
     assert not (Path(job.workspace_path) / "logs" / "pi_command.json").exists()
 
 
-def test_ai_index_workflow_keeps_discover_cli_behavior(tmp_path: Path) -> None:
+def test_ai_index_workflow_runs_through_generic_job_entrypoint(tmp_path: Path) -> None:
     config = _config(tmp_path, _write_fake_pi(tmp_path))
-    job = run_discovery("围绕 Agentic LLMs，发现 1 个 insight", config)
+    job = run_job(JobSpec(domain="ai_index", objective="围绕 Agentic LLMs，发现 1 个 insight"), config)
     workspace = Path(job.workspace_path)
     assert job.status == "completed"
     assert job.spec.domain == "ai_index"
@@ -299,7 +299,7 @@ def test_ai_index_prompt_and_review_enforce_requested_output_limit(tmp_path: Pat
 
 def test_missing_pi_fails_before_output_validation(tmp_path: Path) -> None:
     config = _config(tmp_path, tmp_path / "missing_pi")
-    job = run_discovery("test", config)
+    job = run_job(JobSpec(domain="ai_index", objective="test"), config)
     review = json.loads((Path(job.workspace_path) / "reviews" / "quality_review.json").read_text(encoding="utf-8"))
     assert job.status == "failed"
     assert job.error_code == "PI_BINARY_NOT_FOUND"
@@ -309,7 +309,7 @@ def test_missing_pi_fails_before_output_validation(tmp_path: Path) -> None:
 
 def test_sqlite_stores_new_job_and_review_contract(tmp_path: Path) -> None:
     config = _config(tmp_path, _write_fake_pi(tmp_path), sqlite=True)
-    job = run_discovery("test", config)
+    job = run_job(JobSpec(domain="ai_index", objective="test"), config)
     store = SQLiteStore(config.runtime.sqlite_path)
     store.init_schema()
     assert store.get_discovery_job(job.job_id) == job
@@ -466,7 +466,7 @@ def test_optional_modeling_strings_are_trimmed() -> None:
     assert domain.modeling.model_name == "model-name"
 
 
-def test_cli_discover_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cli_run_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     pi = _write_fake_pi(tmp_path)
     (tmp_path / "dataelf.local.yaml").write_text(
         """
@@ -486,10 +486,20 @@ domains:
     monkeypatch.setenv("DATAELF_PI_BINARY", str(pi))
     monkeypatch.setenv("DATAELF_AI_INDEX_MODE", "fixture")
     monkeypatch.setenv("DATAELF_FIXTURES_DIR", str(Path(__file__).resolve().parents[1] / "fixtures" / "ai_index"))
-    result = CliRunner().invoke(app, ["discover", "围绕 Agentic LLMs，发现 1 个 insight"])
+    result = CliRunner().invoke(app, ["run", "--domain", "ai_index", "围绕 Agentic LLMs，发现 1 个 insight"])
     assert result.exit_code == 0
-    assert "Discovery job completed" in result.output
+    assert "DataElf job completed" in result.output
     assert "Explorer: pi" in result.output
+
+
+def test_cli_uses_domain_aware_run_entrypoint() -> None:
+    runner = CliRunner()
+    missing_domain = runner.invoke(app, ["run", "test"])
+    assert missing_domain.exit_code == 2
+    assert "--domain" in missing_domain.output
+    removed_discover = runner.invoke(app, ["discover", "test"])
+    assert removed_discover.exit_code == 2
+    assert "No such command 'discover'" in removed_discover.output
 
 
 def test_cli_rejects_explicit_template_when_modeling_is_disabled(
@@ -503,10 +513,10 @@ def test_cli_rejects_explicit_template_when_modeling_is_disabled(
     monkeypatch.chdir(tmp_path)
     result = CliRunner().invoke(
         app,
-        ["discover", "test", "--ontology-template", "ai_index_search"],
+        ["run", "--domain", "ai_index", "test", "--ontology-template", "ai_index_search"],
     )
     assert result.exit_code == 2
-    assert "requires --ai-index-modeling" in result.output
+    assert "requires --modeling" in result.output
 
 
 def test_ai_index_defaults_and_pi_event_summary() -> None:

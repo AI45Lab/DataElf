@@ -44,10 +44,6 @@ class NullStore:
         return None
 
 
-def run_discovery(user_query: str, config: DataElfConfig) -> DiscoveryJob:
-    return run_job(JobSpec(domain="ai_index", objective=user_query), config)
-
-
 def run_job(spec: JobSpec, config: DataElfConfig, registry: DomainRegistry | None = None) -> DiscoveryJob:
     config.ensure_dirs()
     store = _create_store(config)
@@ -222,4 +218,4 @@ def _write_review(workspace: Path, review: ReviewResult) -> None:
     path.write_text(review.model_dump_json(indent=2) + "\n", encoding="utf-8")
 
 
-__all__ = ["NullStore", "run_discovery", "run_job"]
+__all__ = ["NullStore", "run_job"]

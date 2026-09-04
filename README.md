@@ -13,13 +13,13 @@ CLI / API
   -> domain review
 ```
 
-The current built-in domain is `ai_index`. The existing user command remains:
+The current built-in domain is `ai_index`. All cases use the same domain-aware entrypoint:
 
 ```bash
-dataelf discover "围绕 Agentic LLMs，基于 AI Index，发现最近值得关注的 3 个 insight"
+dataelf run --domain ai_index "围绕 Agentic LLMs，基于 AI Index，发现最近值得关注的 3 个 insight"
 ```
 
-Internally this creates `JobSpec(domain="ai_index", objective=...)`; the core does not infer a domain from arbitrary natural language.
+Internally this creates `JobSpec(domain="ai_index", objective=...)`; the CLI does not infer a domain from arbitrary natural language.
 
 ## Install
 
@@ -158,14 +158,14 @@ The connector supports paper, institution, and scholar search plus institution f
 Enable ontology/RDF modeling for one CLI run:
 
 ```bash
-dataelf discover --ai-index-modeling \
+dataelf run --domain ai_index --modeling \
   "围绕 Agentic LLMs，发现最近值得关注的 3 个 insight"
 ```
 
 Use the fixed reviewed template:
 
 ```bash
-dataelf discover --ai-index-modeling --ontology-template ai_index_search \
+dataelf run --domain ai_index --modeling --ontology-template ai_index_search \
   "围绕 Agentic LLMs，发现最近值得关注的 3 个 insight"
 ```
 

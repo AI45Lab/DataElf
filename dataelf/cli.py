@@ -1,19 +1,22 @@
 from __future__ import annotations
 
+import json
 import logging
+import os
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from dataelf.config import DEFAULT_CONFIG_FILE, DataElfConfig, write_config_template
-from dataelf.domains.ai_index.config import AIIndexDomainConfig
-from dataelf.discovery.workflow import run_discovery
+from dataelf.discovery.contracts import JobSpec
+from dataelf.discovery.workflow import run_job
 from dataelf.stores.sqlite_store import SQLiteStore
 
-app = typer.Typer(help="DataElf Insight Discovery CLI")
-job_app = typer.Typer(help="Inspect discovery jobs")
+app = typer.Typer(help="DataElf runtime CLI")
+job_app = typer.Typer(help="Inspect DataElf jobs")
 app.add_typer(job_app, name="job")
 console = Console()
 
@@ -39,10 +42,6 @@ def init() -> None:
     """Initialize the local DataElf workspace."""
     config = _config()
     config.ensure_dirs()
-    if "ai_index" not in config.domains:
-        domains = dict(config.domains)
-        domains["ai_index"] = AIIndexDomainConfig.from_mapping({}).model_dump(mode="json")
-        config = config.model_copy(update={"domains": domains})
     config_file = write_config_template(DEFAULT_CONFIG_FILE, config)
     console.print(f"Initialized DataElf workspace: [bold]{config.runtime.workspace_dir.resolve()}[/bold]")
     console.print(f"Config file: {config_file.resolve()}")
@@ -52,52 +51,66 @@ def init() -> None:
         console.print(f"SQLite: {config.runtime.sqlite_path.resolve()}")
     else:
         console.print("SQLite: disabled (set DATAELF_ENABLE_SQLITE=1 to enable job registry commands)")
-    console.print(f"Discovery workspaces: {config.runtime.workspaces_dir.resolve()}")
+    console.print(f"Job workspaces: {config.runtime.workspaces_dir.resolve()}")
 
 
-@app.command()
-def discover(
-    query: str,
+@app.command("run")
+def run(
+    query: str = typer.Argument(..., help="User task or research objective."),
+    domain: str = typer.Option(..., "--domain", help="Domain package to execute."),
     modeling_enabled: bool | None = typer.Option(
         None,
-        "--ai-index-modeling/--no-ai-index-modeling",
-        help="Enable or disable the AI Index acquisition and ontology modeling stage.",
+        "--modeling/--no-modeling",
+        help="Enable or disable the selected domain's modeling stage.",
+    ),
+    modeling_strategy: str | None = typer.Option(
+        None,
+        "--modeling-strategy",
+        help="Domain-owned modeling strategy.",
     ),
     ontology_template: str | None = typer.Option(
         None,
         "--ontology-template",
-        help="Use a fixed ontology template and skip Stage 1 model generation.",
+        help="AI Index domain option: use a fixed ontology template.",
+    ),
+    parameter: list[str] = typer.Option(
+        [],
+        "--param",
+        help="Domain parameter in key=value form; may be supplied more than once.",
     ),
 ) -> None:
-    """Run a user-triggered insight discovery job."""
+    """Run one DataElf job for the selected domain."""
     _setup_logging()
-    config = _config()
-    domain = AIIndexDomainConfig.from_mapping(config.domain_config("ai_index"))
-    modeling = domain.modeling
-    if modeling_enabled is not None:
-        modeling = modeling.model_copy(
-            update={
-                "enabled": modeling_enabled,
-                **({"ontology_template": None} if not modeling_enabled else {}),
-            }
-        )
-    requested_template = ontology_template.strip() if ontology_template and ontology_template.strip() else None
-    if requested_template:
-        modeling = modeling.model_copy(update={"ontology_template": requested_template})
-        if not modeling.enabled:
-            raise typer.BadParameter("--ontology-template requires --ai-index-modeling")
-    if modeling != domain.modeling:
-        domains = dict(config.domains)
-        domains["ai_index"] = domain.model_copy(update={"modeling": modeling}).model_dump(mode="python")
-        config = config.model_copy(update={"domains": domains})
     try:
-        job = run_discovery(query, config)
+        config = _config()
+        if modeling_enabled is not None:
+            config = _override_domain_modeling(config, domain, modeling_enabled)
+
+        requested_template = _optional_text(ontology_template)
+        if requested_template:
+            if domain != "ai_index":
+                raise typer.BadParameter("--ontology-template is only supported by the ai_index domain")
+            if modeling_enabled is False:
+                raise typer.BadParameter("--ontology-template requires --modeling")
+            if modeling_enabled is None and not _domain_modeling_enabled(config, domain):
+                raise typer.BadParameter("--ontology-template requires --modeling or enabled domain modeling config")
+            config = _set_domain_modeling_field(config, domain, "ontology_template", requested_template)
+
+        spec = JobSpec(
+            domain=domain,
+            objective=query,
+            parameters=_parse_parameters(parameter),
+            modeling_strategy=_optional_text(modeling_strategy),
+        )
+        job = run_job(spec, config)
+    except typer.BadParameter:
+        raise
     except Exception as exc:
-        console.print(f"[red]DataElf discover failed:[/red] {exc}")
+        console.print(f"[red]DataElf run failed:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
     status_style = "green" if job.status == "completed" else "red"
-    console.print(f"[{status_style}]Discovery job {job.status}:[/{status_style}] {job.job_id}")
+    console.print(f"[{status_style}]DataElf job {job.status}:[/{status_style}] {job.job_id}")
     workspace = Path(job.workspace_path).resolve()
     console.print(f"Workspace: {workspace}")
     console.print("Explorer: pi")
@@ -105,10 +118,12 @@ def discover(
     console.print(f"Pi events: {workspace / 'logs' / 'pi_events.jsonl'}")
     console.print(f"pi stdout: {workspace / 'logs' / 'pi_stdout.log'}")
     console.print(f"pi stderr: {workspace / 'logs' / 'pi_stderr.log'}")
-    if modeling.enabled:
-        console.print(f"AI Index modeling state: {workspace / 'modeling' / 'ai_index' / 'state.json'}")
-    console.print(f"Insight candidates: {workspace / 'insights' / 'insight_candidates.json'}")
-    console.print(f"Final brief: {workspace / 'insights' / 'final_brief.md'}")
+    output_artifacts = [artifact for artifact in job.artifacts if artifact.role == "output"]
+    if output_artifacts:
+        for artifact in output_artifacts:
+            console.print(f"Output {artifact.artifact_id}: {workspace / artifact.path}")
+    else:
+        console.print(f"Partial outputs (if any): {workspace}")
     console.print(f"Review file: {workspace / 'reviews' / 'quality_review.json'}")
     if config.runtime.enable_sqlite:
         console.print(f"Registry review: dataelf job review {job.job_id}")
@@ -121,7 +136,7 @@ def discover(
 
 @job_app.command("workspace")
 def job_workspace(job_id: str) -> None:
-    """Show a discovery job workspace path."""
+    """Show a job workspace path."""
     config = _config()
     if not config.runtime.enable_sqlite:
         _print_sqlite_disabled()
@@ -129,33 +144,33 @@ def job_workspace(job_id: str) -> None:
     store = _store(config)
     job = store.get_discovery_job(job_id)
     if not job:
-        console.print(f"[yellow]No discovery job found:[/yellow] {job_id}")
+        console.print(f"[yellow]No job found:[/yellow] {job_id}")
     else:
         console.print(Path(job.workspace_path).resolve())
     store.close()
 
 
-@job_app.command("insights")
-def job_insights(job_id: str) -> None:
-    """Show a discovery job's insight_candidates.json."""
-    _print_job_file(job_id, "insights/insight_candidates.json")
+@job_app.command("artifacts")
+def job_artifacts(job_id: str) -> None:
+    """Show a job's artifact manifest."""
+    _print_job_file(job_id, "artifact_manifest.json")
 
 
-@job_app.command("brief")
-def job_brief(job_id: str) -> None:
-    """Show a discovery job's final brief."""
-    _print_job_file(job_id, "insights/final_brief.md")
+@job_app.command("file")
+def job_file(job_id: str, relative_path: str) -> None:
+    """Show a file under a job workspace."""
+    _print_job_file(job_id, relative_path)
 
 
 @job_app.command("review")
 def job_review(job_id: str) -> None:
-    """Show a discovery job's quality review."""
+    """Show a job's quality review."""
     _print_job_file(job_id, "reviews/quality_review.json")
 
 
 @job_app.command("logs")
 def job_logs(job_id: str) -> None:
-    """Show workflow logs for a discovery job."""
+    """Show workflow logs for a job."""
     config = _config()
     if not config.runtime.enable_sqlite:
         _print_sqlite_disabled()
@@ -180,7 +195,7 @@ def _print_job_file(job_id: str, relative_path: str) -> None:
     store = _store(config)
     job = store.get_discovery_job(job_id)
     if not job:
-        console.print(f"[yellow]No discovery job found:[/yellow] {job_id}")
+        console.print(f"[yellow]No job found:[/yellow] {job_id}")
         store.close()
         return
     path = Path(job.workspace_path) / relative_path
@@ -194,5 +209,56 @@ def _print_job_file(job_id: str, relative_path: str) -> None:
 def _print_sqlite_disabled() -> None:
     console.print(
         "[yellow]SQLite job registry is disabled by default.[/yellow]\n"
-        "Use the workspace path printed by `dataelf discover`, or set DATAELF_ENABLE_SQLITE=1 before running jobs."
+        "Use the workspace path printed by `dataelf run`, or set DATAELF_ENABLE_SQLITE=1 before running jobs."
     )
+
+
+def _override_domain_modeling(config: DataElfConfig, domain: str, enabled: bool) -> DataElfConfig:
+    return _set_domain_modeling_field(config, domain, "enabled", enabled)
+
+
+def _set_domain_modeling_field(config: DataElfConfig, domain: str, field: str, value: Any) -> DataElfConfig:
+    domains = dict(config.domains)
+    domain_values = dict(domains.get(domain, {}))
+    raw_modeling = domain_values.get("modeling", {})
+    if raw_modeling is None:
+        raw_modeling = {}
+    if not isinstance(raw_modeling, dict):
+        raise typer.BadParameter(f"domains.{domain}.modeling must be a mapping/object")
+    modeling = dict(raw_modeling)
+    modeling[field] = value
+    domain_values["modeling"] = modeling
+    domains[domain] = domain_values
+    return config.model_copy(update={"domains": domains})
+
+
+def _parse_parameters(values: list[str]) -> dict[str, Any]:
+    parameters: dict[str, Any] = {}
+    for raw in values:
+        key, separator, value = raw.partition("=")
+        key = key.strip()
+        if not separator or not key:
+            raise typer.BadParameter(f"--param must use key=value form: {raw!r}")
+        try:
+            parameters[key] = json.loads(value)
+        except json.JSONDecodeError:
+            parameters[key] = value
+    return parameters
+
+
+def _optional_text(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
+def _domain_modeling_enabled(config: DataElfConfig, domain: str) -> bool:
+    raw_domain = config.domain_config(domain)
+    raw_modeling = raw_domain.get("modeling", {})
+    configured = raw_modeling.get("enabled", False) if isinstance(raw_modeling, dict) else False
+    if domain == "ai_index" and os.getenv("DATAELF_AI_INDEX_MODELING_ENABLED") is not None:
+        configured = os.environ["DATAELF_AI_INDEX_MODELING_ENABLED"]
+    if isinstance(configured, bool):
+        return configured
+    return str(configured).strip().lower() in {"1", "true", "yes", "on"}

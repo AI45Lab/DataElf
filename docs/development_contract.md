@@ -61,7 +61,7 @@ JobSpec(
 
 `DomainPlugin.normalize_spec()` 可以补充 domain 默认值，但必须保留调用方已经显式提供的字段。建议使用 `setdefault`，并确保相同输入得到确定性结果。
 
-当前 `dataelf discover` 是 AI Index convenience command，会构造 `JobSpec(domain="ai_index", objective=query)`。新 domain 的测试和程序化入口应直接使用 `run_job()`；在没有产品级 CLI 需求前，不要把所有 domain 参数继续堆到 `discover` 命令。
+当前 CLI 入口是 `dataelf run --domain <domain> "<objective>"`，由调用方显式选择 domain 并构造对应的 `JobSpec`。新 domain 的测试和程序化入口也应直接使用 `run_job()`；CLI 不应从自然语言猜测 domain，也不应把某个 domain 的参数写成全局必需参数。
 
 ## 3. Domain manifest 和加载
 
