@@ -12,6 +12,7 @@ from rich.table import Table
 
 from dataelf.config import DEFAULT_CONFIG_FILE, DataElfConfig, write_config_template
 from dataelf.discovery.contracts import JobSpec
+from dataelf.discovery.pi_runtime import PiRuntimeError, setup_pi_runtime
 from dataelf.discovery.workflow import run_job
 from dataelf.stores.sqlite_store import SQLiteStore
 
@@ -52,6 +53,19 @@ def init() -> None:
     else:
         console.print("SQLite: disabled (set DATAELF_ENABLE_SQLITE=1 to enable job registry commands)")
     console.print(f"Job workspaces: {config.runtime.workspaces_dir.resolve()}")
+
+
+@app.command("setup")
+def setup() -> None:
+    """Prepare DataElf's project-local analysis runtime."""
+    _setup_logging()
+    try:
+        result = setup_pi_runtime(_config())
+    except PiRuntimeError as exc:
+        console.print(f"[red]DataElf setup failed:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+    console.print("[green]DataElf runtime is ready.[/green]")
+    console.print(f"Runtime manifest: {result.manifest_path}")
 
 
 @app.command("run")

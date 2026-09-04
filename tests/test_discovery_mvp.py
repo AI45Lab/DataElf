@@ -24,6 +24,7 @@ from dataelf.discovery.contracts import (
 )
 from dataelf.discovery.domain_registry import DomainRegistry
 from dataelf.discovery.pi_cli_explorer import _summarize_pi_event
+from dataelf.discovery.pi_runtime import PiRuntimeResult, runtime_ready_for_process
 from dataelf.discovery.workflow import run_job
 from dataelf.discovery.workspace import prepare_workspace
 from dataelf.domains.ai_index.client import AIIndexClient
@@ -500,6 +501,30 @@ def test_cli_uses_domain_aware_run_entrypoint() -> None:
     removed_discover = runner.invoke(app, ["discover", "test"])
     assert removed_discover.exit_code == 2
     assert "No such command 'discover'" in removed_discover.output
+
+
+def test_cli_setup_is_the_user_facing_runtime_bootstrap(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    config = DataElfConfig(runtime=RuntimeConfig(workspace_dir=tmp_path / ".dataelf"))
+    manifest = tmp_path / ".dataelf" / "runtime" / "pi.json"
+    monkeypatch.setattr("dataelf.cli._config", lambda: config)
+    monkeypatch.setattr(
+        "dataelf.cli.setup_pi_runtime",
+        lambda _: PiRuntimeResult(
+            binary=tmp_path / "pi",
+            cwd=tmp_path,
+            cache_dir=tmp_path / "cache",
+            package_dir=tmp_path / "packages",
+            manifest_path=manifest,
+        ),
+    )
+    result = CliRunner().invoke(app, ["setup"])
+    assert result.exit_code == 0
+    assert "DataElf runtime is ready" in result.output
+    assert "runtime/pi.json" in result.output
+
+
+def test_external_pi_runtime_does_not_require_dataelf_package() -> None:
+    assert runtime_ready_for_process("/usr/local/bin/pi", Path("/tmp/project"), {})
 
 
 def test_cli_rejects_explicit_template_when_modeling_is_disabled(

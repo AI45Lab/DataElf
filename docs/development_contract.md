@@ -351,6 +351,8 @@ Pi 接收 core 合成的 prompt、当前 `JobSpec`、prepared/modeling artifact 
 
 新增 case 通常不应修改 Pi provider。只有新增 runtime 能力时才考虑扩展 `ExplorerFactory`，并且必须保留相同 `InsightsExplorer` contract。
 
+项目级 Pi runtime 由 `dataelf setup` 管理。它负责准备锁定的 Node/Pi CLI、Pi 分析包和项目内 npm cache，并在 `.dataelf/runtime/pi.json` 写入不含凭证的运行时清单。`dataelf run` 只消费已准备好的 runtime；不要在 domain plugin、case 脚本或用户文档中要求手工执行 npm/Pi 安装命令。Node.js/npm 仍是当前短期方案的主机前置依赖。
+
 ## 9. Recommended package layout
 
 ```text

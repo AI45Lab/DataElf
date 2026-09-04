@@ -28,15 +28,10 @@ Requirements: Python 3.11+, Node.js 22.19+, and npm.
 ```bash
 uv venv
 uv pip install -e ".[dev]"
-npm install
+dataelf setup
 ```
 
-Populate the project-local Pi Fusion package declared in `.pi/settings.json`:
-
-```bash
-PI_CODING_AGENT_DIR=.pi/agent npm_config_cache=.pi/npm-cache \
-  ./node_modules/.bin/pi install npm:@quarkos/pi-fusion --local --approve
-```
+`dataelf setup` prepares the project-local explorer runtime, including the locked Node/Pi dependency and the Pi analysis package. It uses a cache inside the project, so users do not need to run npm or Pi package commands themselves. Run it once after installing the Python package, and run it again if the runtime is removed or the lockfile changes.
 
 Create a local configuration file:
 
@@ -45,6 +40,28 @@ dataelf init
 ```
 
 `dataelf.local.yaml` is ignored by git and should contain local credentials.
+
+## Quick start
+
+After cloning the repository, run the following from the project root:
+
+```bash
+uv venv
+uv pip install -e ".[dev]"
+dataelf setup
+dataelf init
+```
+
+Then edit the generated `dataelf.local.yaml` using the nested configuration shown below. At minimum, provide the selected Pi model and the required local API credentials under `env`; for the built-in AI Index domain, configure `domains.ai_index.source` as `api` or `fixture`.
+
+Run the built-in domain through the same domain-aware entrypoint used by every future case:
+
+```bash
+dataelf run --domain ai_index \
+  "围绕 Agentic LLMs，基于 AI Index 和联网搜索，发现最近值得关注的 1 个 insight"
+```
+
+On Windows PowerShell, activate the virtual environment with `.venv\\Scripts\\Activate.ps1` and use `.venv\\Scripts\\dataelf.exe`; `dataelf setup` handles the platform-specific runtime details.
 
 ## Configuration
 
@@ -58,7 +75,8 @@ runtime:
 explorer:
   type: pi
   pi:
-    binary: ./node_modules/.bin/pi
+    # Optional; dataelf setup selects the project-local runtime by default.
+    binary:
     model:
     mode: json
     cwd: .
@@ -197,6 +215,8 @@ Set `runtime.enable_sqlite: true` only when job lookup commands are required. Th
 ## Pi
 
 Project Pi settings live in `.pi/settings.json`, `.pi/agent/models.json`, and `pi-harness.config.json`. `pi-harness.config.json` belongs to `@quarkos/pi-fusion` and is resolved from the configured Pi working directory.
+
+The supported user-facing setup path is `dataelf setup`. It owns the project-local Pi/npm lifecycle and verifies the runtime before a job starts; the files above are implementation/configuration details for maintainers and advanced integrations.
 
 DataElf selects the Explorer model through `explorer.pi.model` (for example, `boyuerich-openai/deepseek-v4-pro`). Pi owns the provider registry, endpoint, protocol, and model metadata in `.pi/agent/models.json`; credentials should be supplied through the local `env` mapping (for example, `OPENAI_API_KEY`) and referenced by the provider configuration. `.pi/settings.json` supplies Pi's fallback provider/model only when DataElf does not pass an explicit model.
 

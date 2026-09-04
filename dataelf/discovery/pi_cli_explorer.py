@@ -11,6 +11,7 @@ from pathlib import Path
 from threading import Thread
 
 from dataelf.discovery.contracts import ArtifactRef, DiscoveryContext, DiscoveryJob, ExplorerRunResult
+from dataelf.discovery.pi_runtime import runtime_ready_for_process
 
 
 DEFAULT_PI_MODE = "json"
@@ -86,13 +87,23 @@ class PiCliInsightsExplorer:
             )
         pi_binary = self._resolve_binary()
         if pi_binary is None:
-            message = "Pi CLI not found. Install @earendil-works/pi-coding-agent, run npm install, or set DATAELF_PI_BINARY."
+            message = (
+                f"Configured explorer executable was not found: {self.pi_binary}"
+                if self.pi_binary
+                else "DataElf's explorer runtime is not initialized. Run `dataelf setup` and try again."
+            )
+            error_code = PI_BINARY_NOT_FOUND if self.pi_binary else "EXPLORER_RUNTIME_NOT_READY"
             stdout_path.write_text("", encoding="utf-8")
             stderr_path.write_text(message + "\n", encoding="utf-8")
-            return ExplorerRunResult(status="failed", warnings=[message], error_code=PI_BINARY_NOT_FOUND, error_message=message)
+            return ExplorerRunResult(status="failed", warnings=[message], error_code=error_code, error_message=message)
 
         command = self._build_command(pi_binary, prompt_path)
         env = self._build_env(workspace_path, job, context)
+        if not runtime_ready_for_process(pi_binary, self.cwd.resolve(), env):
+            message = "DataElf's explorer runtime is incomplete. Run `dataelf setup` and try again."
+            stdout_path.write_text("", encoding="utf-8")
+            stderr_path.write_text(message + "\n", encoding="utf-8")
+            return ExplorerRunResult(status="failed", artifacts=_log_artifacts(workspace_path), warnings=[message], error_code="EXPLORER_RUNTIME_NOT_READY", error_message=message)
         timeout = self.timeout_seconds or _timeout_seconds(job)
         cwd = self.cwd.resolve()
         _write_json(logs_dir / "pi_command.json", {"command": _redact_command(command), "cwd": str(cwd), "workspace_path": str(workspace_path)})
@@ -141,10 +152,13 @@ class PiCliInsightsExplorer:
                 return self.pi_binary if path.exists() else None
             return shutil.which(self.pi_binary)
         repo_root = Path(__file__).resolve().parents[2]
-        local_binary = repo_root / "node_modules" / ".bin" / "pi"
+        local_name = "pi.cmd" if os.name == "nt" else "pi"
+        local_binary = repo_root / "node_modules" / ".bin" / local_name
         if local_binary.exists():
             return str(local_binary)
-        return shutil.which("pi")
+        # The default runtime is deliberately project-local.  A global Pi is
+        # only used when the user explicitly configures ``binary: pi``.
+        return None
 
     def _build_command(self, pi_binary: str, prompt_path: Path) -> list[str]:
         command = [pi_binary, "--mode", self.mode, "--no-session"]
@@ -179,6 +193,10 @@ class PiCliInsightsExplorer:
             env["DATAELF_PI_MODEL"] = self.model
         if "NPM_CONFIG_CACHE" not in env and "npm_config_cache" not in env:
             env["NPM_CONFIG_CACHE"] = str((self.cwd / ".pi" / "npm-cache").resolve())
+        if "npm_config_cache" not in env:
+            env["npm_config_cache"] = env["NPM_CONFIG_CACHE"]
+        if "PI_CODING_AGENT_DIR" not in env:
+            env["PI_CODING_AGENT_DIR"] = str((self.cwd / ".pi" / "agent").resolve())
         env.setdefault("PI_SKIP_VERSION_CHECK", "1")
         env.setdefault("PI_TELEMETRY", "0")
         return env
