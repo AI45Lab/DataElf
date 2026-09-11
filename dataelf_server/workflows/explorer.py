@@ -31,7 +31,8 @@ class ServerExplorer:
             cwd=self.settings.project_root,
             timeout_seconds=self.settings.server.pi.synthesis_retry_timeout_seconds if retry else pi.timeout_seconds,
             extra_args=shlex.join(args), log_mode=pi.log_mode,
-            log_prefix="pi_synthesis_retry" if retry else "pi", compact_stream_events=True, detect_model_errors=True)
+            log_prefix="pi_synthesis_retry" if retry else "pi", compact_stream_events=True, detect_model_errors=True,
+            required_packages=())
 
     def run(self, job, context):
         with isolated_agent(self.settings, context.env) as env:

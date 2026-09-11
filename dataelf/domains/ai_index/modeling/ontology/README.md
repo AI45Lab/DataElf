@@ -2,7 +2,7 @@
 
 `dataelf/domains/ai_index/modeling/ontology/` 是 AI Index domain 私有的 Stage 1/2 实现；领域适配位于
 `dataelf/domains/ai_index/modeling/`。正式入口不是分别运行
-Stage 1 或 Stage 2，而是一次完整的 `dataelf discover`：
+Stage 1 或 Stage 2，而是一次完整的 `dataelf run --domain ai_index`：
 
 ```text
 AI Index API raw
@@ -26,14 +26,7 @@ plan 或 RDF。Stage 1/2 的独立 CLI 仅保留为开发诊断入口。
 ```bash
 uv venv
 uv pip install -e ".[dev]"
-npm install
-```
-
-如果项目级 Pi package 尚未安装：
-
-```bash
-PI_CODING_AGENT_DIR=.pi/agent npm_config_cache=.npm-cache \
-  ./node_modules/.bin/pi install npm:@quarkos/pi-fusion --local --approve
+dataelf setup
 ```
 
 ## 2. 配置
@@ -48,10 +41,11 @@ domains:
       ontology_config: dataelf/domains/ai_index/modeling/ontology/config.yaml
 ```
 
-省略 `ontology_config` 时使用本包的 `ontology/config.yaml`，开启建模时该文件必须存在且有效。
+省略 `ontology_config` 时使用本地 `ontology/config.yaml`，开启建模时该文件必须存在且有效。
+该文件被 Git 忽略，不随仓库分发；首次部署需要自行提供完整配置，或通过 `--ontology-config` 指定已有配置。
 关闭建模时不读取文件。显式空路径无效。
 
-所有 ontology 参数集中在 [config.yaml](config.yaml)：
+所有 ontology 参数集中在本地 `config.yaml`：
 
 ```yaml
 ontology_template: ai_index_search  # null 使用动态 Stage 1
@@ -86,11 +80,11 @@ raw 和 artifact 子目录仍相对于 job workspace。复制配置到其他位�
 ## 3. 正式运行
 
 ```bash
-dataelf discover --ai-index-modeling \
+dataelf run --domain ai_index --modeling \
   '围绕 Agentic LLMs，基于 AI Index，发现最近值得关注的 3 个 insight'
 
 # 使用另一份完整的统一配置
-dataelf discover --ai-index-modeling --ontology-config /path/to/ontology.yaml \
+dataelf run --domain ai_index --modeling --ontology-config /path/to/ontology.yaml \
   '围绕 Agentic LLMs，发现最近值得关注的 3 个 insight'
 ```
 
@@ -98,7 +92,7 @@ dataelf discover --ai-index-modeling --ontology-config /path/to/ontology.yaml \
 Stage 1 generator/reviewer。模板模式仍会绑定本次 raw、校验 source 兼容性，并执行 Stage 2。
 不兼容时明确失败，不会静默回退动态 Stage 1。
 
-关闭建模使用 `--no-ai-index-modeling` 或 `domains.ai_index.modeling.enabled: false`。
+关闭建模使用 `--no-modeling` 或 `domains.ai_index.modeling.enabled: false`。
 
 ## 4. 输出
 
@@ -191,4 +185,4 @@ python dataelf/domains/ai_index/modeling/ontology/stage2/run.py validate \
   --bundle .dataelf/workspaces/job_<id>/ontology/stage2/published/<run_id>
 ```
 
-正常使用只运行一次 `dataelf discover`。
+正常使用只运行一次 `dataelf run --domain ai_index`。

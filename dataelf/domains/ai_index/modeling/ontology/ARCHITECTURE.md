@@ -6,7 +6,7 @@
 ## 总体边界
 
 ```text
-dataelf discover
+dataelf run --domain ai_index
   ├─ AIIndexModeler
   │   ├─ AIIndexRawCollector                  AI Index -> raw JSON
   │   └─ isolated ontology worker

@@ -24,7 +24,8 @@ from dataelf.discovery.contracts import (
 )
 from dataelf.discovery.domain_registry import DomainRegistry
 from dataelf.discovery.pi_cli_explorer import _summarize_pi_event
-from dataelf.discovery.workflow import run_discovery, run_job
+from dataelf.discovery.pi_runtime import PiRuntimeResult, runtime_ready_for_process
+from dataelf.discovery.workflow import run_job
 from dataelf.discovery.workspace import prepare_workspace
 from dataelf.domains.ai_index.client import AIIndexClient
 from dataelf.domains.ai_index.config import (
@@ -254,9 +255,9 @@ def test_modeling_failure_is_attributed_to_domain_modeling(tmp_path: Path) -> No
     assert not (Path(job.workspace_path) / "logs" / "pi_command.json").exists()
 
 
-def test_ai_index_workflow_keeps_discover_cli_behavior(tmp_path: Path) -> None:
+def test_ai_index_workflow_runs_through_generic_job_entrypoint(tmp_path: Path) -> None:
     config = _config(tmp_path, _write_fake_pi(tmp_path))
-    job = run_discovery("围绕 Agentic LLMs，发现 1 个 insight", config)
+    job = run_job(JobSpec(domain="ai_index", objective="围绕 Agentic LLMs，发现 1 个 insight"), config)
     workspace = Path(job.workspace_path)
     assert job.status == "completed"
     assert job.spec.domain == "ai_index"
@@ -299,7 +300,7 @@ def test_ai_index_prompt_and_review_enforce_requested_output_limit(tmp_path: Pat
 
 def test_missing_pi_fails_before_output_validation(tmp_path: Path) -> None:
     config = _config(tmp_path, tmp_path / "missing_pi")
-    job = run_discovery("test", config)
+    job = run_job(JobSpec(domain="ai_index", objective="test"), config)
     review = json.loads((Path(job.workspace_path) / "reviews" / "quality_review.json").read_text(encoding="utf-8"))
     assert job.status == "failed"
     assert job.error_code == "PI_BINARY_NOT_FOUND"
@@ -309,7 +310,7 @@ def test_missing_pi_fails_before_output_validation(tmp_path: Path) -> None:
 
 def test_sqlite_stores_new_job_and_review_contract(tmp_path: Path) -> None:
     config = _config(tmp_path, _write_fake_pi(tmp_path), sqlite=True)
-    job = run_discovery("test", config)
+    job = run_job(JobSpec(domain="ai_index", objective="test"), config)
     store = SQLiteStore(config.runtime.sqlite_path)
     store.init_schema()
     assert store.get_discovery_job(job.job_id) == job
@@ -416,18 +417,15 @@ def test_malformed_nested_config_is_rejected(
 
 def test_disabled_ai_index_modeling_preserves_dormant_settings() -> None:
     domain = AIIndexDomainConfig.from_mapping({
+        "source": {"mode": "fixture"},
         "modeling": {
             "enabled": False,
-            "ontology_template": "ai_index_search",
-            "stage1_config": "not-loaded-while-disabled/stage1.yaml",
-            "stage2_config": "not-loaded-while-disabled/stage2.yaml",
-            "model_name": "deepseek-v4-flash",
+            "ontology_config": "not-loaded-while-disabled/ontology.yaml",
         },
     })
 
     assert domain.modeling.enabled is False
-    assert domain.modeling.ontology_template == "ai_index_search"
-    assert domain.modeling.model_name == "deepseek-v4-flash"
+    assert domain.modeling.ontology_config.name == "ontology.yaml"
     domain.validate_for_run()
 
 
@@ -442,31 +440,24 @@ def test_ai_index_active_config_is_preflighted() -> None:
         empty_api.validate_for_run()
 
     missing_stages = AIIndexDomainConfig.from_mapping({
+        "source": {"mode": "fixture"},
         "modeling": {
             "enabled": True,
-            "stage1_config": "missing/stage1.yaml",
-            "stage2_config": "missing/stage2.yaml",
+            "ontology_config": "missing/ontology.yaml",
         },
     })
-    with pytest.raises(ValueError, match="stage1_config is not a file"):
+    with pytest.raises(ValueError, match="ontology_config is not a file"):
         missing_stages.validate_for_run()
 
-    unknown_template = AIIndexDomainConfig.from_mapping({
-        "modeling": {"enabled": True, "ontology_template": "does_not_exist"},
-    })
-    with pytest.raises(ValueError, match="unknown ontology template"):
-        unknown_template.validate_for_run()
 
-
-def test_optional_modeling_strings_are_trimmed() -> None:
+def test_modeling_config_path_is_trimmed() -> None:
     domain = AIIndexDomainConfig.from_mapping({
-        "modeling": {"enabled": False, "ontology_template": "   ", "model_name": " model-name  "},
+        "modeling": {"enabled": False, "ontology_config": " ontology.yaml  "},
     })
-    assert domain.modeling.ontology_template is None
-    assert domain.modeling.model_name == "model-name"
+    assert domain.modeling.ontology_config == Path("ontology.yaml").resolve()
 
 
-def test_cli_discover_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cli_run_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     pi = _write_fake_pi(tmp_path)
     (tmp_path / "dataelf.local.yaml").write_text(
         """
@@ -474,10 +465,7 @@ domains:
   ai_index:
     modeling:
       enabled: false
-      ontology_template: ai_index_search
-      stage1_config: not-loaded-while-disabled/stage1.yaml
-      stage2_config: not-loaded-while-disabled/stage2.yaml
-      model_name: deepseek-v4-flash
+      ontology_config: not-loaded-while-disabled/ontology.yaml
 """,
         encoding="utf-8",
     )
@@ -486,13 +474,48 @@ domains:
     monkeypatch.setenv("DATAELF_PI_BINARY", str(pi))
     monkeypatch.setenv("DATAELF_AI_INDEX_MODE", "fixture")
     monkeypatch.setenv("DATAELF_FIXTURES_DIR", str(Path(__file__).resolve().parents[1] / "fixtures" / "ai_index"))
-    result = CliRunner().invoke(app, ["discover", "围绕 Agentic LLMs，发现 1 个 insight"])
+    result = CliRunner().invoke(app, ["run", "--domain", "ai_index", "围绕 Agentic LLMs，发现 1 个 insight"])
     assert result.exit_code == 0
-    assert "Discovery job completed" in result.output
+    assert "DataElf job completed" in result.output
     assert "Explorer: pi" in result.output
 
 
-def test_cli_rejects_explicit_template_when_modeling_is_disabled(
+def test_cli_uses_domain_aware_run_entrypoint() -> None:
+    runner = CliRunner()
+    missing_domain = runner.invoke(app, ["run", "test"])
+    assert missing_domain.exit_code == 2
+    assert "--domain" in missing_domain.output
+    removed_discover = runner.invoke(app, ["discover", "test"])
+    assert removed_discover.exit_code == 2
+    assert "No such command 'discover'" in removed_discover.output
+
+
+def test_cli_setup_is_the_user_facing_runtime_bootstrap(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    config = DataElfConfig(runtime=RuntimeConfig(workspace_dir=tmp_path / ".dataelf"))
+    manifest = tmp_path / ".dataelf" / "runtime" / "pi.json"
+    monkeypatch.setattr("dataelf.cli._config", lambda: config)
+    monkeypatch.setattr(
+        "dataelf.cli.setup_pi_runtime",
+        lambda _: PiRuntimeResult(
+            binary=tmp_path / "pi",
+            cwd=tmp_path,
+            cache_dir=tmp_path / "cache",
+            package_dir=tmp_path / "packages",
+            manifest_path=manifest,
+        ),
+    )
+    result = CliRunner().invoke(app, ["setup"])
+    assert result.exit_code == 0
+    assert "DataElf runtime is ready" in result.output
+    # Rich may wrap a long temporary path at the terminal width.
+    assert str(manifest) in result.output.replace("\n", "")
+
+
+def test_external_pi_runtime_does_not_require_dataelf_package() -> None:
+    assert runtime_ready_for_process("/usr/local/bin/pi", Path("/tmp/project"), {})
+
+
+def test_cli_rejects_explicit_ontology_config_when_modeling_is_disabled(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -503,19 +526,18 @@ def test_cli_rejects_explicit_template_when_modeling_is_disabled(
     monkeypatch.chdir(tmp_path)
     result = CliRunner().invoke(
         app,
-        ["discover", "test", "--ontology-template", "ai_index_search"],
+        ["run", "--domain", "ai_index", "test", "--ontology-config", "ontology.yaml"],
     )
     assert result.exit_code == 2
-    assert "requires --ai-index-modeling" in result.output
+    assert "requires --modeling" in result.output
 
 
 def test_ai_index_defaults_and_pi_event_summary() -> None:
     assert DEFAULT_AI_INDEX_MODE == "api"
     assert DEFAULT_AI_INDEX_BASE_URL == "https://index.shlab.org.cn/api/v2"
-    assert DEFAULT_AI_INDEX_API_KEY == "ak_0XWHy2OQpSKnaKHL"
+    assert DEFAULT_AI_INDEX_API_KEY == ""
     domain = AIIndexDomainConfig.from_mapping({})
-    assert domain.modeling.stage1_config.is_file()
-    assert domain.modeling.stage2_config.is_file()
+    assert domain.modeling.ontology_config.is_file()
     summary = _summarize_pi_event(json.dumps({
         "role": "assistant", "content": [{"type": "toolCall", "name": "bash", "arguments": {"command": "x" * 500}}],
         "usage": {"input": 12, "output": 3, "totalTokens": 15},

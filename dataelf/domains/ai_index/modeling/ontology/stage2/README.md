@@ -1,6 +1,6 @@
 # DataElf Ontology Stage 2
 
-> 正式工作流由 `dataelf discover` 在当前 job 的 Stage 1 成功后调用；以下命令只用于开发诊断。
+> 正式工作流由 `dataelf run --domain ai_index` 在当前 job 的 Stage 1 成功后调用；以下命令只用于开发诊断。
 
 Stage 2 读取正式 Stage 1 contract 和 `raw/ai_index/*.json`。模型只从 Controller
 提供的 coverage key 中编译三个 endpoint extraction plan；RDF、IRI、consensus、

@@ -48,6 +48,7 @@ _ARTIFACT_REASONS = {
 _SERVICE_REASONS = {
     "invalid_pi_config": "configuration_invalid",
     "pi_binary_not_found": "dependency_missing",
+    "explorer_runtime_not_ready": "dependency_missing",
     "service_restarted": "service_restarted",
     "service_shutdown": "service_shutdown",
 }

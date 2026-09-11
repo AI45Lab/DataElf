@@ -1,6 +1,6 @@
 # Ontology Stage 1
 
-> 正式工作流由 `dataelf discover` 调用本 Stage；以下命令只用于开发诊断。
+> 正式工作流由 `dataelf run --domain ai_index` 调用本 Stage；以下命令只用于开发诊断。
 
 Stage 1 直接读取 DataElf workspace 的 `raw/ai_index/*.json`，生成并审核三层
 ontology contract：领域语义、API 观测和可回放 Source provenance。`tables/*.csv`
