@@ -93,19 +93,7 @@ domains:
       fixtures_dir: fixtures/ai_index
     modeling:
       enabled: false
-      # ai_index_search uses the reviewed fixed Stage 1 template.
-      ontology_template:
-      stage1_config: dataelf/domains/ai_index/modeling/ontology/stage1/config.yaml
-      stage2_config: dataelf/domains/ai_index/modeling/ontology/stage2/config.yaml
-      raw_page_size: 50
-      model_name:
-      model_max_tokens:
-      stage1_process_timeout_seconds: 7200
-      stage1_request_timeout_seconds: 900
-      stage1_request_max_retries: 3
-      stage2_request_timeout_seconds: 600
-      stage2_request_max_retries: 3
-      stage2_total_timeout_seconds: 1800
+      ontology_config: dataelf/domains/ai_index/modeling/ontology/config.yaml
 
 env:
   PI_CODING_AGENT_DIR: .pi/agent
@@ -180,12 +168,27 @@ dataelf run --domain ai_index --modeling \
   "围绕 Agentic LLMs，发现最近值得关注的 3 个 insight"
 ```
 
-Use the fixed reviewed template:
+All ontology settings live in the local `dataelf/domains/ai_index/modeling/ontology/config.yaml`:
+`ontology_template` (`ai_index_search` for the fixed reviewed template, `null` for dynamic Stage 1),
+`raw_page_size`, `worker_timeout_seconds`, and the `stage1` / `stage2` sections containing model,
+timeout, retry, source, quality, and artifact settings. The agent config accepts only
+`domains.ai_index.modeling.enabled` and `domains.ai_index.modeling.ontology_config`.
+The config path defaults to the local file shown above; an explicit empty path is rejected.
+This file is ignored by Git and is not included in the repository. Before enabling modeling,
+provide a complete configuration at that path or select an existing file with `--ontology-config`.
+
+Select a different unified ontology configuration:
 
 ```bash
-dataelf run --domain ai_index --modeling --ontology-template ai_index_search \
+dataelf run --domain ai_index --modeling --ontology-config /path/to/ontology.yaml \
   "围绕 Agentic LLMs，发现最近值得关注的 3 个 insight"
 ```
+
+The corresponding environment variables are `DATAELF_AI_INDEX_MODELING_ENABLED` and
+`DATAELF_AI_INDEX_MODELING_ONTOLOGY_CONFIG`. Template/model/timeout environment overrides and
+`--ontology-template` are removed; put these settings in the ontology file. Relative paths
+inside it resolve against its directory. A relative outer `ontology_config` path resolves
+against the invoking process's working directory and is made absolute before worker launch.
 
 The modeler returns standard evidence artifacts; it does not replace the core prompt path. Detailed ontology operation and troubleshooting are documented in [`dataelf/domains/ai_index/modeling/ontology/README.md`](dataelf/domains/ai_index/modeling/ontology/README.md), with module responsibilities in [`ARCHITECTURE.md`](dataelf/domains/ai_index/modeling/ontology/ARCHITECTURE.md).
 
@@ -237,3 +240,7 @@ explorer:
 .venv/bin/python -m pytest -q
 .venv/bin/python -m compileall -q dataelf
 ```
+
+## Optional Insight HTTP API
+
+Run `uv sync` to install the project, including its HTTP dependencies, then run `.venv/bin/python -m dataelf_server --config /path/to/dataelf.yaml` (or `.venv/bin/dataelf-serve`). The server shares the current discovery core and uses `.dataelf/server` for API attempts. See [DataElf Server](dataelf_server/README.md), [部署说明](dataelf_server/deployment/README.md), and [API 外部调用说明](dataelf_server/API_USAGE.md).

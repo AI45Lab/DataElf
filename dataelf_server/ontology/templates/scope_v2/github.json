@@ -1,0 +1,253 @@
+{
+  "schemaVersion": "dataelf-scope-v2-template-fragment.v1",
+  "templateId": "scope_v2_github",
+  "source": "github",
+  "endpoint": "/openapi/ecosystem/gh/search",
+  "entity": {
+    "classId": "CodeRepository",
+    "observationClassId": "CodeRepositoryObservation",
+    "idPaths": [
+      "/url",
+      "/title"
+    ],
+    "labelPath": "/title",
+    "urlPath": "/url",
+    "publishedAtPath": "/published_at"
+  },
+  "classes": [
+    {
+      "id": "CodeRepository",
+      "label": "Code Repository",
+      "kind": "entity",
+      "comment": "A source code repository surfaced via the GitHub ecosystem search endpoint."
+    },
+    {
+      "id": "CodeRepositoryObservation",
+      "label": "Code Repository Observation",
+      "kind": "observation",
+      "comment": "A point-in-time observation of mutable engagement counters (stars, forks, watchers) for a code repository."
+    },
+    {
+      "id": "RepositoryOwner",
+      "label": "Repository Owner",
+      "kind": "entity",
+      "comment": "The owner (user or organization) of a GitHub repository, represented as a typed node rather than an opaque object."
+    },
+    {
+      "id": "Topic",
+      "label": "Topic",
+      "kind": "concept",
+      "comment": "A curated topic label attached to a repository."
+    },
+    {
+      "id": "ProgrammingLanguage",
+      "label": "Programming Language",
+      "kind": "concept",
+      "comment": "A programming language associated with a repository."
+    },
+    {
+      "id": "Institution",
+      "label": "Institution",
+      "kind": "entity",
+      "comment": "An institution linked to a repository, sourced from institution_infos."
+    },
+    {
+      "id": "StrategicTag",
+      "label": "Strategic Tag",
+      "kind": "concept",
+      "comment": "A strategic classification tag applied to a repository."
+    }
+  ],
+  "objectProperties": [
+    {
+      "id": "hasOwner",
+      "label": "has owner",
+      "domain": "CodeRepository",
+      "range": "RepositoryOwner",
+      "comment": "Links a repository to its owner."
+    },
+    {
+      "id": "hasTopic",
+      "label": "has topic",
+      "domain": "CodeRepository",
+      "range": "Topic",
+      "comment": "Links a repository to one of its declared topics."
+    },
+    {
+      "id": "hasLanguage",
+      "label": "has language",
+      "domain": "CodeRepository",
+      "range": "ProgrammingLanguage",
+      "comment": "Links a repository to a programming language it uses."
+    },
+    {
+      "id": "hasInstitution",
+      "label": "has institution",
+      "domain": "CodeRepository",
+      "range": "Institution",
+      "comment": "Links a repository to an associated institution."
+    },
+    {
+      "id": "hasStrategicTag",
+      "label": "has strategic tag",
+      "domain": "CodeRepository",
+      "range": "StrategicTag",
+      "comment": "Links a repository to a strategic tag identifier."
+    }
+  ],
+  "datatypeProperties": [
+    {
+      "id": "title",
+      "label": "title",
+      "domain": "CodeRepository",
+      "range": "xsd:string",
+      "comment": "Stable display title of the repository."
+    },
+    {
+      "id": "url",
+      "label": "url",
+      "domain": "CodeRepository",
+      "range": "xsd:anyURI",
+      "comment": "Canonical URL of the repository."
+    },
+    {
+      "id": "countryCode",
+      "label": "country code",
+      "domain": "CodeRepository",
+      "range": "xsd:string",
+      "comment": "ISO country code associated with the repository, when available."
+    },
+    {
+      "id": "introduction",
+      "label": "introduction",
+      "domain": "CodeRepository",
+      "range": "xsd:string",
+      "comment": "Descriptive introduction / README summary text for the repository."
+    },
+    {
+      "id": "publishedAt",
+      "label": "published at",
+      "domain": "CodeRepository",
+      "range": "xsd:date",
+      "comment": "Date the repository was originally published."
+    },
+    {
+      "id": "starCount",
+      "label": "star count",
+      "domain": "CodeRepositoryObservation",
+      "range": "xsd:integer",
+      "comment": "Mutable count of stars at observation time."
+    },
+    {
+      "id": "forkCount",
+      "label": "fork count",
+      "domain": "CodeRepositoryObservation",
+      "range": "xsd:integer",
+      "comment": "Mutable count of forks at observation time."
+    },
+    {
+      "id": "watchCount",
+      "label": "watch count",
+      "domain": "CodeRepositoryObservation",
+      "range": "xsd:integer",
+      "comment": "Mutable count of watchers at observation time."
+    }
+  ],
+  "scalarMappings": [
+    {
+      "path": "/title",
+      "propertyId": "title",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/url",
+      "propertyId": "url",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/country_code",
+      "propertyId": "countryCode",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/introduction",
+      "propertyId": "introduction",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/published_at",
+      "propertyId": "publishedAt",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/star_count",
+      "propertyId": "starCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/fork_count",
+      "propertyId": "forkCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/watch_count",
+      "propertyId": "watchCount",
+      "subject": "observation",
+      "multiple": false
+    }
+  ],
+  "relationMappings": [
+    {
+      "path": "/owner",
+      "propertyId": "hasOwner",
+      "targetClassId": "RepositoryOwner",
+      "targetIdPath": "/name",
+      "targetLabelPath": "/name",
+      "targetLabelPropertyId": "label"
+    },
+    {
+      "path": "/topics/*",
+      "propertyId": "hasTopic",
+      "targetClassId": "Topic",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "label"
+    },
+    {
+      "path": "/languages/*",
+      "propertyId": "hasLanguage",
+      "targetClassId": "ProgrammingLanguage",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "label"
+    },
+    {
+      "path": "/institution_infos/*",
+      "propertyId": "hasInstitution",
+      "targetClassId": "Institution",
+      "targetIdPath": "/institution_id",
+      "targetLabelPath": "/name",
+      "targetLabelPropertyId": "label"
+    },
+    {
+      "path": "/strategic_tag_ids/*",
+      "propertyId": "hasStrategicTag",
+      "targetClassId": "StrategicTag",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "label"
+    }
+  ],
+  "approval": {
+    "decision": "approve",
+    "generatedBy": "glm-5.2-1m",
+    "rationale": "Stable identifiers (title, url, country_code, introduction, published_at) and the owner object are bound to the CodeRepository entity; mutable engagement counters (star_count, fork_count, watch_count) are bound to CodeRepositoryObservation. Array-valued semantic fields (topics, languages, institution_infos, strategic_tag_ids) and the nested owner object are promoted to typed relation targets rather than opaque JSON strings, with empty targetIdPath/targetLabelPath where the source contract does not expose nested keys, preserving unknown values conservatively."
+  }
+}

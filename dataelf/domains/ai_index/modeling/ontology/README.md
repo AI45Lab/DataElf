@@ -2,17 +2,17 @@
 
 `dataelf/domains/ai_index/modeling/ontology/` 是 AI Index domain 私有的 Stage 1/2 实现；领域适配位于
 `dataelf/domains/ai_index/modeling/`。正式入口不是分别运行
-Stage 1 或 Stage 2，而是一次完整的 `dataelf discover`：
+Stage 1 或 Stage 2，而是一次完整的 `dataelf run --domain ai_index`：
 
 ```text
 AI Index API raw
   -> Ontology Stage 1（动态建模，或固定模板的确定性绑定）
   -> Ontology Stage 2（抽取、RDF 物化、验证、审核）
-  -> 配置选择的 Pi 或 DeepAgentsCode 基于 graph.nq 调研
+  -> Pi 基于 graph.nq 调研
   -> quality review / finalize
 ```
 
-每个新 job 都重新采集 raw 并重新生成 RDF。默认模式会重新建立 ontology；选择固定
+每个新 job 都重新采集 raw 并重新生成 RDF。动态模式会重新建立 ontology；选择固定
 模板后跳过 Stage 1 generator/reviewer，只生成与当前 raw hash 绑定的 source index、
 grounding 和验证产物。正式流程不会读取其他 job 的 ontology、checkpoint、compiled
 plan 或 RDF。Stage 1/2 的独立 CLI 仅保留为开发诊断入口。
@@ -26,99 +26,73 @@ plan 或 RDF。Stage 1/2 的独立 CLI 仅保留为开发诊断入口。
 ```bash
 uv venv
 uv pip install -e ".[dev]"
-npm install
-```
-
-如果项目级 Pi package 尚未安装：
-
-```bash
-PI_CODING_AGENT_DIR=.pi/agent npm_config_cache=.npm-cache \
-  ./node_modules/.bin/pi install npm:@quarkos/pi-fusion --local --approve
+dataelf setup
 ```
 
 ## 2. 配置
 
-推荐将本机配置写入 git 忽略的 `dataelf.local.yaml`：
+Agent 配置（例如 `dataelf.local.yaml`）中的建模部分只保留开关与统一配置路径：
 
 ```yaml
-workspace_dir: .dataelf
-ai_index_mode: api
-ai_index_base_url: https://index.shlab.org.cn/api/v2
-ai_index_api_key: ak_...
-enable_sqlite: false
-
-insights_explorer: pi
-pi_binary: ./node_modules/.bin/pi
-pi_model: openai/glm-5.2-1m
-pi_mode: json
-pi_cwd: .
-pi_timeout_seconds: 3000
-pi_log_mode: summary
-
-ai_index_modeling:
-  enabled: true
-  ontology_template:               # ai_index_search 可跳过 Stage 1 模型生成
-  stage1_config: dataelf/domains/ai_index/modeling/ontology/stage1/config.yaml
-  stage2_config: dataelf/domains/ai_index/modeling/ontology/stage2/config.yaml
-  raw_page_size: 50
-  model_name: glm-5.2-1m
-  model_max_tokens:
-  stage1_process_timeout_seconds: 7200
-  stage1_request_timeout_seconds: 900
-  stage1_request_max_retries: 3
-  stage2_request_timeout_seconds: 600
-  stage2_request_max_retries: 3
-  stage2_total_timeout_seconds: 1800
-
-env:
-  PI_CODING_AGENT_DIR: .pi/agent
-  OPENAI_BASE_URL: https://token.pjlab.org.cn/v1
-  OPENAI_API_KEY: sk-...
+domains:
+  ai_index:
+    modeling:
+      enabled: true
+      ontology_config: dataelf/domains/ai_index/modeling/ontology/config.yaml
 ```
 
-也可以不写密钥到文件：
+省略 `ontology_config` 时使用本地 `ontology/config.yaml`，开启建模时该文件必须存在且有效。
+该文件被 Git 忽略，不随仓库分发；首次部署需要自行提供完整配置，或通过 `--ontology-config` 指定已有配置。
+关闭建模时不读取文件。显式空路径无效。
 
-```bash
-export AI_INDEX_API_KEY='...'
-export OPENAI_BASE_URL='https://token.pjlab.org.cn/v1'
-export OPENAI_API_KEY='...'
+所有 ontology 参数集中在本地 `config.yaml`：
+
+```yaml
+ontology_template: ai_index_search  # null 使用动态 Stage 1
+raw_page_size: 50
+worker_timeout_seconds: 9120       # 整个 worker 的总时限，单位秒
+stage1:
+  source: ...                      # raw / profiling 配置
+  ontology: ...                    # namespace、domain pack、competency questions
+  generator: ...                   # 模型、token、进程/请求超时和重试
+  reviewer: ...
+  pi: ...                          # runtime 路径
+  quality: ...
+  checkpoint: ...
+  artifacts: ...
+stage2:
+  compiler: ...                    # 模型、token、请求超时和重试
+  reviewer: ...
+  total_stage_timeout_seconds: 1800
+  output: ...
+  vocabulary: ...
+  quality: ...
 ```
 
-环境变量优先于 YAML。完整字段和对应环境变量见下方“配置字段”。
+上面展示分区结构；可运行的完整内容以 `config.yaml` 为准。
+Stage 1 / Stage 2 参数直接生效，外层不再用默认值覆盖它们。模型凭证仍通过各角色的
+`api_key_env` / `base_url_env` 指定环境变量，从进程环境或 DataElf 的 `env` 映射注入。
+
+统一配置内的 `domain_pack_path`、`pi.repo`、带目录的 `pi.node` 相对于统一文件所在目录解析；
+raw 和 artifact 子目录仍相对于 job workspace。复制配置到其他位置时需相应调整资源路径。
+外层的相对 `ontology_config` 路径相对于启动目录解析，启动 worker 前转换为绝对路径。
 
 ## 3. 正式运行
 
-使用自动加载的 `dataelf.local.yaml`：
-
 ```bash
-dataelf discover \
+dataelf run --domain ai_index --modeling \
   '围绕 Agentic LLMs，基于 AI Index，发现最近值得关注的 3 个 insight'
+
+# 使用另一份完整的统一配置
+dataelf run --domain ai_index --modeling --ontology-config /path/to/ontology.yaml \
+  '围绕 Agentic LLMs，发现最近值得关注的 3 个 insight'
 ```
 
-显式选择固定模板：
+固定模板通过统一文件中的 `ontology_template: ai_index_search` 选择；设为 `null` 则运行
+Stage 1 generator/reviewer。模板模式仍会绑定本次 raw、校验 source 兼容性，并执行 Stage 2。
+不兼容时明确失败，不会静默回退动态 Stage 1。
 
-```bash
-dataelf discover \
-  '围绕 Agentic LLMs，基于 AI Index，发现最近值得关注的 3 个 insight' \
-  --insights-explorer pi \
-  --ai-index-modeling \
-  --ontology-template ai_index_search
-```
-
-也可以设置 `ai_index_modeling.ontology_template: ai_index_search` 或
-`DATAELF_AI_INDEX_MODELING_ONTOLOGY_TEMPLATE=ai_index_search`。模板模式严格校验三个 search endpoint；
-如果规范化 raw 字段新增、缺失或变更类型，工作流明确失败并输出兼容性错误，不会
-静默回退动态 Stage 1。
-
-若要关闭建模并使用原 CSV-first 流程：
-
-```yaml
-insights_explorer: pi
-ai_index_modeling:
-  enabled: false
-```
-
-建模阶段与 Explorer runtime 独立；`pi` 和 `deepagentscode` 都消费同一个 typed artifact/prompt contract。
+关闭建模使用 `--no-modeling` 或 `domains.ai_index.modeling.enabled: false`。
 
 ## 4. 输出
 
@@ -156,24 +130,23 @@ ai_index_modeling:
 graph；`graph.nt` 和 `graph.rdf` 只是 union compatibility view。Pi 不会把 workspace
 原始 CSV 当作 AI Index 主分析输入，但可以生成 SPARQL/RDFLib 查询结果 CSV。
 
-## 5. 配置字段
+## 5. 配置迁移
 
-| YAML | 环境变量 | 含义 |
-|---|---|---|
-| `insights_explorer` | `DATAELF_INSIGHTS_EXPLORER` | Agent runtime：`pi` 或 `deepagentscode` |
-| `ai_index_modeling.enabled` | `DATAELF_AI_INDEX_MODELING_ENABLED` | 在 Explorer 前启用 AI Index 建模 |
-| `ai_index_modeling.stage1_config` | `DATAELF_AI_INDEX_MODELING_STAGE1_CONFIG` | Stage 1 内部配置路径 |
-| `ai_index_modeling.stage2_config` | `DATAELF_AI_INDEX_MODELING_STAGE2_CONFIG` | Stage 2 内部配置路径 |
-| `ai_index_modeling.ontology_template` | `DATAELF_AI_INDEX_MODELING_ONTOLOGY_TEMPLATE` | `ai_index_search` 跳过 Stage 1 模型；空值动态建模 |
-| `ai_index_modeling.raw_page_size` | `DATAELF_AI_INDEX_MODELING_RAW_PAGE_SIZE` | 三个 endpoint 第一页大小，范围 1–50 |
-| `ai_index_modeling.model_name` | `DATAELF_AI_INDEX_MODELING_MODEL_NAME` | 覆盖 Stage 1/2 模型角色 |
-| `ai_index_modeling.model_max_tokens` | `DATAELF_AI_INDEX_MODELING_MODEL_MAX_TOKENS` | 可选统一输出上限 |
+| 位置 | 配置 |
+|---|---|
+| Agent config | `domains.ai_index.modeling.enabled`、`domains.ai_index.modeling.ontology_config` |
+| 外层环境变量 | `DATAELF_AI_INDEX_MODELING_ENABLED`、`DATAELF_AI_INDEX_MODELING_ONTOLOGY_CONFIG` |
+| 统一 ontology config | `ontology_template`、`raw_page_size`、`worker_timeout_seconds`、`stage1`、`stage2` |
 
-其余 timeout/retry 字段采用同样的 `DATAELF_AI_INDEX_MODELING_*` 前缀。
+旧 `stage1/config.yaml`、`stage2/config.yaml` 合并为 `ontology/config.yaml`，不再保留独立配置。
+外层旧字段 `stage1_config`、`stage2_config`、`ontology_template`、`model_name`、
+`model_max_tokens` 以及各 timeout/retry 字段均移除；模型和 token 上限分别填写到
+`stage1.generator`、`stage1.reviewer`、`stage2.compiler`、`stage2.reviewer`。
+`stage2_config.stage1_config` 交叉引用也已移除。
 
-Pi 自身使用 `pi_model`、`pi_timeout_seconds`、`pi_log_mode` 等原配置。默认策略是
-Stage 1 agent 进程不自动从头重跑；其中的单次模型请求可以重试。Stage 2 的每次请求
-可以重试，但始终受共享 stage deadline 约束。
+旧模板/模型/timeout 环境变量不再覆盖 ontology 参数，CLI 的 `--ontology-template`
+替换为 `--ontology-config`。`worker_timeout_seconds` 控制完整 worker 的总时限；
+角色进程/请求超时和 Stage 2 总时限各自在分区内配置。
 
 ## 6. 失败与排查
 
@@ -212,4 +185,4 @@ python dataelf/domains/ai_index/modeling/ontology/stage2/run.py validate \
   --bundle .dataelf/workspaces/job_<id>/ontology/stage2/published/<run_id>
 ```
 
-正常使用只运行一次 `dataelf discover`。
+正常使用只运行一次 `dataelf run --domain ai_index`。

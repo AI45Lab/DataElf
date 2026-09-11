@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import logging
 from pathlib import Path
 from typing import Any, Protocol
@@ -13,12 +14,15 @@ from dataelf.discovery.contracts import (
     DiscoveryJob,
     DomainPlugin,
     JobSpec,
+    InsightsExplorer,
     ReviewResult,
 )
 from dataelf.discovery.domain_registry import DomainRegistry
 from dataelf.discovery.explorer_factory import create_explorer
 from dataelf.discovery.prompt_builder import write_discovery_prompt
 from dataelf.discovery.workspace import prepare_workspace
+from dataelf.discovery.redaction import redact_text, redact_data, secret_values
+from dataelf.discovery.run_control import RunControl, RunCancelled, activate_run, check_cancelled, current_run
 from dataelf.schemas import new_id, now_utc
 from dataelf.stores.sqlite_store import SQLiteStore
 
@@ -44,22 +48,58 @@ class NullStore:
         return None
 
 
-def run_job(spec: JobSpec, config: DataElfConfig, registry: DomainRegistry | None = None) -> DiscoveryJob:
+def run_job(
+    spec: JobSpec, config: DataElfConfig, registry: DomainRegistry | None = None,
+    *, plugin: DomainPlugin | None = None, explorer: InsightsExplorer | None = None,
+    control: RunControl | None = None,
+) -> DiscoveryJob:
+    """Execute one job; optional injected components preserve the default research path."""
+    control = control or RunControl()
+    control.secrets.update(secret_values(config.model_dump()) | secret_values(os.environ))
     config.ensure_dirs()
     store = _create_store(config)
-    plugin = (registry or DomainRegistry()).load_plugin(spec.domain, config)
-    spec = plugin.normalize_spec(spec)
-    job = _initialize_job(spec, config, store)
-    workspace = prepare_workspace(Path(job.workspace_path), spec)
-    job.artifacts.append(ArtifactRef(
-        artifact_id="job_spec", kind="job_spec", path="job_spec.json", role="input",
-        producer_stage="core", media_type="application/json",
-    ))
-    context = DiscoveryContext(
-        workspace_path=str(workspace), spec=spec, manifest=plugin.manifest,
-        model=config.explorer.pi.model, env=dict(config.env),
-    )
+    with activate_run(control):
+        job = _initialize_job(spec, config, store)
+        workspace = prepare_workspace(Path(job.workspace_path), spec)
+        control.workspace_path = workspace
+        job.artifacts.append(ArtifactRef(
+            artifact_id="job_spec", kind="job_spec", path="job_spec.json", role="input",
+            producer_stage="core", media_type="application/json",
+        ))
+        try:
+            control.emit("initialization")
+            control.check()
+            if spec.workflow_profile == "server" and (plugin is None or explorer is None):
+                raise ValueError("server profile requires explicit plugin and explorer components")
+            plugin = plugin or (registry or DomainRegistry()).load_plugin(spec.domain, config)
+            spec = plugin.normalize_spec(spec)
+            job.spec = spec
+            prepare_workspace(workspace, spec)
+            context = DiscoveryContext(
+                workspace_path=str(workspace), spec=spec, manifest=plugin.manifest,
+                model=config.explorer.pi.model, env=dict(config.env),
+            )
+            return _run_stages(job, config, store, workspace, plugin, context, explorer)
+        except Exception as exc:
+            code = "RUN_CANCELLED" if isinstance(exc, RunCancelled) else getattr(exc, "code", f"{control.stage.upper()}_FAILED")
+            message = redact_text(exc, secret_values(config.model_dump()))
+            return _fail(job, store, workspace, control.stage, code, message)
+        finally:
+            close = getattr(store, "close", None)
+            if callable(close):
+                close()
 
+
+def _stage(name: str) -> None:
+    check_cancelled()
+    control = current_run()
+    if control:
+        control.emit(name)
+
+
+def _run_stages(job, config, store, workspace, plugin, context, explorer):
+    spec = job.spec
+    _stage("domain_prepare")
     preparation = plugin.prepare(spec, str(workspace), config)
     _trace_stage(store, job, "domain_prepare", preparation)
     if preparation.status != "completed":
@@ -75,8 +115,10 @@ def run_job(spec: JobSpec, config: DataElfConfig, registry: DomainRegistry | Non
         "artifacts": list(job.artifacts),
     })
 
+    _stage("domain_prepared")
     modeler = plugin.create_modeler(spec, config)
     if modeler is not None:
+        _stage("domain_modeling")
         modeling = modeler.run(job, context)
         _trace_stage(store, job, "domain_modeling", modeling)
         if modeling.status != "completed":
@@ -92,6 +134,7 @@ def run_job(spec: JobSpec, config: DataElfConfig, registry: DomainRegistry | Non
             "artifacts": list(job.artifacts),
         })
 
+    _stage("prompt_composition")
     contract = plugin.output_contract(spec)
     prompt_path = write_discovery_prompt(job, context, plugin.build_prompt(job, context), contract)
     job.artifacts.append(ArtifactRef(
@@ -99,7 +142,8 @@ def run_job(spec: JobSpec, config: DataElfConfig, registry: DomainRegistry | Non
         role="input", producer_stage="prompt_composer", media_type="text/markdown",
     ))
     context = context.model_copy(update={"prompt_path": str(prompt_path)})
-    explorer = create_explorer(config)
+    _stage("explorer")
+    explorer = explorer or create_explorer(config)
     explorer_result = explorer.run(job, context)
     job.artifacts.extend(explorer_result.artifacts)
     try:
@@ -113,6 +157,7 @@ def run_job(spec: JobSpec, config: DataElfConfig, registry: DomainRegistry | Non
             explorer_result.error_message or "Pi explorer failed.",
         )
 
+    _stage("output_validation")
     try:
         outputs, contract_warnings = validate_outputs(workspace, contract)
     except ArtifactContractError as exc:
@@ -124,6 +169,7 @@ def run_job(spec: JobSpec, config: DataElfConfig, registry: DomainRegistry | Non
         "warnings": contract_warnings,
     })
 
+    _stage("domain_review")
     review = plugin.review(job, str(workspace))
     if contract_warnings:
         review.warnings.extend(contract_warnings)
@@ -147,10 +193,11 @@ def _create_store(config: DataElfConfig) -> StoreLike:
 
 
 def _initialize_job(spec: JobSpec, config: DataElfConfig, store: StoreLike) -> DiscoveryJob:
-    job_id = new_id("job")
+    control = current_run()
+    job_id = (control.job_id if control else None) or new_id("job")
     job = DiscoveryJob(
         job_id=job_id, spec=spec, status="running",
-        workspace_path=str(config.runtime.workspaces_dir / job_id),
+        workspace_path=str((control.workspace_path if control else None) or config.runtime.workspaces_dir / job_id),
     )
     store.save_discovery_job(job)
     store.add_trace_event(job.job_id, "job_initialized", {
@@ -160,7 +207,11 @@ def _initialize_job(spec: JobSpec, config: DataElfConfig, store: StoreLike) -> D
 
 
 def _trace_stage(store: StoreLike, job: DiscoveryJob, stage: str, result: Any) -> None:
-    store.add_trace_event(job.job_id, f"{stage}_completed", result.model_dump(mode="json"))
+    control = current_run()
+    payload = redact_data(result.model_dump(mode="json", exclude={"env"}), control.secrets if control else ())
+    store.add_trace_event(job.job_id, f"{stage}_completed", payload)
+    if control:
+        control.record(f"{stage}_completed", payload)
 
 
 def _fail(
@@ -172,7 +223,8 @@ def _fail(
     error_message: str | None,
 ) -> DiscoveryJob:
     code = error_code or f"{stage.upper()}_FAILED"
-    message = error_message or f"{stage} failed."
+    control = current_run()
+    message = redact_text(error_message or f"{stage} failed.", control.secrets if control else ())
     review = ReviewResult(
         review_id=new_id("review"), job_id=job.job_id, status="skipped",
         warnings=[f"Skipped because {stage} failed ({code}): {message}"],
@@ -192,6 +244,21 @@ def _finalize(
     error_code: str | None = None,
     error_message: str | None = None,
 ) -> DiscoveryJob:
+    if not error_code:
+        _stage("finalization")
+    # Preserve intermediate evidence, including artifacts written before a
+    # component raised. Never inventory a path outside this run's workspace.
+    known = {item.path for item in job.artifacts}
+    for path in sorted(workspace.rglob("*")):
+        if not path.is_file() or path.is_symlink():
+            continue
+        relative = path.relative_to(workspace).as_posix()
+        if relative in known or relative in {"artifact_manifest.json", "workspace_index.json"}:
+            continue
+        if not path.resolve().is_relative_to(workspace.resolve()):
+            continue
+        job.artifacts.append(ArtifactRef(artifact_id=f"workspace_file_{len(job.artifacts)}", kind="workspace_file",
+            path=relative, role="evidence", producer_stage="finalization"))
     job.status = "failed" if error_code else "completed"
     job.error_code = error_code
     job.error_message = error_message

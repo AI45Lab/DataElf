@@ -82,10 +82,10 @@ def run(
         "--modeling-strategy",
         help="Domain-owned modeling strategy.",
     ),
-    ontology_template: str | None = typer.Option(
+    ontology_config: Path | None = typer.Option(
         None,
-        "--ontology-template",
-        help="AI Index domain option: use a fixed ontology template.",
+        "--ontology-config",
+        help="AI Index domain option: path to the unified ontology configuration.",
     ),
     parameter: list[str] = typer.Option(
         [],
@@ -100,15 +100,15 @@ def run(
         if modeling_enabled is not None:
             config = _override_domain_modeling(config, domain, modeling_enabled)
 
-        requested_template = _optional_text(ontology_template)
-        if requested_template:
+        requested_ontology_config = ontology_config.expanduser().resolve() if ontology_config is not None else None
+        if requested_ontology_config is not None:
             if domain != "ai_index":
-                raise typer.BadParameter("--ontology-template is only supported by the ai_index domain")
+                raise typer.BadParameter("--ontology-config is only supported by the ai_index domain")
             if modeling_enabled is False:
-                raise typer.BadParameter("--ontology-template requires --modeling")
+                raise typer.BadParameter("--ontology-config requires --modeling")
             if modeling_enabled is None and not _domain_modeling_enabled(config, domain):
-                raise typer.BadParameter("--ontology-template requires --modeling or enabled domain modeling config")
-            config = _set_domain_modeling_field(config, domain, "ontology_template", requested_template)
+                raise typer.BadParameter("--ontology-config requires --modeling or enabled domain modeling config")
+            config = _set_domain_modeling_field(config, domain, "ontology_config", requested_ontology_config)
 
         spec = JobSpec(
             domain=domain,

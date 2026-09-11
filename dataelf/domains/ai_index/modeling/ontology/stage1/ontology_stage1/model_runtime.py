@@ -114,26 +114,26 @@ def _execute(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        start_new_session=True,
+        start_new_session=not bool(environment.get("DATAELF_MANAGED_PROCESS_GROUP")),
     )
     try:
         stdout, stderr = process.communicate(timeout=timeout_seconds)
     except KeyboardInterrupt:
-        os.killpg(process.pid, signal.SIGTERM)
+        (process.terminate() if environment.get("DATAELF_MANAGED_PROCESS_GROUP") else os.killpg(process.pid, signal.SIGTERM))
         try:
             stdout, stderr = process.communicate(timeout=20)
         except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
+            (process.kill() if environment.get("DATAELF_MANAGED_PROCESS_GROUP") else os.killpg(process.pid, signal.SIGKILL))
             stdout, stderr = process.communicate()
         stderr_path.parent.mkdir(parents=True, exist_ok=True)
         stderr_path.write_text(str(redact(stderr)), encoding="utf-8")
         raise
     except subprocess.TimeoutExpired as exc:
-        os.killpg(process.pid, signal.SIGTERM)
+        (process.terminate() if environment.get("DATAELF_MANAGED_PROCESS_GROUP") else os.killpg(process.pid, signal.SIGTERM))
         try:
             stdout, stderr = process.communicate(timeout=20)
         except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
+            (process.kill() if environment.get("DATAELF_MANAGED_PROCESS_GROUP") else os.killpg(process.pid, signal.SIGKILL))
             stdout, stderr = process.communicate()
         stderr_path.parent.mkdir(parents=True, exist_ok=True)
         stderr_path.write_text(str(redact(stderr)), encoding="utf-8")

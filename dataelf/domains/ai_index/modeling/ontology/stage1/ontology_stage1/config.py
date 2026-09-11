@@ -5,7 +5,7 @@ from pathlib import Path
 import shutil
 from typing import Any
 
-import yaml
+from dataelf.domains.ai_index.modeling.ontology.common.config import read_config
 
 
 @dataclass(frozen=True)
@@ -144,9 +144,15 @@ def _model(raw: Any, defaults: ModelConfig, label: str) -> ModelConfig:
 
 
 def load_config(path: str | Path) -> Stage1Config:
-    config_path = Path(path).expanduser().resolve()
-    raw = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    root = _mapping(raw, "configuration")
+    config_path, root = read_config(path)
+    return parse_config(config_path, root["stage1"])
+
+
+def parse_config(config_path: Path, root: dict[str, Any]) -> Stage1Config:
+    allowed = {"source", "ontology", "generator", "reviewer", "pi", "quality", "checkpoint", "artifacts"}
+    unknown = set(root) - allowed
+    if unknown:
+        raise ValueError(f"Unknown stage1 config keys: {', '.join(sorted(map(str, unknown)))}")
     base = config_path.parent
     source = _mapping(root.get("source"), "source")
     ontology = _mapping(root.get("ontology"), "ontology")
@@ -179,7 +185,7 @@ def load_config(path: str | Path) -> Stage1Config:
             namespace=str(ontology.get("namespace", "urn:dataelf:ontology:ai-index:")),
             title=str(ontology.get("title", "DataElf AI Index Ontology")),
             label_language=str(ontology.get("label_language", "en")),
-            domain_pack_path=_resolve(base, ontology.get("domain_pack_path", "../../dataelf/domains/ai_index/domain.yaml")),
+            domain_pack_path=_resolve(base, ontology.get("domain_pack_path", "../../domain.yaml")),
             competency_questions=questions,
         ),
         generator=_model(root.get("generator"), ModelConfig(), "generator"),
@@ -189,7 +195,7 @@ def load_config(path: str | Path) -> Stage1Config:
             "reviewer",
         ),
         pi=PiConfig(
-            repo=_resolve(base, pi.get("repo", "../..")),
+            repo=_resolve(base, pi.get("repo", "../../../../..")),
             node=_resolve_executable(base, pi.get("node", "node")),
             supported_version=str(pi.get("supported_version", "0.80.3")),
         ),

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
 from pathlib import Path
 from typing import Callable
 
@@ -20,55 +19,27 @@ class AIIndexOntologyRunner:
 
     def __init__(
         self,
-        stage1_config_path: str | Path,
-        stage2_config_path: str | Path,
+        ontology_config_path: str | Path,
         *,
-        ontology_template: str | None = None,
-        model_name: str | None = None,
-        model_max_tokens: int | None = None,
-        stage1_process_timeout_seconds: int = 7200,
-        stage1_request_timeout_seconds: int = 900,
-        stage1_request_max_retries: int = 3,
-        stage2_request_timeout_seconds: int = 600,
-        stage2_request_max_retries: int = 3,
-        stage2_total_timeout_seconds: int = 1800,
         progress: Callable[[str], None] | None = None,
     ):
-        self.stage1_config_path = _config_path(stage1_config_path)
-        self.stage2_config_path = _config_path(stage2_config_path)
-        self.ontology_template = ontology_template.strip() if ontology_template and ontology_template.strip() else None
-        self.model_name = model_name.strip() if model_name and model_name.strip() else None
-        self.model_max_tokens = model_max_tokens
-        self.stage1_process_timeout_seconds = stage1_process_timeout_seconds
-        self.stage1_request_timeout_seconds = stage1_request_timeout_seconds
-        self.stage1_request_max_retries = stage1_request_max_retries
-        self.stage2_request_timeout_seconds = stage2_request_timeout_seconds
-        self.stage2_request_max_retries = stage2_request_max_retries
-        self.stage2_total_timeout_seconds = stage2_total_timeout_seconds
+        self.ontology_config_path = Path(ontology_config_path).expanduser().resolve()
         self.progress = progress or (lambda _stage: None)
 
     def run(self, workspace_path: Path) -> OntologyRunResult:
         workspace = workspace_path.resolve()
         self.progress("stage1")
         try:
-            from dataelf.domains.ai_index.modeling.ontology.stage1.ontology_stage1.config import load_config as load_stage1_config
+            from dataelf.domains.ai_index.modeling.ontology.config import load_config
             from dataelf.domains.ai_index.modeling.ontology.stage1.ontology_stage1.pipeline import validate_published_bundle
 
-            stage1_config = _with_model_overrides(
-                load_stage1_config(self.stage1_config_path),
-                fields=("generator", "reviewer"),
-                name=self.model_name,
-                max_tokens=self.model_max_tokens,
-                model_updates={
-                    "process_timeout_seconds": self.stage1_process_timeout_seconds,
-                    "request_timeout_seconds": self.stage1_request_timeout_seconds,
-                    "request_max_retries": self.stage1_request_max_retries,
-                },
-            )
-            if self.ontology_template:
+            config = load_config(self.ontology_config_path)
+            stage1_config = config.stage1
+            ontology_template = config.ontology_template
+            if ontology_template:
                 from dataelf.domains.ai_index.modeling.template import bind_template
 
-                stage1 = bind_template(stage1_config, workspace, self.ontology_template)
+                stage1 = bind_template(stage1_config, workspace, ontology_template)
                 stage1_attempts = 0
             else:
                 from dataelf.domains.ai_index.modeling.ontology.stage1.ontology_stage1.pipeline import generate_pipeline
@@ -109,7 +80,7 @@ class AIIndexOntologyRunner:
                 details={
                     "stage1": stage1,
                     "stage1Attempts": stage1_attempts,
-                    "stage1Mode": "template" if self.ontology_template else "generated",
+                    "stage1Mode": "template" if ontology_template else "generated",
                 },
             )
 
@@ -131,7 +102,7 @@ class AIIndexOntologyRunner:
                 details={
                     "stage1": stage1,
                     "stage1Attempts": stage1_attempts,
-                    "stage1Mode": "template" if self.ontology_template else "generated",
+                    "stage1Mode": "template" if ontology_template else "generated",
                 },
             )
         if stage1_validation.get("status") != "valid":
@@ -145,30 +116,16 @@ class AIIndexOntologyRunner:
                 details={
                     "stage1": stage1,
                     "stage1Attempts": stage1_attempts,
-                    "stage1Mode": "template" if self.ontology_template else "generated",
+                    "stage1Mode": "template" if ontology_template else "generated",
                     "stage1Validation": stage1_validation,
                 },
             )
 
         try:
             self.progress("stage2")
-            from dataelf.domains.ai_index.modeling.ontology.stage2.ontology_stage2.config import load_config as load_stage2_config
             from dataelf.domains.ai_index.modeling.ontology.stage2.ontology_stage2.pipeline import build, validate_published
 
-            stage2_config = _with_model_overrides(
-                load_stage2_config(self.stage2_config_path),
-                fields=("compiler", "reviewer"),
-                name=self.model_name,
-                max_tokens=self.model_max_tokens,
-                model_updates={
-                    "request_timeout_seconds": self.stage2_request_timeout_seconds,
-                    "request_max_retries": self.stage2_request_max_retries,
-                },
-            )
-            stage2_config = replace(
-                stage2_config,
-                total_stage_timeout_seconds=self.stage2_total_timeout_seconds,
-            )
+            stage2_config = config.stage2
             stage2 = build(stage2_config, workspace, resume_run_id=None)
             stage2_attempts = 1
         except Exception as exc:
@@ -187,7 +144,7 @@ class AIIndexOntologyRunner:
                 details={
                     "stage1": stage1,
                     "stage1Attempts": stage1_attempts,
-                    "stage1Mode": "template" if self.ontology_template else "generated",
+                    "stage1Mode": "template" if ontology_template else "generated",
                 },
             )
 
@@ -204,14 +161,16 @@ class AIIndexOntologyRunner:
                 details={
                     "stage1": stage1,
                     "stage1Attempts": stage1_attempts,
-                    "stage1Mode": "template" if self.ontology_template else "generated",
+                    "stage1Mode": "template" if ontology_template else "generated",
                     "stage2": stage2,
                     "stage2Attempts": stage2_attempts,
                 },
             )
 
         bundle = Path(str(stage2.get("bundle", ""))).resolve()
-        rdfxml = Path(str(stage2.get("stableRdf", bundle / stage2_config.output.rdfxml_name))).resolve()
+        # stableRdf is an export beside the workspace. Core artifacts must use
+        # the validated published copy inside this job's workspace instead.
+        rdfxml = (bundle / stage2_config.output.rdfxml_name).resolve()
         nquads = (bundle / stage2_config.output.nquads_name).resolve()
         ntriples = (bundle / stage2_config.output.ntriples_name).resolve()
         manifest = (bundle / stage2_config.output.manifest_name).resolve()
@@ -242,7 +201,7 @@ class AIIndexOntologyRunner:
                 details={
                     "stage1": stage1,
                     "stage1Attempts": stage1_attempts,
-                    "stage1Mode": "template" if self.ontology_template else "generated",
+                    "stage1Mode": "template" if ontology_template else "generated",
                     "stage1Validation": stage1_validation,
                     "stage2": stage2,
                     "stage2Attempts": stage2_attempts,
@@ -264,7 +223,7 @@ class AIIndexOntologyRunner:
             details={
                 "stage1": stage1,
                 "stage1Attempts": stage1_attempts,
-                "stage1Mode": "template" if self.ontology_template else "generated",
+                "stage1Mode": "template" if ontology_template else "generated",
                 "stage1Validation": stage1_validation,
                 "stage2": stage2,
                 "stage2Attempts": stage2_attempts,
@@ -298,35 +257,8 @@ def _is_contract_error(exc: Exception) -> bool:
     return exc.__class__.__name__ == "ContractError"
 
 
-def _config_path(value: str | Path) -> Path:
-    path = Path(value).expanduser()
-    if path.is_absolute() or path.is_file():
-        return path
-    packaged = Path(__file__).resolve().parents[4] / path
-    return packaged if packaged.is_file() else path
-
-
 def _optional_string(value: object) -> str | None:
     return str(value) if value not in (None, "") else None
-
-
-def _with_model_overrides(
-    config: object,
-    *,
-    fields: tuple[str, ...],
-    name: str | None,
-    max_tokens: int | None,
-    model_updates: dict[str, object],
-) -> object:
-    replacements = {}
-    for field in fields:
-        updates = dict(model_updates)
-        if name:
-            updates["name"] = name
-        if max_tokens is not None:
-            updates["max_tokens"] = max_tokens
-        replacements[field] = replace(getattr(config, field), **updates)
-    return replace(config, **replacements)
 
 
 def _rdf_invalid_reason(

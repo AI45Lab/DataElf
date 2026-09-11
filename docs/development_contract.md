@@ -353,6 +353,8 @@ Pi 接收 core 合成的 prompt、当前 `JobSpec`、prepared/modeling artifact 
 
 项目级 Pi runtime 由 `dataelf setup` 管理。它负责准备锁定的 Node/Pi CLI、Pi 分析包和项目内 npm cache，并在 `.dataelf/runtime/pi.json` 写入不含凭证的运行时清单。`dataelf run` 只消费已准备好的 runtime；不要在 domain plugin、case 脚本或用户文档中要求手工执行 npm/Pi 安装命令。Node.js/npm 仍是当前短期方案的主机前置依赖。
 
+运行依赖由执行组件装配：research 默认要求项目内 Fusion 包；Server 显式加载自己的扩展资源，不要求 Fusion，也不向临时 agent 目录安装包。共享 Pi 执行器通过 `required_packages` 接收包依赖，默认值保持 research 行为。API 的运行控制、组件与 workspace 通过 `run_job(..., plugin=..., explorer=..., control=...)` 注入；核心不反向依赖服务包。
+
 ## 9. Recommended package layout
 
 ```text

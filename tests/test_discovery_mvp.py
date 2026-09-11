@@ -417,18 +417,15 @@ def test_malformed_nested_config_is_rejected(
 
 def test_disabled_ai_index_modeling_preserves_dormant_settings() -> None:
     domain = AIIndexDomainConfig.from_mapping({
+        "source": {"mode": "fixture"},
         "modeling": {
             "enabled": False,
-            "ontology_template": "ai_index_search",
-            "stage1_config": "not-loaded-while-disabled/stage1.yaml",
-            "stage2_config": "not-loaded-while-disabled/stage2.yaml",
-            "model_name": "deepseek-v4-flash",
+            "ontology_config": "not-loaded-while-disabled/ontology.yaml",
         },
     })
 
     assert domain.modeling.enabled is False
-    assert domain.modeling.ontology_template == "ai_index_search"
-    assert domain.modeling.model_name == "deepseek-v4-flash"
+    assert domain.modeling.ontology_config.name == "ontology.yaml"
     domain.validate_for_run()
 
 
@@ -443,28 +440,21 @@ def test_ai_index_active_config_is_preflighted() -> None:
         empty_api.validate_for_run()
 
     missing_stages = AIIndexDomainConfig.from_mapping({
+        "source": {"mode": "fixture"},
         "modeling": {
             "enabled": True,
-            "stage1_config": "missing/stage1.yaml",
-            "stage2_config": "missing/stage2.yaml",
+            "ontology_config": "missing/ontology.yaml",
         },
     })
-    with pytest.raises(ValueError, match="stage1_config is not a file"):
+    with pytest.raises(ValueError, match="ontology_config is not a file"):
         missing_stages.validate_for_run()
 
-    unknown_template = AIIndexDomainConfig.from_mapping({
-        "modeling": {"enabled": True, "ontology_template": "does_not_exist"},
-    })
-    with pytest.raises(ValueError, match="unknown ontology template"):
-        unknown_template.validate_for_run()
 
-
-def test_optional_modeling_strings_are_trimmed() -> None:
+def test_modeling_config_path_is_trimmed() -> None:
     domain = AIIndexDomainConfig.from_mapping({
-        "modeling": {"enabled": False, "ontology_template": "   ", "model_name": " model-name  "},
+        "modeling": {"enabled": False, "ontology_config": " ontology.yaml  "},
     })
-    assert domain.modeling.ontology_template is None
-    assert domain.modeling.model_name == "model-name"
+    assert domain.modeling.ontology_config == Path("ontology.yaml").resolve()
 
 
 def test_cli_run_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -475,10 +465,7 @@ domains:
   ai_index:
     modeling:
       enabled: false
-      ontology_template: ai_index_search
-      stage1_config: not-loaded-while-disabled/stage1.yaml
-      stage2_config: not-loaded-while-disabled/stage2.yaml
-      model_name: deepseek-v4-flash
+      ontology_config: not-loaded-while-disabled/ontology.yaml
 """,
         encoding="utf-8",
     )
@@ -520,14 +507,15 @@ def test_cli_setup_is_the_user_facing_runtime_bootstrap(monkeypatch: pytest.Monk
     result = CliRunner().invoke(app, ["setup"])
     assert result.exit_code == 0
     assert "DataElf runtime is ready" in result.output
-    assert "runtime/pi.json" in result.output
+    # Rich may wrap a long temporary path at the terminal width.
+    assert str(manifest) in result.output.replace("\n", "")
 
 
 def test_external_pi_runtime_does_not_require_dataelf_package() -> None:
     assert runtime_ready_for_process("/usr/local/bin/pi", Path("/tmp/project"), {})
 
 
-def test_cli_rejects_explicit_template_when_modeling_is_disabled(
+def test_cli_rejects_explicit_ontology_config_when_modeling_is_disabled(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -538,7 +526,7 @@ def test_cli_rejects_explicit_template_when_modeling_is_disabled(
     monkeypatch.chdir(tmp_path)
     result = CliRunner().invoke(
         app,
-        ["run", "--domain", "ai_index", "test", "--ontology-template", "ai_index_search"],
+        ["run", "--domain", "ai_index", "test", "--ontology-config", "ontology.yaml"],
     )
     assert result.exit_code == 2
     assert "requires --modeling" in result.output
@@ -547,10 +535,9 @@ def test_cli_rejects_explicit_template_when_modeling_is_disabled(
 def test_ai_index_defaults_and_pi_event_summary() -> None:
     assert DEFAULT_AI_INDEX_MODE == "api"
     assert DEFAULT_AI_INDEX_BASE_URL == "https://index.shlab.org.cn/api/v2"
-    assert DEFAULT_AI_INDEX_API_KEY == "ak_0XWHy2OQpSKnaKHL"
+    assert DEFAULT_AI_INDEX_API_KEY == ""
     domain = AIIndexDomainConfig.from_mapping({})
-    assert domain.modeling.stage1_config.is_file()
-    assert domain.modeling.stage2_config.is_file()
+    assert domain.modeling.ontology_config.is_file()
     summary = _summarize_pi_event(json.dumps({
         "role": "assistant", "content": [{"type": "toolCall", "name": "bash", "arguments": {"command": "x" * 500}}],
         "usage": {"input": 12, "output": 3, "totalTokens": 15},

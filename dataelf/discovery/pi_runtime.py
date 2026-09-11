@@ -109,8 +109,15 @@ def runtime_ready(config: DataElfConfig, binary: Path | None = None) -> bool:
     return not is_managed_binary(binary) or pi_fusion_package(config).is_file()
 
 
-def runtime_ready_for_process(binary: str | Path | None, cwd: Path, env: dict[str, str]) -> bool:
-    """Readiness check for the explorer, which already has its child env."""
+def runtime_ready_for_process(
+    binary: str | Path | None, cwd: Path, env: dict[str, str],
+    *, required_packages: tuple[str, ...] = (PI_PACKAGE_NAME,),
+) -> bool:
+    """Check the packages required by this explorer's assembled runtime.
+
+    Research uses Fusion by default. Explicitly assembled runtimes may load
+    their resources directly and declare no project package dependencies.
+    """
     if binary is None:
         return False
     binary_path = Path(binary)
@@ -120,7 +127,8 @@ def runtime_ready_for_process(binary: str | Path | None, cwd: Path, env: dict[st
     agent_dir = Path(configured)
     if not agent_dir.is_absolute():
         agent_dir = cwd / agent_dir
-    return (agent_dir.resolve().parent / "npm" / "node_modules" / PI_PACKAGE_NAME / "package.json").is_file()
+    package_root = agent_dir.resolve().parent / "npm" / "node_modules"
+    return all((package_root / name / "package.json").is_file() for name in required_packages)
 
 
 def setup_pi_runtime(config: DataElfConfig) -> PiRuntimeResult:

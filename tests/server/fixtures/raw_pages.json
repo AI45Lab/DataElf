@@ -1,0 +1,51 @@
+{
+  "news": [
+    {
+      "news_id": "one",
+      "title": "模型工具发布",
+      "url": "https://example.com/news",
+      "date": "2026-08-27",
+      "text": "模型工具发布降低开发者采用门槛。"
+    }
+  ],
+  "twitter": [
+    {
+      "tweet_post_id": "two",
+      "blogger_name": "开发者",
+      "url": "https://example.com/tweet",
+      "published_at": "2026-08-27T09:00:00+08:00",
+      "text": "模型工具发布降低开发者采用门槛。"
+    }
+  ],
+  "github": [
+    {
+      "repo_id": "three",
+      "repo_name": "模型工具",
+      "url": "https://example.com/repo",
+      "published_at": "2026-08-27T09:00:00+08:00",
+      "description": "模型工具发布降低开发者采用门槛。",
+      "star_count": 10
+    }
+  ],
+  "huggingface": [
+    {
+      "model_id": "four",
+      "model_name": "模型工具",
+      "url": "https://example.com/model",
+      "published_at": "2026-08-27T09:00:00+08:00",
+      "description": "模型工具发布降低开发者采用门槛。",
+      "download_count": 10
+    }
+  ],
+  "youtube": [
+    {
+      "video_id": "five",
+      "video_info": {
+        "url": "https://example.com/video",
+        "title": "模型工具发布",
+        "publishtime": "2026-08-27",
+        "text": "模型工具发布降低开发者采用门槛。"
+      }
+    }
+  ]
+}

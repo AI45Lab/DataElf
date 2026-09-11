@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml
+from dataelf.domains.ai_index.modeling.ontology.common.config import read_config
 
 
 @dataclass(frozen=True)
@@ -45,7 +45,6 @@ class QualityConfig:
 @dataclass(frozen=True)
 class Stage2Config:
     path: Path
-    stage1_config: Path
     compiler: ModelConfig = field(default_factory=ModelConfig)
     reviewer: ModelConfig = field(default_factory=lambda: ModelConfig(max_tokens=8_192))
     output: OutputConfig = field(default_factory=OutputConfig)
@@ -70,11 +69,6 @@ def _tuple(value: Any, label: str, default: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(value)
 
 
-def _resolve(base: Path, value: Any) -> Path:
-    path = Path(str(value)).expanduser()
-    return path.resolve() if path.is_absolute() else (base / path).resolve()
-
-
 def _model(raw: Any, defaults: ModelConfig, label: str) -> ModelConfig:
     value = _mapping(raw, label)
     return ModelConfig(
@@ -93,15 +87,20 @@ def _model(raw: Any, defaults: ModelConfig, label: str) -> ModelConfig:
 
 
 def load_config(path: str | Path) -> Stage2Config:
-    target = Path(path).expanduser().resolve()
-    raw = yaml.safe_load(target.read_text(encoding="utf-8")) or {}
-    root = _mapping(raw, "configuration")
+    target, root = read_config(path)
+    return parse_config(target, root["stage2"])
+
+
+def parse_config(target: Path, root: dict[str, Any]) -> Stage2Config:
+    allowed = {"compiler", "reviewer", "output", "vocabulary", "quality", "total_stage_timeout_seconds"}
+    unknown = set(root) - allowed
+    if unknown:
+        raise ValueError(f"Unknown stage2 config keys: {', '.join(sorted(map(str, unknown)))}")
     output = _mapping(root.get("output"), "output")
     vocabulary = _mapping(root.get("vocabulary"), "vocabulary")
     quality = _mapping(root.get("quality"), "quality")
     result = Stage2Config(
         path=target,
-        stage1_config=_resolve(target.parent, root.get("stage1_config", "../stage1/config.yaml")),
         compiler=_model(root.get("compiler"), ModelConfig(), "compiler"),
         reviewer=_model(root.get("reviewer"), ModelConfig(max_tokens=8_192), "reviewer"),
         output=OutputConfig(

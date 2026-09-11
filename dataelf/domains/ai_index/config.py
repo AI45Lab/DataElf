@@ -9,12 +9,11 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 DEFAULT_AI_INDEX_BASE_URL = "https://index.shlab.org.cn/api/v2"
-DEFAULT_AI_INDEX_API_KEY = "ak_0XWHy2OQpSKnaKHL"
+DEFAULT_AI_INDEX_API_KEY = ""
 DEFAULT_AI_INDEX_MODE = "api"
 AI_INDEX_FIXTURE_FILES = ("papers.json", "institutions.json", "scholars.json")
 AI_INDEX_ONTOLOGY_ROOT = Path(__file__).resolve().parent / "modeling" / "ontology"
-DEFAULT_AI_INDEX_STAGE1_CONFIG = AI_INDEX_ONTOLOGY_ROOT / "stage1/config.yaml"
-DEFAULT_AI_INDEX_STAGE2_CONFIG = AI_INDEX_ONTOLOGY_ROOT / "stage2/config.yaml"
+DEFAULT_AI_INDEX_ONTOLOGY_CONFIG = AI_INDEX_ONTOLOGY_ROOT / "config.yaml"
 
 
 class AIIndexSourceConfig(BaseModel):
@@ -47,26 +46,14 @@ class AIIndexSourceConfig(BaseModel):
 class AIIndexModelingConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: bool = False
-    ontology_template: str | None = None
-    stage1_config: Path = Field(default_factory=lambda: DEFAULT_AI_INDEX_STAGE1_CONFIG)
-    stage2_config: Path = Field(default_factory=lambda: DEFAULT_AI_INDEX_STAGE2_CONFIG)
-    raw_page_size: int = Field(default=50, ge=1, le=50)
-    model_name: str | None = None
-    model_max_tokens: int | None = Field(default=None, ge=128)
-    stage1_process_timeout_seconds: int = Field(default=7200, ge=30)
-    stage1_request_timeout_seconds: int = Field(default=900, ge=30)
-    stage1_request_max_retries: int = Field(default=3, ge=0, le=10)
-    stage2_request_timeout_seconds: int = Field(default=600, ge=30)
-    stage2_request_max_retries: int = Field(default=3, ge=0, le=10)
-    stage2_total_timeout_seconds: int = Field(default=1800, ge=30)
+    ontology_config: Path = Field(default_factory=lambda: DEFAULT_AI_INDEX_ONTOLOGY_CONFIG)
 
-    @field_validator("ontology_template", "model_name", mode="before")
+    @field_validator("ontology_config", mode="before")
     @classmethod
-    def normalize_optional_strings(cls, value: Any) -> str | None:
-        if isinstance(value, str):
-            normalized = value.strip()
-            return normalized or None
-        return value
+    def normalize_config_path(cls, value: Any) -> Path:
+        if not isinstance(value, (str, Path)) or not str(value).strip():
+            raise ValueError("ontology_config must be a non-empty file path")
+        return Path(str(value).strip()).expanduser().resolve()
 
 
 class AIIndexDomainConfig(BaseModel):
@@ -79,36 +66,18 @@ class AIIndexDomainConfig(BaseModel):
         if not self.modeling.enabled:
             return
 
-        errors: list[str] = []
-        if not self.modeling.stage1_config.is_file():
-            errors.append(f"stage1_config is not a file: {self.modeling.stage1_config}")
-        if not self.modeling.stage2_config.is_file():
-            errors.append(f"stage2_config is not a file: {self.modeling.stage2_config}")
-        if errors:
-            raise ValueError("Invalid domains.ai_index.modeling configuration: " + "; ".join(errors))
-
+        if not self.modeling.ontology_config.is_file():
+            raise ValueError(f"ontology_config is not a file: {self.modeling.ontology_config}")
         try:
-            from dataelf.domains.ai_index.modeling.ontology.stage1.ontology_stage1.config import (
-                load_config as load_stage1_config,
-            )
-            from dataelf.domains.ai_index.modeling.ontology.stage2.ontology_stage2.config import (
-                load_config as load_stage2_config,
-            )
+            from dataelf.domains.ai_index.modeling.ontology.config import load_config
 
-            load_stage1_config(self.modeling.stage1_config)
-            stage2 = load_stage2_config(self.modeling.stage2_config)
-            if not stage2.stage1_config.is_file():
-                raise ValueError(f"Stage 2 stage1_config is not a file: {stage2.stage1_config}")
-        except Exception as exc:
-            raise ValueError(f"Invalid ontology Stage configuration: {exc}") from exc
-
-        if self.modeling.ontology_template:
-            try:
+            ontology = load_config(self.modeling.ontology_config)
+            if ontology.ontology_template:
                 from dataelf.domains.ai_index.modeling.template import load_template
 
-                load_template(self.modeling.ontology_template)
-            except Exception as exc:
-                raise ValueError(f"Invalid ontology template configuration: {exc}") from exc
+                load_template(ontology.ontology_template)
+        except Exception as exc:
+            raise ValueError(f"Invalid ontology configuration: {exc}") from exc
 
     @classmethod
     def from_mapping(cls, values: dict[str, Any]) -> "AIIndexDomainConfig":
@@ -129,18 +98,7 @@ class AIIndexDomainConfig(BaseModel):
         })
         env_fields = {
             "enabled": "DATAELF_AI_INDEX_MODELING_ENABLED",
-            "ontology_template": "DATAELF_AI_INDEX_MODELING_ONTOLOGY_TEMPLATE",
-            "stage1_config": "DATAELF_AI_INDEX_MODELING_STAGE1_CONFIG",
-            "stage2_config": "DATAELF_AI_INDEX_MODELING_STAGE2_CONFIG",
-            "raw_page_size": "DATAELF_AI_INDEX_MODELING_RAW_PAGE_SIZE",
-            "model_name": "DATAELF_AI_INDEX_MODELING_MODEL_NAME",
-            "model_max_tokens": "DATAELF_AI_INDEX_MODELING_MODEL_MAX_TOKENS",
-            "stage1_process_timeout_seconds": "DATAELF_AI_INDEX_MODELING_STAGE1_PROCESS_TIMEOUT_SECONDS",
-            "stage1_request_timeout_seconds": "DATAELF_AI_INDEX_MODELING_STAGE1_REQUEST_TIMEOUT_SECONDS",
-            "stage1_request_max_retries": "DATAELF_AI_INDEX_MODELING_STAGE1_REQUEST_MAX_RETRIES",
-            "stage2_request_timeout_seconds": "DATAELF_AI_INDEX_MODELING_STAGE2_REQUEST_TIMEOUT_SECONDS",
-            "stage2_request_max_retries": "DATAELF_AI_INDEX_MODELING_STAGE2_REQUEST_MAX_RETRIES",
-            "stage2_total_timeout_seconds": "DATAELF_AI_INDEX_MODELING_STAGE2_TOTAL_TIMEOUT_SECONDS",
+            "ontology_config": "DATAELF_AI_INDEX_MODELING_ONTOLOGY_CONFIG",
         }
         for field, env_name in env_fields.items():
             value = os.getenv(env_name)
@@ -152,5 +110,5 @@ class AIIndexDomainConfig(BaseModel):
 __all__ = [
     "AI_INDEX_ONTOLOGY_ROOT", "AIIndexDomainConfig", "AIIndexModelingConfig", "AIIndexSourceConfig",
     "DEFAULT_AI_INDEX_API_KEY", "DEFAULT_AI_INDEX_BASE_URL", "DEFAULT_AI_INDEX_MODE",
-    "DEFAULT_AI_INDEX_STAGE1_CONFIG", "DEFAULT_AI_INDEX_STAGE2_CONFIG",
+    "DEFAULT_AI_INDEX_ONTOLOGY_CONFIG",
 ]

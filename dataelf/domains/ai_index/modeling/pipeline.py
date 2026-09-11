@@ -7,6 +7,7 @@ from dataelf.discovery.artifacts import relative_artifact_path
 from dataelf.discovery.contracts import ArtifactRef, DiscoveryContext, DiscoveryJob, ModelingStageResult
 from dataelf.domains.ai_index.config import AIIndexDomainConfig
 from dataelf.domains.ai_index.modeling.acquisition import AIIndexRawCollector
+from dataelf.domains.ai_index.modeling.ontology.config import load_config
 from dataelf.domains.ai_index.modeling.contracts import (
     AI_INDEX_MODELING_RAW_ACQUISITION_FAILED,
     AI_INDEX_MODELING_RAW_EMPTY,
@@ -33,12 +34,13 @@ class AIIndexModeler:
         self.domain_config = domain_config
         self.runtime_env = runtime_env
         self.config = domain_config.modeling
+        self.ontology_config = load_config(self.config.ontology_config)
         self.collector = AIIndexRawCollector(
             mode=domain_config.source.mode,
             base_url=domain_config.source.base_url,
             api_key=domain_config.source.api_key,
             fixtures_dir=domain_config.source.fixtures_dir,
-            page_size=self.config.raw_page_size,
+            page_size=self.ontology_config.raw_page_size,
         )
 
     def run(self, job: DiscoveryJob, context: DiscoveryContext) -> ModelingStageResult:
@@ -67,7 +69,7 @@ class AIIndexModeler:
         state.transition(
             "ontology_running",
             stage="stage1",
-            metrics={"mode": "template" if self.config.ontology_template else "dynamic"},
+            metrics={"mode": "template" if self.ontology_config.ontology_template else "dynamic"},
         )
         try:
             ontology = run_ontology_subprocess(workspace, self.config, self.runtime_env)
@@ -107,9 +109,9 @@ class AIIndexModeler:
             status="completed",
             artifacts=artifacts,
             metrics={
-                "stage1Mode": "template" if self.config.ontology_template else "dynamic",
-                "stage1AttemptCount": 0 if self.config.ontology_template else 1,
-                **({"stage1ModelCalls": 0} if self.config.ontology_template else {}),
+                "stage1Mode": "template" if self.ontology_config.ontology_template else "dynamic",
+                "stage1AttemptCount": 0 if self.ontology_config.ontology_template else 1,
+                **({"stage1ModelCalls": 0} if self.ontology_config.ontology_template else {}),
             },
         )
 

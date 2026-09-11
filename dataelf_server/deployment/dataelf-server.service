@@ -1,0 +1,18 @@
+[Unit]
+Description=DataElf asynchronous Insight API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Replace these paths and run under the deployment account.
+WorkingDirectory=/opt/dataelf
+EnvironmentFile=/etc/dataelf/server.env
+ExecStart=/opt/dataelf/.venv/bin/python -m dataelf_server --config /etc/dataelf/dataelf.yaml
+Restart=on-failure
+TimeoutStopSec=90
+KillSignal=SIGTERM
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target
