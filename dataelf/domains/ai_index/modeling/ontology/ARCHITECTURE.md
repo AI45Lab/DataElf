@@ -24,11 +24,12 @@ domain modeling package 持有。内部 Stage 1 pipeline 通过显式 `Stage1Dom
 
 ```text
 dataelf/domains/ai_index/modeling/ontology/
+├── config.yaml                   Stage 1/2 与模板、采集、worker 的统一配置
+├── config.py                     统一配置加载与类型化运行参数
 ├── common/
 │   ├── artifacts.py              canonical JSON、SHA-256、原子读写
 │   └── contracts.py              Stage 1/2 共享文件名和 contract 常量
 ├── stage1/
-│   ├── config.yaml               Stage 1 source、模型、预算、输出配置
 │   ├── run.py                    独立诊断 CLI
 │   ├── tool_bridge.py            Pi tool 到 Python evidence 查询的受限桥接
 │   ├── schemas/                  published contract JSON Schema
@@ -46,7 +47,6 @@ dataelf/domains/ai_index/modeling/ontology/
 │       ├── checkpoints.py        run ID、兼容 fingerprint、锁和事件日志
 │       └── model_runtime.py      Python/TypeScript runtime 编排
 ├── stage2/
-│   ├── config.yaml               Stage 2 模型、质量门禁、输出配置
 │   ├── run.py                    独立诊断 CLI
 │   └── ontology_stage2/
 │       ├── pipeline.py           compile/materialize/review/repair/publish 主流程
@@ -170,3 +170,10 @@ state 和 latest 指针均使用原子写入；manifest 用 SHA-256 绑定发布
   materializer，并同步提高 validation/reviewer 门禁。
 - RDF 分析策略变化：修改 `dataelf/domains/ai_index/modeling/prompt.py`；Pi 与 DCode
   runtime 都只消费 `DiscoveryContext.modeling_artifacts.prompt_path`。
+
+## 配置边界
+
+Agent 的 `domains.ai_index.modeling` 只保留 `enabled` 与 `ontology_config`。
+统一文件 `ontology/config.yaml` 保存模板、raw 页大小、worker 总超时及 `stage1` / `stage2`
+分区。Stage CLI 的 `--config` 也读取同一文件；分区内资源路径以该文件目录为基准。
+Runner 直接使用解析后的角色参数，不再从外层注入模型或 timeout 默认覆盖。

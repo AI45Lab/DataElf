@@ -63,10 +63,10 @@ def discover(
         "--ai-index-modeling/--no-ai-index-modeling",
         help="Enable or disable the AI Index acquisition and ontology modeling stage.",
     ),
-    ontology_template: str | None = typer.Option(
+    ontology_config: Path | None = typer.Option(
         None,
-        "--ontology-template",
-        help="Use a fixed ontology template and skip Stage 1 model generation.",
+        "--ontology-config",
+        help="Path to the unified ontology configuration (requires ontology modeling).",
     ),
 ) -> None:
     """Run a user-triggered insight discovery job."""
@@ -75,17 +75,11 @@ def discover(
     domain = AIIndexDomainConfig.from_mapping(config.domain_config("ai_index"))
     modeling = domain.modeling
     if modeling_enabled is not None:
-        modeling = modeling.model_copy(
-            update={
-                "enabled": modeling_enabled,
-                **({"ontology_template": None} if not modeling_enabled else {}),
-            }
-        )
-    requested_template = ontology_template.strip() if ontology_template and ontology_template.strip() else None
-    if requested_template:
-        modeling = modeling.model_copy(update={"ontology_template": requested_template})
+        modeling = modeling.model_copy(update={"enabled": modeling_enabled})
+    if ontology_config is not None:
+        modeling = modeling.model_copy(update={"ontology_config": ontology_config.expanduser().resolve()})
         if not modeling.enabled:
-            raise typer.BadParameter("--ontology-template requires --ai-index-modeling")
+            raise typer.BadParameter("--ontology-config requires --ai-index-modeling")
     if modeling != domain.modeling:
         domains = dict(config.domains)
         domains["ai_index"] = domain.model_copy(update={"modeling": modeling}).model_dump(mode="python")

@@ -25,3 +25,6 @@ reviewer；`manual_audit_required` 只用于开发期人工暂停，默认关闭
 对应的 compiled cache 只服务独立 CLI/checkpoint 诊断；AI Index modeling runner 固定以
 `resume_run_id=None` 新建本次 run，不复用历史 job 或旧 published RDF。完整结构和
 artifact contract 见 `../ARCHITECTURE.md`。
+
+配置统一位于 [`../config.yaml`](../config.yaml)。本 CLI 的 `--config` 接受同样的完整
+统一文件并读取对应阶段分区，已移除本目录内的独立 `config.yaml`。

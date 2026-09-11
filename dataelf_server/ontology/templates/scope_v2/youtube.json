@@ -1,0 +1,388 @@
+{
+  "schemaVersion": "dataelf-scope-v2-template-fragment.v1",
+  "templateId": "scope_v2_youtube",
+  "source": "youtube",
+  "endpoint": "/openapi/ecosystem/y2b/search",
+  "entity": {
+    "classId": "Video",
+    "observationClassId": "VideoObservation",
+    "idPaths": [
+      "/video_id",
+      "/video_info/url"
+    ],
+    "labelPath": "/video_info/title",
+    "urlPath": "/video_info/url",
+    "publishedAtPath": "/video_info/publishtime"
+  },
+  "classes": [
+    {
+      "id": "Video",
+      "label": "Video",
+      "kind": "entity",
+      "comment": "A YouTube video record from the ecosystem search endpoint."
+    },
+    {
+      "id": "VideoObservation",
+      "label": "Video Observation",
+      "kind": "observation",
+      "comment": "Snapshot of mutable video and channel metrics at observation time."
+    },
+    {
+      "id": "Blogger",
+      "label": "Blogger",
+      "kind": "entity",
+      "comment": "YouTube channel or blogger that published the video."
+    },
+    {
+      "id": "Institution",
+      "label": "Institution",
+      "kind": "entity",
+      "comment": "An institution referenced in the video record."
+    },
+    {
+      "id": "StrategicTag",
+      "label": "Strategic Tag",
+      "kind": "concept",
+      "comment": "A strategic tag assigned to the video."
+    },
+    {
+      "id": "Domain",
+      "label": "Domain",
+      "kind": "concept",
+      "comment": "A domain or topic area associated with the video."
+    },
+    {
+      "id": "Ideology",
+      "label": "Core Ideology",
+      "kind": "concept",
+      "comment": "Core ideological analysis associated with the video."
+    }
+  ],
+  "objectProperties": [
+    {
+      "id": "hasBlogger",
+      "label": "has blogger",
+      "domain": "Video",
+      "range": "Blogger",
+      "comment": "Links a video to its publishing blogger/channel."
+    },
+    {
+      "id": "mentionsInstitution",
+      "label": "mentions institution",
+      "domain": "Video",
+      "range": "Institution",
+      "comment": "Links a video to institutions referenced in its record."
+    },
+    {
+      "id": "hasStrategicTag",
+      "label": "has strategic tag",
+      "domain": "Video",
+      "range": "StrategicTag",
+      "comment": "Links a video to its strategic tags."
+    },
+    {
+      "id": "coversDomain",
+      "label": "covers domain",
+      "domain": "Video",
+      "range": "Domain",
+      "comment": "Links a video to its associated domains or topic areas."
+    },
+    {
+      "id": "hasCoreIdeology",
+      "label": "has core ideology",
+      "domain": "Video",
+      "range": "Ideology",
+      "comment": "Links a video to its core ideology analysis node."
+    }
+  ],
+  "datatypeProperties": [
+    {
+      "id": "videoId",
+      "label": "video ID",
+      "domain": "Video",
+      "range": "xsd:string",
+      "comment": "Stable YouTube video identifier."
+    },
+    {
+      "id": "videoTitle",
+      "label": "video title",
+      "domain": "Video",
+      "range": "xsd:string",
+      "comment": "Video title text."
+    },
+    {
+      "id": "videoUrl",
+      "label": "video URL",
+      "domain": "Video",
+      "range": "xsd:anyURI",
+      "comment": "Canonical URL of the video."
+    },
+    {
+      "id": "videoIntroduction",
+      "label": "video introduction",
+      "domain": "Video",
+      "range": "xsd:string",
+      "comment": "Long-form video introduction and chapter description returned by AI Index."
+    },
+    {
+      "id": "videoTranscript",
+      "label": "video transcript",
+      "domain": "Video",
+      "range": "xsd:string",
+      "comment": "Transcript or transcript excerpt returned by AI Index."
+    },
+    {
+      "id": "videoPublisher",
+      "label": "video publisher",
+      "domain": "Video",
+      "range": "xsd:string",
+      "comment": "Publisher or channel label included in video_info."
+    },
+    {
+      "id": "videoCoverUrl",
+      "label": "video cover URL",
+      "domain": "Video",
+      "range": "xsd:anyURI",
+      "comment": "Cover image URL returned for the video."
+    },
+    {
+      "id": "videoViewCount",
+      "label": "video view count",
+      "domain": "VideoObservation",
+      "range": "xsd:integer",
+      "comment": "Number of views at observation time."
+    },
+    {
+      "id": "videoLikeCount",
+      "label": "video like count",
+      "domain": "VideoObservation",
+      "range": "xsd:integer",
+      "comment": "Number of likes at observation time."
+    },
+    {
+      "id": "videoCommentCount",
+      "label": "video comment count",
+      "domain": "VideoObservation",
+      "range": "xsd:integer",
+      "comment": "Number of comments at observation time."
+    },
+    {
+      "id": "channelFollowerCount",
+      "label": "channel follower count",
+      "domain": "VideoObservation",
+      "range": "xsd:integer",
+      "comment": "Channel follower count at observation time."
+    },
+    {
+      "id": "bloggerId",
+      "label": "blogger ID",
+      "domain": "Blogger",
+      "range": "xsd:string",
+      "comment": "Stable channel/blogger identifier."
+    },
+    {
+      "id": "bloggerName",
+      "label": "blogger name",
+      "domain": "Blogger",
+      "range": "xsd:string",
+      "comment": "Display name of the blogger/channel."
+    },
+    {
+      "id": "bloggerIntroduction",
+      "label": "blogger introduction",
+      "domain": "Blogger",
+      "range": "xsd:string",
+      "comment": "Channel or blogger introduction returned by AI Index."
+    },
+    {
+      "id": "institutionId",
+      "label": "institution ID",
+      "domain": "Institution",
+      "range": "xsd:string",
+      "comment": "Stable institution identifier."
+    },
+    {
+      "id": "institutionName",
+      "label": "institution name",
+      "domain": "Institution",
+      "range": "xsd:string",
+      "comment": "Display name of the institution."
+    },
+    {
+      "id": "tagId",
+      "label": "tag ID",
+      "domain": "StrategicTag",
+      "range": "xsd:string",
+      "comment": "Strategic tag identifier used as both ID and label."
+    },
+    {
+      "id": "domainName",
+      "label": "domain name",
+      "domain": "Domain",
+      "range": "xsd:string",
+      "comment": "Domain or topic area name used as both ID and label."
+    },
+    {
+      "id": "ideologyId",
+      "label": "ideology ID",
+      "domain": "Ideology",
+      "range": "xsd:string",
+      "comment": "Core ideology identifier."
+    },
+    {
+      "id": "ideologyName",
+      "label": "ideology name",
+      "domain": "Ideology",
+      "range": "xsd:string",
+      "comment": "Core ideology display label."
+    },
+    {
+      "id": "ideologyConclusion",
+      "label": "ideology conclusion",
+      "domain": "Ideology",
+      "range": "xsd:string",
+      "comment": "One evidence-grounded conclusion from the AI Index core_ideology object."
+    },
+    {
+      "id": "ideologyTheory",
+      "label": "ideology theory",
+      "domain": "Ideology",
+      "range": "xsd:string",
+      "comment": "Technical concept or theory supplied by AI Index for the core ideology."
+    }
+  ],
+  "scalarMappings": [
+    {
+      "path": "/video_id",
+      "propertyId": "videoId",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/title",
+      "propertyId": "videoTitle",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/url",
+      "propertyId": "videoUrl",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/introduction",
+      "propertyId": "videoIntroduction",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/text",
+      "propertyId": "videoTranscript",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/publisher",
+      "propertyId": "videoPublisher",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/cover_url",
+      "propertyId": "videoCoverUrl",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/view_count",
+      "propertyId": "videoViewCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/like_count",
+      "propertyId": "videoLikeCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/comment_count",
+      "propertyId": "videoCommentCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/blogger_info/fans_num",
+      "propertyId": "channelFollowerCount",
+      "subject": "observation",
+      "multiple": false
+    }
+  ],
+  "relationMappings": [
+    {
+      "path": "/blogger_info",
+      "propertyId": "hasBlogger",
+      "targetClassId": "Blogger",
+      "targetIdPath": "/blogger_url",
+      "targetLabelPath": "/blogger_name",
+      "targetLabelPropertyId": "bloggerName",
+      "targetScalarMappings": [
+        {
+          "path": "/blogger_introduction",
+          "propertyId": "bloggerIntroduction",
+          "multiple": false
+        }
+      ]
+    },
+    {
+      "path": "/institution_infos/*",
+      "propertyId": "mentionsInstitution",
+      "targetClassId": "Institution",
+      "targetIdPath": "/institution_id",
+      "targetLabelPath": "/name",
+      "targetLabelPropertyId": "institutionName"
+    },
+    {
+      "path": "/strategic_tag_ids/*",
+      "propertyId": "hasStrategicTag",
+      "targetClassId": "StrategicTag",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "tagId"
+    },
+    {
+      "path": "/domains/*",
+      "propertyId": "coversDomain",
+      "targetClassId": "Domain",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "domainName"
+    },
+    {
+      "path": "/core_ideology",
+      "propertyId": "hasCoreIdeology",
+      "targetClassId": "Ideology",
+      "targetIdPath": "/main_theme",
+      "targetLabelPath": "/main_theme",
+      "targetLabelPropertyId": "ideologyName",
+      "targetScalarMappings": [
+        {
+          "path": "/key_conclusions",
+          "propertyId": "ideologyConclusion",
+          "multiple": true
+        },
+        {
+          "path": "/tech_concept_or_theory",
+          "propertyId": "ideologyTheory",
+          "multiple": false
+        }
+      ]
+    }
+  ],
+  "approval": {
+    "decision": "approve",
+    "generatedBy": "manual-raw-contract-refactor",
+    "rationale": "Mappings were checked against a real AI Index YouTube response. The template preserves video introduction, transcript excerpt, publisher, cover URL, engagement counters, blogger introduction, fans_num, core ideology conclusions and theory. Source identity and normalized publication time are supplied by the common base projection, avoiding duplicate publishedAt values."
+  }
+}

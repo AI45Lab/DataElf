@@ -1,0 +1,170 @@
+{
+  "schemaVersion": "dataelf-scope-v2-template-base.v1",
+  "templateId": "scope_v2_base",
+  "namespace": "urn:dataelf:ontology:ai-index:",
+  "classes": [
+    {
+      "id": "DomainEntity",
+      "label": "Domain Entity",
+      "kind": "entity",
+      "comment": "Stable, real-world thing being indexed (company, product, person, model, etc.). Owns stable identifiers and canonical text; mutable counters live on observations."
+    },
+    {
+      "id": "EntityObservation",
+      "label": "Entity Observation",
+      "kind": "observation",
+      "comment": "A time-bound measurement or fact extracted from one source record about a DomainEntity. Carries mutable counters, metrics, and a rawRef pointer back to the source."
+    },
+    {
+      "id": "SourceDocument",
+      "label": "Source Document",
+      "kind": "provenance",
+      "comment": "The outer container of sourced information (article, report, dataset, API response). Owns title, URL, publication timestamp, and source system metadata."
+    },
+    {
+      "id": "SourceRecord",
+      "label": "Source Record",
+      "kind": "provenance",
+      "comment": "A single record extracted from a SourceDocument (one row, one item, one result). Owns result rank, record hash, and the local source path within the document."
+    },
+    {
+      "id": "Institution",
+      "label": "Institution",
+      "kind": "entity",
+      "comment": "Typed node representing an organization, company, lab, or publisher mentioned in relation to an entity. Replaces opaque string arrays with a relation."
+    },
+    {
+      "id": "Topic",
+      "label": "Topic",
+      "kind": "concept",
+      "comment": "Typed node representing a subject area, research theme, or categorical tag associated with an entity."
+    },
+    {
+      "id": "StrategicTag",
+      "label": "Strategic Tag",
+      "kind": "concept",
+      "comment": "Typed node representing a curated strategic label (e.g. 'emerging', 'risk', 'opportunity') applied to an entity for downstream reasoning."
+    }
+  ],
+  "objectProperties": [
+    {
+      "id": "observesEntity",
+      "label": "observes entity",
+      "domain": "EntityObservation",
+      "range": "DomainEntity",
+      "comment": "Links an observation to the stable DomainEntity it describes."
+    },
+    {
+      "id": "observationFromRecord",
+      "label": "observation from record",
+      "domain": "EntityObservation",
+      "range": "SourceRecord",
+      "comment": "Provenance link from an observation to the exact SourceRecord it was extracted from."
+    },
+    {
+      "id": "recordFromDocument",
+      "label": "record from document",
+      "domain": "SourceRecord",
+      "range": "SourceDocument",
+      "comment": "Links a SourceRecord to its parent SourceDocument."
+    },
+    {
+      "id": "mentionsInstitution",
+      "label": "mentions institution",
+      "domain": "DomainEntity",
+      "range": "Institution",
+      "comment": "Relates an entity to a typed Institution node, replacing opaque institution string arrays."
+    },
+    {
+      "id": "hasTopic",
+      "label": "has topic",
+      "domain": "DomainEntity",
+      "range": "Topic",
+      "comment": "Relates an entity to a typed Topic node, replacing opaque topic string arrays."
+    },
+    {
+      "id": "hasStrategicTag",
+      "label": "has strategic tag",
+      "domain": "DomainEntity",
+      "range": "StrategicTag",
+      "comment": "Relates an entity to a typed StrategicTag node, replacing opaque tag string arrays."
+    }
+  ],
+  "datatypeProperties": [
+    {
+      "id": "sourceId",
+      "label": "source identifier",
+      "domain": "DomainEntity",
+      "range": "xsd:string",
+      "comment": "Stable identifier of the domain entity within its source system."
+    },
+    {
+      "id": "sourceTitle",
+      "label": "source title",
+      "domain": "DomainEntity",
+      "range": "xsd:string",
+      "comment": "Human-readable source title used to represent the domain entity; unknown if absent."
+    },
+    {
+      "id": "sourceUrl",
+      "label": "source URL",
+      "domain": "DomainEntity",
+      "range": "xsd:anyURI",
+      "comment": "Canonical public URL of the domain entity; unknown if absent."
+    },
+    {
+      "id": "publishedAt",
+      "label": "published at",
+      "domain": "DomainEntity",
+      "range": "xsd:dateTime",
+      "comment": "Normalized publication timestamp of the domain entity in ISO 8601 form."
+    },
+    {
+      "id": "rawRef",
+      "label": "raw reference",
+      "domain": "SourceRecord",
+      "range": "xsd:string",
+      "comment": "Workspace-independent raw response file reference, relative to the Scope V2 result directory."
+    },
+    {
+      "id": "resultRank",
+      "label": "result rank",
+      "domain": "EntityObservation",
+      "range": "xsd:positiveInteger",
+      "comment": "One-based ordinal position of this observation within the filtered source result."
+    },
+    {
+      "id": "sourceSystem",
+      "label": "source system",
+      "domain": "SourceDocument",
+      "range": "xsd:string",
+      "comment": "Identifier of the external system or pipeline that produced the document."
+    },
+    {
+      "id": "sourcePath",
+      "label": "source path",
+      "domain": "SourceDocument",
+      "range": "xsd:string",
+      "comment": "Raw response file path relative to the Scope V2 result directory."
+    },
+    {
+      "id": "recordJsonPointer",
+      "label": "record JSON pointer",
+      "domain": "SourceRecord",
+      "range": "xsd:string",
+      "comment": "Exact RFC 6901-style JSON Pointer locating the source record inside the raw response file."
+    },
+    {
+      "id": "recordHash",
+      "label": "record hash",
+      "domain": "SourceRecord",
+      "range": "xsd:string",
+      "comment": "Content hash of the raw record payload for deduplication and change detection."
+    }
+  ],
+  "approval": {
+    "decision": "approve",
+    "generatedBy": "manual-raw-contract-refactor",
+    "rationale": "The public source identity fields belong to DomainEntity, mutable counters belong to EntityObservation, and raw-file provenance is split between SourceDocument and SourceRecord. sourcePath/rawRef remain workspace-independent file references while recordJsonPointer provides exact record-level location. Concrete source entity and observation classes are linked to the two base classes during composition."
+  }
+}

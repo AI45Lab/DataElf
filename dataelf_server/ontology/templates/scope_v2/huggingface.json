@@ -1,0 +1,260 @@
+{
+  "schemaVersion": "dataelf-scope-v2-template-fragment.v1",
+  "templateId": "scope_v2_huggingface",
+  "source": "huggingface",
+  "endpoint": "/openapi/ecosystem/hf/search",
+  "entity": {
+    "classId": "HuggingFaceAsset",
+    "observationClassId": "HuggingFaceAssetObservation",
+    "idPaths": [
+      "/url",
+      "/title"
+    ],
+    "labelPath": "/title",
+    "urlPath": "/url",
+    "publishedAtPath": "/published_at"
+  },
+  "classes": [
+    {
+      "id": "HuggingFaceAsset",
+      "label": "Hugging Face Asset",
+      "kind": "entity",
+      "comment": "A model, dataset, or space asset published on Hugging Face"
+    },
+    {
+      "id": "HuggingFaceAssetObservation",
+      "label": "Hugging Face Asset Observation",
+      "kind": "observation",
+      "comment": "Mutable engagement and popularity metrics for a Hugging Face asset"
+    },
+    {
+      "id": "Publisher",
+      "label": "Publisher",
+      "kind": "entity",
+      "comment": "Publisher of a Hugging Face asset"
+    },
+    {
+      "id": "Institution",
+      "label": "Institution",
+      "kind": "entity",
+      "comment": "Institution associated with a Hugging Face asset"
+    },
+    {
+      "id": "Tag",
+      "label": "Tag",
+      "kind": "concept",
+      "comment": "Semantic tag labeling a Hugging Face asset"
+    },
+    {
+      "id": "StrategicTag",
+      "label": "Strategic Tag",
+      "kind": "concept",
+      "comment": "Strategic tag identifier assigned to a Hugging Face asset"
+    }
+  ],
+  "objectProperties": [
+    {
+      "id": "hasPublisher",
+      "label": "has publisher",
+      "domain": "HuggingFaceAsset",
+      "range": "Publisher",
+      "comment": "Links a Hugging Face asset to its publisher"
+    },
+    {
+      "id": "hasInstitution",
+      "label": "has institution",
+      "domain": "HuggingFaceAsset",
+      "range": "Institution",
+      "comment": "Links a Hugging Face asset to an associated institution"
+    },
+    {
+      "id": "hasTag",
+      "label": "has tag",
+      "domain": "HuggingFaceAsset",
+      "range": "Tag",
+      "comment": "Links a Hugging Face asset to a semantic tag"
+    },
+    {
+      "id": "hasStrategicTag",
+      "label": "has strategic tag",
+      "domain": "HuggingFaceAsset",
+      "range": "StrategicTag",
+      "comment": "Links a Hugging Face asset to a strategic tag identifier"
+    }
+  ],
+  "datatypeProperties": [
+    {
+      "id": "title",
+      "label": "title",
+      "domain": "HuggingFaceAsset",
+      "range": "xsd:string",
+      "comment": "Title of the Hugging Face asset"
+    },
+    {
+      "id": "url",
+      "label": "url",
+      "domain": "HuggingFaceAsset",
+      "range": "xsd:anyURI",
+      "comment": "URL of the Hugging Face asset"
+    },
+    {
+      "id": "publishedAt",
+      "label": "published at",
+      "domain": "HuggingFaceAsset",
+      "range": "xsd:date",
+      "comment": "Date the Hugging Face asset was published"
+    },
+    {
+      "id": "countryCode",
+      "label": "country code",
+      "domain": "HuggingFaceAsset",
+      "range": "xsd:string",
+      "comment": "Country code associated with the Hugging Face asset"
+    },
+    {
+      "id": "assetType",
+      "label": "asset type",
+      "domain": "HuggingFaceAsset",
+      "range": "xsd:string",
+      "comment": "Type of the Hugging Face asset (e.g., model, dataset, space)"
+    },
+    {
+      "id": "downloadCount",
+      "label": "download count",
+      "domain": "HuggingFaceAssetObservation",
+      "range": "xsd:integer",
+      "comment": "Number of downloads for the Hugging Face asset"
+    },
+    {
+      "id": "followCount",
+      "label": "follow count",
+      "domain": "HuggingFaceAssetObservation",
+      "range": "xsd:integer",
+      "comment": "Number of followers for the Hugging Face asset"
+    },
+    {
+      "id": "likeCount",
+      "label": "like count",
+      "domain": "HuggingFaceAssetObservation",
+      "range": "xsd:integer",
+      "comment": "Number of likes for the Hugging Face asset"
+    },
+    {
+      "id": "publisherName",
+      "label": "publisher name",
+      "domain": "Publisher",
+      "range": "xsd:string",
+      "comment": "Name of the publisher"
+    },
+    {
+      "id": "institutionName",
+      "label": "institution name",
+      "domain": "Institution",
+      "range": "xsd:string",
+      "comment": "Name of the institution"
+    },
+    {
+      "id": "tagLabel",
+      "label": "tag label",
+      "domain": "Tag",
+      "range": "xsd:string",
+      "comment": "Label of a semantic tag"
+    },
+    {
+      "id": "strategicTagLabel",
+      "label": "strategic tag label",
+      "domain": "StrategicTag",
+      "range": "xsd:string",
+      "comment": "Label of a strategic tag identifier"
+    }
+  ],
+  "scalarMappings": [
+    {
+      "path": "/title",
+      "propertyId": "title",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/url",
+      "propertyId": "url",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/published_at",
+      "propertyId": "publishedAt",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/country_code",
+      "propertyId": "countryCode",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/asset_type",
+      "propertyId": "assetType",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/download_count",
+      "propertyId": "downloadCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/follow_count",
+      "propertyId": "followCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/like_count",
+      "propertyId": "likeCount",
+      "subject": "observation",
+      "multiple": false
+    }
+  ],
+  "relationMappings": [
+    {
+      "path": "/publisher",
+      "propertyId": "hasPublisher",
+      "targetClassId": "Publisher",
+      "targetIdPath": "/name",
+      "targetLabelPath": "/name",
+      "targetLabelPropertyId": "publisherName"
+    },
+    {
+      "path": "/institution_infos/*",
+      "propertyId": "hasInstitution",
+      "targetClassId": "Institution",
+      "targetIdPath": "/institution_id",
+      "targetLabelPath": "/name",
+      "targetLabelPropertyId": "institutionName"
+    },
+    {
+      "path": "/tags/*",
+      "propertyId": "hasTag",
+      "targetClassId": "Tag",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "tagLabel"
+    },
+    {
+      "path": "/strategic_tag_ids/*",
+      "propertyId": "hasStrategicTag",
+      "targetClassId": "StrategicTag",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "strategicTagLabel"
+    }
+  ],
+  "approval": {
+    "decision": "approve",
+    "generatedBy": "glm-5.2-1m",
+    "rationale": "All scalar fields from the HuggingFaceAsset contract are mapped: stable identity and descriptive fields (title, url, published_at, country_code, asset_type) belong to the entity, while mutable engagement counters (download_count, follow_count, like_count) belong to the observation. Nested object and array fields (publisher, institution_infos, tags, strategic_tag_ids) are mapped as relations to typed concept nodes (Publisher, Institution, Tag, StrategicTag) with appropriate id and label paths, avoiding opaque JSON strings. Conservative defaults (/name, /id) are used for nested object fields consistent with Hugging Face API conventions; missing nested structures remain unknown."
+  }
+}

@@ -1,0 +1,234 @@
+{
+  "schemaVersion": "dataelf-scope-v2-template-fragment.v1",
+  "templateId": "scope_v2_news",
+  "source": "news",
+  "endpoint": "/openapi/news/search",
+  "entity": {
+    "classId": "NewsArticle",
+    "observationClassId": "NewsArticleObservation",
+    "idPaths": [
+      "/news_id"
+    ],
+    "labelPath": "/title",
+    "urlPath": "/url",
+    "publishedAtPath": "/date"
+  },
+  "classes": [
+    {
+      "id": "NewsArticle",
+      "label": "News Article",
+      "kind": "entity",
+      "comment": "A news article record from the news source, identified by news_id."
+    },
+    {
+      "id": "NewsArticleObservation",
+      "label": "News Article Observation",
+      "kind": "observation",
+      "comment": "Mutable observation snapshot of a news article, carrying body text and any counters."
+    },
+    {
+      "id": "Publisher",
+      "label": "Publisher",
+      "kind": "entity",
+      "comment": "Publisher of a news article."
+    },
+    {
+      "id": "Institution",
+      "label": "Institution",
+      "kind": "entity",
+      "comment": "Institution referenced within a news article."
+    },
+    {
+      "id": "Person",
+      "label": "Person",
+      "kind": "concept",
+      "comment": "Person mentioned in a news article."
+    },
+    {
+      "id": "Topic",
+      "label": "Topic",
+      "kind": "concept",
+      "comment": "Topic/domain tag associated with a news article."
+    },
+    {
+      "id": "Product",
+      "label": "Product",
+      "kind": "concept",
+      "comment": "Product mentioned in a news article."
+    },
+    {
+      "id": "FundingInfo",
+      "label": "Funding Info",
+      "kind": "concept",
+      "comment": "Funding information object referenced by a news article."
+    }
+  ],
+  "objectProperties": [
+    {
+      "id": "hasPublisher",
+      "label": "has publisher",
+      "domain": "NewsArticle",
+      "range": "Publisher",
+      "comment": "Links a news article to its publisher."
+    },
+    {
+      "id": "mentionsInstitution",
+      "label": "mentions institution",
+      "domain": "NewsArticle",
+      "range": "Institution",
+      "comment": "Links a news article to an institution it references."
+    },
+    {
+      "id": "mentionsPerson",
+      "label": "mentions person",
+      "domain": "NewsArticle",
+      "range": "Person",
+      "comment": "Links a news article to a person it mentions."
+    },
+    {
+      "id": "aboutTopic",
+      "label": "about topic",
+      "domain": "NewsArticle",
+      "range": "Topic",
+      "comment": "Links a news article to a topic/domain it covers."
+    },
+    {
+      "id": "mentionsProduct",
+      "label": "mentions product",
+      "domain": "NewsArticle",
+      "range": "Product",
+      "comment": "Links a news article to a product it mentions."
+    },
+    {
+      "id": "reportsFunding",
+      "label": "reports funding",
+      "domain": "NewsArticle",
+      "range": "FundingInfo",
+      "comment": "Links a news article to a funding info object it reports."
+    }
+  ],
+  "datatypeProperties": [
+    {
+      "id": "newsArticleId",
+      "label": "news article id",
+      "domain": "NewsArticle",
+      "range": "xsd:string",
+      "comment": "Stable identifier of the news article."
+    },
+    {
+      "id": "title",
+      "label": "title",
+      "domain": "NewsArticle",
+      "range": "xsd:string",
+      "comment": "Headline of the news article."
+    },
+    {
+      "id": "url",
+      "label": "url",
+      "domain": "NewsArticle",
+      "range": "xsd:anyURI",
+      "comment": "Canonical URL of the news article."
+    },
+    {
+      "id": "publishedDate",
+      "label": "published date",
+      "domain": "NewsArticle",
+      "range": "xsd:date",
+      "comment": "Publication date of the news article."
+    },
+    {
+      "id": "bodyText",
+      "label": "body text",
+      "domain": "NewsArticleObservation",
+      "range": "xsd:string",
+      "comment": "Full body text of the news article as observed."
+    }
+  ],
+  "scalarMappings": [
+    {
+      "path": "/news_id",
+      "propertyId": "newsArticleId",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/title",
+      "propertyId": "title",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/url",
+      "propertyId": "url",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/date",
+      "propertyId": "publishedDate",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/text",
+      "propertyId": "bodyText",
+      "subject": "observation",
+      "multiple": false
+    }
+  ],
+  "relationMappings": [
+    {
+      "path": "/publisher",
+      "propertyId": "hasPublisher",
+      "targetClassId": "Publisher",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "name"
+    },
+    {
+      "path": "/institution_infos/*",
+      "propertyId": "mentionsInstitution",
+      "targetClassId": "Institution",
+      "targetIdPath": "/institution_id",
+      "targetLabelPath": "/name",
+      "targetLabelPropertyId": "name"
+    },
+    {
+      "path": "/persons/*",
+      "propertyId": "mentionsPerson",
+      "targetClassId": "Person",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "name"
+    },
+    {
+      "path": "/domains/*",
+      "propertyId": "aboutTopic",
+      "targetClassId": "Topic",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "label"
+    },
+    {
+      "path": "/products/*",
+      "propertyId": "mentionsProduct",
+      "targetClassId": "Product",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "name"
+    },
+    {
+      "path": "/funding_info/*",
+      "propertyId": "reportsFunding",
+      "targetClassId": "FundingInfo",
+      "targetIdPath": "/amount",
+      "targetLabelPath": "/amount",
+      "targetLabelPropertyId": "label"
+    }
+  ],
+  "approval": {
+    "decision": "approve",
+    "generatedBy": "glm-5.2-1m",
+    "rationale": "Conservative raw-grounded mapping: stable identifiers (news_id), title, url, and published date attach to the NewsArticle entity; mutable body text attaches to NewsArticleObservation. Publisher, institution_infos, persons, domains, products, and funding_info are modeled as typed concept relations rather than opaque strings, per the contract. Nested object/array targets use array/* pointer paths with label-bearing target nodes; internal id/label paths are left empty because the source contract does not specify nested structure, preserving unknowns rather than inventing fields."
+  }
+}

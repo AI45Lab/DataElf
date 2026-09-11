@@ -1,0 +1,691 @@
+{
+  "old_baseline": "171 passed; all original test functions classified below",
+  "original_test_functions": 114,
+  "entries": [
+    {
+      "old_test": "test_ai_index.py::test_news_client_sends_one_authenticated_request",
+      "disposition": "适配",
+      "new_coverage": "test_scope_v2.py",
+      "notes": "旧单新闻 HTTP client 未接入旧研究主流程；认证、HTTP 重试与业务错误由五来源 client 保留。"
+    },
+    {
+      "old_test": "test_ai_index.py::test_news_client_retries_429_with_exponential_backoff",
+      "disposition": "适配",
+      "new_coverage": "test_scope_v2.py",
+      "notes": "旧单新闻 HTTP client 未接入旧研究主流程；认证、HTTP 重试与业务错误由五来源 client 保留。"
+    },
+    {
+      "old_test": "test_ai_index.py::test_news_client_rejects_business_error",
+      "disposition": "适配",
+      "new_coverage": "test_scope_v2.py",
+      "notes": "旧单新闻 HTTP client 未接入旧研究主流程；认证、HTTP 重试与业务错误由五来源 client 保留。"
+    },
+    {
+      "old_test": "test_ai_index.py::test_news_client_rejects_non_retryable_http_error",
+      "disposition": "适配",
+      "new_coverage": "test_scope_v2.py",
+      "notes": "旧单新闻 HTTP client 未接入旧研究主流程；认证、HTTP 重试与业务错误由五来源 client 保留。"
+    },
+    {
+      "old_test": "test_ai_index.py::test_news_client_rejects_malformed_success_response",
+      "disposition": "适配",
+      "new_coverage": "test_scope_v2.py",
+      "notes": "旧单新闻 HTTP client 未接入旧研究主流程；认证、HTTP 重试与业务错误由五来源 client 保留。"
+    },
+    {
+      "old_test": "test_api.py::test_app_exposes_only_public_job_routes",
+      "disposition": "保留并适配",
+      "new_coverage": "test_api.py::test_app_exposes_only_public_job_routes",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_api.py::test_submit_uses_natural_language_body",
+      "disposition": "保留并适配",
+      "new_coverage": "test_api.py::test_submit_uses_natural_language_body",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_api.py::test_submit_defaults_to_scope_v2",
+      "disposition": "保留并适配",
+      "new_coverage": "test_api.py::test_submit_defaults_to_scope_v2",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_api.py::test_validation_errors_use_standard_envelope",
+      "disposition": "保留并适配",
+      "new_coverage": "test_api.py::test_validation_errors_use_standard_envelope",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_api.py::test_status_unknown_and_not_ready_result",
+      "disposition": "保留并适配",
+      "new_coverage": "test_api.py::test_status_unknown_and_not_ready_result",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_api.py::test_status_returns_created_and_started_times",
+      "disposition": "保留并适配",
+      "new_coverage": "test_api.py::test_status_returns_created_and_started_times",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_api.py::test_retry_reuses_job_id_and_rejects_non_failed_jobs",
+      "disposition": "保留并适配",
+      "new_coverage": "test_api.py::test_retry_reuses_job_id_and_rejects_non_failed_jobs",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_api.py::test_completed_and_failed_results",
+      "disposition": "保留并适配",
+      "new_coverage": "test_api.py::test_completed_and_failed_results",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_api_entry.py::test_validate_insights_accepts_any_positive_count",
+      "disposition": "适配",
+      "new_coverage": "test_api.py; test_workflow.py; test_settings_and_distribution.py",
+      "notes": "验收入口统一为 deployment.smoke；变长结果、schema、三查询动作及 retry 路由分别验证。"
+    },
+    {
+      "old_test": "test_api_entry.py::test_validate_insights_rejects_empty_or_incomplete_values",
+      "disposition": "适配",
+      "new_coverage": "test_api.py; test_workflow.py; test_settings_and_distribution.py",
+      "notes": "验收入口统一为 deployment.smoke；变长结果、schema、三查询动作及 retry 路由分别验证。"
+    },
+    {
+      "old_test": "test_api_entry.py::test_parse_args_accepts_custom_request",
+      "disposition": "适配",
+      "new_coverage": "test_api.py; test_workflow.py; test_settings_and_distribution.py",
+      "notes": "验收入口统一为 deployment.smoke；变长结果、schema、三查询动作及 retry 路由分别验证。"
+    },
+    {
+      "old_test": "test_api_entry.py::test_run_test_uses_all_three_public_endpoints",
+      "disposition": "适配",
+      "new_coverage": "test_api.py; test_workflow.py; test_settings_and_distribution.py",
+      "notes": "验收入口统一为 deployment.smoke；变长结果、schema、三查询动作及 retry 路由分别验证。"
+    },
+    {
+      "old_test": "test_errors.py::test_classifies_public_job_errors",
+      "disposition": "保留并适配",
+      "new_coverage": "test_errors.py::test_classifies_public_job_errors",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_errors.py::test_error_contract_does_not_expose_internal_message",
+      "disposition": "保留并适配",
+      "new_coverage": "test_errors.py::test_error_contract_does_not_expose_internal_message",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_errors.py::test_internal_transport_error_uses_failure_stage",
+      "disposition": "保留并适配",
+      "new_coverage": "test_errors.py::test_internal_transport_error_uses_failure_stage",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_insight_contract.py::test_comprehensive_contract_renders_common_and_module_rules",
+      "disposition": "保留并适配",
+      "new_coverage": "test_insight_contract.py::test_comprehensive_contract_renders_common_and_module_rules",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_insight_contract.py::test_multi_module_contract_keeps_module_rules_separate",
+      "disposition": "保留并适配",
+      "new_coverage": "test_insight_contract.py::test_multi_module_contract_keeps_module_rules_separate",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_insight_contract.py::test_comprehensive_validator_accepts_contract_compliant_chinese",
+      "disposition": "保留并适配",
+      "new_coverage": "test_insight_contract.py::test_comprehensive_validator_accepts_contract_compliant_chinese",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_insight_contract.py::test_validator_rejects_language_boilerplate_and_markdown_but_not_length",
+      "disposition": "保留并适配",
+      "new_coverage": "test_insight_contract.py::test_validator_rejects_language_boilerplate_and_markdown_but_not_length",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_insight_contract.py::test_non_comprehensive_module_has_no_content_length_requirement",
+      "disposition": "保留并适配",
+      "new_coverage": "test_insight_contract.py::test_non_comprehensive_module_has_no_content_length_requirement",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_insight_contract.py::test_title_and_content_lengths_are_prompt_guidance_not_a_hard_gate",
+      "disposition": "保留并适配",
+      "new_coverage": "test_insight_contract.py::test_title_and_content_lengths_are_prompt_guidance_not_a_hard_gate",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_insight_contract.py::test_workspace_validator_reads_persisted_contract",
+      "disposition": "保留并适配",
+      "new_coverage": "test_insight_contract.py::test_workspace_validator_reads_persisted_contract",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_insight_contract.py::test_workspace_validator_rejects_unsupported_numbers_and_proper_nouns",
+      "disposition": "保留并适配",
+      "new_coverage": "test_insight_contract.py::test_workspace_validator_rejects_unsupported_numbers_and_proper_nouns",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_insight_contract.py::test_source_grounding_ignores_whitespace_inside_latin_name",
+      "disposition": "保留并适配",
+      "new_coverage": "test_insight_contract.py::test_source_grounding_ignores_whitespace_inside_latin_name",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_insight_contract.py::test_source_grounding_accepts_equivalent_numeric_units_and_name_formatting",
+      "disposition": "保留并适配",
+      "new_coverage": "test_insight_contract.py::test_source_grounding_accepts_equivalent_numeric_units_and_name_formatting",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_manager.py::test_manager_runs_job_and_persists_result",
+      "disposition": "保留并适配",
+      "new_coverage": "test_manager.py::test_manager_runs_job_and_persists_result",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_manager.py::test_manager_records_pipeline_failure",
+      "disposition": "保留并适配",
+      "new_coverage": "test_manager.py::test_manager_records_pipeline_failure",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_manager.py::test_store_marks_incomplete_jobs_failed_after_restart",
+      "disposition": "保留并适配",
+      "new_coverage": "test_manager.py::test_store_marks_incomplete_jobs_failed_after_restart",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_manager.py::test_store_migrates_started_at_and_sets_it_only_once",
+      "disposition": "保留并适配",
+      "new_coverage": "test_manager.py::test_store_migrates_started_at_and_sets_it_only_once",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_manager.py::test_manager_retry_archives_each_attempt_and_reuses_request",
+      "disposition": "保留并适配",
+      "new_coverage": "test_manager.py::test_manager_retry_archives_each_attempt_and_reuses_request",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_manager.py::test_manager_retry_rejects_active_job_and_rolls_back_archive",
+      "disposition": "保留并适配",
+      "new_coverage": "test_manager.py::test_manager_retry_rejects_active_job_and_rolls_back_archive",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_manager.py::test_manager_recovers_historical_retry_parser_failure",
+      "disposition": "保留并适配",
+      "new_coverage": "test_manager.py::test_manager_recovers_historical_retry_parser_failure",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_manager.py::test_manager_immediate_close_cancels_active_job",
+      "disposition": "保留并适配",
+      "new_coverage": "test_manager.py::test_manager_immediate_close_cancels_active_job",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_pi_convergence.py::test_pi_ontology_passes_rdf_runtime_flag",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_pi_integration.py",
+      "notes": "当前 Pi runner + ServerExplorer 执行一次 synthesis/format retry；实际 TS 流式/非流式收敛用本机假模型验证。"
+    },
+    {
+      "old_test": "test_pi_convergence.py::test_pi_runs_one_bounded_synthesis_retry",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_pi_integration.py",
+      "notes": "当前 Pi runner + ServerExplorer 执行一次 synthesis/format retry；实际 TS 流式/非流式收敛用本机假模型验证。"
+    },
+    {
+      "old_test": "test_pi_convergence.py::test_pi_timeout_runs_synthesis_only_recovery",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_pi_integration.py",
+      "notes": "当前 Pi runner + ServerExplorer 执行一次 synthesis/format retry；实际 TS 流式/非流式收敛用本机假模型验证。"
+    },
+    {
+      "old_test": "test_pi_convergence.py::test_pi_runs_one_format_only_retry_for_contract_violations",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_pi_integration.py",
+      "notes": "当前 Pi runner + ServerExplorer 执行一次 synthesis/format retry；实际 TS 流式/非流式收敛用本机假模型验证。"
+    },
+    {
+      "old_test": "test_pi_environment.py::test_pi_subprocess_receives_ai_index_credentials_for_dynamic_discovery",
+      "disposition": "适配",
+      "new_coverage": "test_settings_and_distribution.py; test_lifecycle_and_runtime.py",
+      "notes": "配置副本、当前 provider/env、显式扩展、日志脱敏；移除旧模型名改写和 maxTokens 默认值。"
+    },
+    {
+      "old_test": "test_pi_environment.py::test_pi_event_stream_reports_model_errors",
+      "disposition": "适配",
+      "new_coverage": "test_settings_and_distribution.py; test_lifecycle_and_runtime.py",
+      "notes": "配置副本、当前 provider/env、显式扩展、日志脱敏；移除旧模型名改写和 maxTokens 默认值。"
+    },
+    {
+      "old_test": "test_pi_environment.py::test_pi_event_stream_ignores_model_error_after_successful_retry",
+      "disposition": "适配",
+      "new_coverage": "test_settings_and_distribution.py; test_lifecycle_and_runtime.py",
+      "notes": "配置副本、当前 provider/env、显式扩展、日志脱敏；移除旧模型名改写和 maxTokens 默认值。"
+    },
+    {
+      "old_test": "test_pi_environment.py::test_pi_event_stream_keeps_final_failed_retry",
+      "disposition": "适配",
+      "new_coverage": "test_settings_and_distribution.py; test_lifecycle_and_runtime.py",
+      "notes": "配置副本、当前 provider/env、显式扩展、日志脱敏；移除旧模型名改写和 maxTokens 默认值。"
+    },
+    {
+      "old_test": "test_pi_environment.py::test_pi_command_runs_original_dataelf_agent_task",
+      "disposition": "适配",
+      "new_coverage": "test_settings_and_distribution.py; test_lifecycle_and_runtime.py",
+      "notes": "配置副本、当前 provider/env、显式扩展、日志脱敏；移除旧模型名改写和 maxTokens 默认值。"
+    },
+    {
+      "old_test": "test_pi_extension_contract.py::test_finalizer_requires_verified_analysis_instead_of_call_count",
+      "disposition": "适配",
+      "new_coverage": "test_pi_integration.py; test_rdf_finalize.py",
+      "notes": "保留受控分析和 finalizer 协议；收敛改用 Pi 事件钩子，无特定模型名字分支。"
+    },
+    {
+      "old_test": "test_pi_extension_contract.py::test_failed_analysis_submission_is_bounded_and_uses_the_same_tool",
+      "disposition": "适配",
+      "new_coverage": "test_pi_integration.py; test_rdf_finalize.py",
+      "notes": "保留受控分析和 finalizer 协议；收敛改用 Pi 事件钩子，无特定模型名字分支。"
+    },
+    {
+      "old_test": "test_pi_extension_contract.py::test_contract_issues_receive_bounded_in_place_finalizer_retries",
+      "disposition": "适配",
+      "new_coverage": "test_pi_integration.py; test_rdf_finalize.py",
+      "notes": "保留受控分析和 finalizer 协议；收敛改用 Pi 事件钩子，无特定模型名字分支。"
+    },
+    {
+      "old_test": "test_pi_extension_contract.py::test_finalizer_only_advertises_candidate_signal_sources",
+      "disposition": "适配",
+      "new_coverage": "test_pi_integration.py; test_rdf_finalize.py",
+      "notes": "保留受控分析和 finalizer 协议；收敛改用 Pi 事件钩子，无特定模型名字分支。"
+    },
+    {
+      "old_test": "test_pi_response.py::test_materialize_pi_response_accepts_variable_counts",
+      "disposition": "按计划移除",
+      "new_coverage": "test_workflow.py::test_stdout_payload_cannot_complete_a_server_job",
+      "notes": "stdout 提取业务结果不迁移；只接受正式 workspace 输出。正数条数及 ID 校验由服务契约测试保留。"
+    },
+    {
+      "old_test": "test_pi_response.py::test_materialize_pi_response_rejects_empty_or_unsafe_values",
+      "disposition": "按计划移除",
+      "new_coverage": "test_workflow.py::test_stdout_payload_cannot_complete_a_server_job",
+      "notes": "stdout 提取业务结果不迁移；只接受正式 workspace 输出。正数条数及 ID 校验由服务契约测试保留。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_passes_exact_natural_language_query_to_dataelf",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_dispatches_pi_ontology_and_preserves_scope",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_always_uses_pi_ontology",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_rejects_empty_query",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_requires_real_nonempty_ai_index_source",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_accepts_any_positive_insight_count",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_rejects_zero_insights",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_rejects_unsafe_insight_ids",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_rejects_duplicate_insight_ids",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_sets_project_local_pi_model_registry",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_defaults_to_scope_v2_and_pi_ontology",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_rejects_time_ranges_before_calling_ai_index",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_supports_scope_v2_with_pi_ontology",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_pipeline.py::test_pipeline_builds_real_pi_ontology_adapter",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_lifecycle_and_runtime.py",
+      "notes": "旧流程编排由当前 run_job 替代；保留 Scope V2 预取、legacy 适配、结果验证及错误传播。旧 discovery/base 和 PiOntology wrapper 不迁入。"
+    },
+    {
+      "old_test": "test_presentation.py::test_public_insight_resolves_sources_for_both_explorers",
+      "disposition": "保留并适配",
+      "new_coverage": "test_presentation.py::test_public_insight_resolves_sources_for_both_explorers",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_presentation.py::test_public_insight_prefers_embedded_source_and_removes_duplicate_urls",
+      "disposition": "保留并适配",
+      "new_coverage": "test_presentation.py::test_public_insight_prefers_embedded_source_and_removes_duplicate_urls",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_process_control.py::test_terminate_active_process_group",
+      "disposition": "适配",
+      "new_coverage": "test_lifecycle_and_runtime.py",
+      "notes": "取消按 RunControl 的进程组隔离，涵盖父进程已退出的子进程；不迁移旧全局进程注册表。"
+    },
+    {
+      "old_test": "test_rdf_finalize.py::test_finalizer_rejects_unverified_analysis",
+      "disposition": "保留并适配",
+      "new_coverage": "test_rdf_finalize.py::test_finalizer_rejects_unverified_analysis",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_rdf_finalize.py::test_analysis_manifest_rejects_script_tampering",
+      "disposition": "保留并适配",
+      "new_coverage": "test_rdf_finalize.py::test_analysis_manifest_rejects_script_tampering",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_rdf_finalize.py::test_analysis_normalizes_mechanical_artifact_failures",
+      "disposition": "保留并适配",
+      "new_coverage": "test_rdf_finalize.py::test_analysis_normalizes_mechanical_artifact_failures",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_rdf_finalize.py::test_analysis_rebuilds_empty_source_table_from_cited_rdf_sources",
+      "disposition": "保留并适配",
+      "new_coverage": "test_rdf_finalize.py::test_analysis_rebuilds_empty_source_table_from_cited_rdf_sources",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_rdf_finalize.py::test_finalizer_only_writes_results_after_verified_analysis",
+      "disposition": "保留并适配",
+      "new_coverage": "test_rdf_finalize.py::test_finalizer_only_writes_results_after_verified_analysis",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_rdf_finalize.py::test_finalizer_repairs_omitted_proving_signal_and_rejects_unproven_source",
+      "disposition": "保留并适配",
+      "new_coverage": "test_rdf_finalize.py::test_finalizer_repairs_omitted_proving_signal_and_rejects_unproven_source",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_rdf_finalize.py::test_finalizer_does_not_hard_reject_title_or_thesis_length_or_truncate",
+      "disposition": "保留并适配",
+      "new_coverage": "test_rdf_finalize.py::test_finalizer_does_not_hard_reject_title_or_thesis_length_or_truncate",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_rdf_finalize.py::test_finalizer_drops_only_contract_invalid_insights",
+      "disposition": "保留并适配",
+      "new_coverage": "test_rdf_finalize.py::test_finalizer_drops_only_contract_invalid_insights",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_rdf_finalize.py::test_finalizer_keeps_retry_feedback_when_all_insights_are_invalid",
+      "disposition": "保留并适配",
+      "new_coverage": "test_rdf_finalize.py::test_finalizer_keeps_retry_feedback_when_all_insights_are_invalid",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_rdf_finalize.py::test_finalizer_resolves_unambiguous_model_source_aliases",
+      "disposition": "保留并适配",
+      "new_coverage": "test_rdf_finalize.py::test_finalizer_resolves_unambiguous_model_source_aliases",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_redaction.py::test_error_redaction_removes_known_key_shapes",
+      "disposition": "保留并适配",
+      "new_coverage": "test_redaction.py::test_error_redaction_removes_known_key_shapes",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_schemas.py::test_natural_language_query_is_trimmed",
+      "disposition": "保留并适配",
+      "new_coverage": "test_schemas.py::test_natural_language_query_is_trimmed",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_schemas.py::test_query_request_rejects_explorer_selection",
+      "disposition": "保留并适配",
+      "new_coverage": "test_schemas.py::test_query_request_rejects_explorer_selection",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_schemas.py::test_query_request_accepts_both_scopes",
+      "disposition": "保留并适配",
+      "new_coverage": "test_schemas.py::test_query_request_accepts_both_scopes",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_schemas.py::test_query_request_rejects_invalid_values",
+      "disposition": "保留并适配",
+      "new_coverage": "test_schemas.py::test_query_request_rejects_invalid_values",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_comprehensive_aliases_create_daily_plan",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_comprehensive_aliases_create_daily_plan",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_comprehensive_takes_precedence_over_modules",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_comprehensive_takes_precedence_over_modules",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_module_aliases",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_module_aliases",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_multi_module_plan_deduplicates_sources_and_sets_exact_payloads",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_multi_module_plan_deduplicates_sources_and_sets_exact_payloads",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_plain_x_is_not_a_twitter_alias",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_plain_x_is_not_a_twitter_alias",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_module_name_is_required",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_module_name_is_required",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_single_time_expression_bounds_search_at_requested_day",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_single_time_expression_bounds_search_at_requested_day",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_previous_month_clamps_end_of_month",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_previous_month_clamps_end_of_month",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_invalid_time_expressions",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_invalid_time_expressions",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_client_authenticates_and_retries_transient_server_error",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_client_authenticates_and_retries_transient_server_error",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_client_honors_retry_after_for_429",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_client_honors_retry_after_for_429",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_client_rejects_business_error",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_client_rejects_business_error",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_ecosystem_pages_backward_and_keeps_latest_day_not_after_target",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_ecosystem_pages_backward_and_keeps_latest_day_not_after_target",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_news_uses_one_server_side_month_range_request",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_news_uses_one_server_side_month_range_request",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_empty_date_bounded_search_stops_with_no_items",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_empty_date_bounded_search_stops_with_no_items",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_prefetch_returns_no_source_data_when_every_probe_is_empty",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_prefetch_returns_no_source_data_when_every_probe_is_empty",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_executor_persists_sanitized_failure",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_executor_persists_sanitized_failure",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_load_env_file_does_not_override_process_environment",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_load_env_file_does_not_override_process_environment",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_materialize_filtered_envelope_for_plain_pi",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_materialize_filtered_envelope_for_plain_pi",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2.py::test_materialize_rejects_empty_prefetch",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2.py::test_materialize_rejects_empty_prefetch",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2_prompt.py::test_plain_pi_scope_v2_prompt_forbids_additional_acquisition",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_pi_integration.py",
+      "notes": "server prompt、Scope V2 固定建模与写作契约集中装配；legacy 不套用 Scope V2 校验。"
+    },
+    {
+      "old_test": "test_scope_v2_prompt.py::test_pi_ontology_scope_v2_prompt_explains_hybrid_sources",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_pi_integration.py",
+      "notes": "server prompt、Scope V2 固定建模与写作契约集中装配；legacy 不套用 Scope V2 校验。"
+    },
+    {
+      "old_test": "test_scope_v2_prompt.py::test_legacy_scope_has_no_scope_v2_prompt",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_pi_integration.py",
+      "notes": "server prompt、Scope V2 固定建模与写作契约集中装配；legacy 不套用 Scope V2 校验。"
+    },
+    {
+      "old_test": "test_scope_v2_prompt.py::test_job_specific_contract_is_injected_into_prompt",
+      "disposition": "适配",
+      "new_coverage": "test_workflow.py; test_pi_integration.py",
+      "notes": "server prompt、Scope V2 固定建模与写作契约集中装配；legacy 不套用 Scope V2 校验。"
+    },
+    {
+      "old_test": "test_scope_v2_templates.py::test_intent_sources_automatically_select_template_fragments",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2_templates.py::test_intent_sources_automatically_select_template_fragments",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2_templates.py::test_every_source_fragment_can_be_composed_together",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2_templates.py::test_every_source_fragment_can_be_composed_together",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_scope_v2_templates.py::test_scope_v2_template_runner_materializes_valid_rdf",
+      "disposition": "保留并适配",
+      "new_coverage": "test_scope_v2_templates.py::test_scope_v2_template_runner_materializes_valid_rdf",
+      "notes": "导入指向新服务包；路径/Settings/attempt 断言使用当前接口。"
+    },
+    {
+      "old_test": "test_serve_host_script.py::test_host_script_does_not_reference_project_venv",
+      "disposition": "适配",
+      "new_coverage": "test_settings_and_distribution.py; deployment/README.md",
+      "notes": "统一仓库启动脚本与 systemd 示例，不复制旧固定主机部署信息。"
+    },
+    {
+      "old_test": "test_serve_script.py::test_serve_script_automatically_loads_dotenv",
+      "disposition": "适配",
+      "new_coverage": "test_settings_and_distribution.py; deployment/README.md",
+      "notes": "统一 python -m dataelf_server/dataelf-serve 入口，替换旧环境、端口、模型、worker 默认值。"
+    }
+  ],
+  "current_status": "Historical pre-LLM migration coverage. Rule parsers are archived and disabled; current intent coverage is in test_intent.py and test_intent_integration.py."
+}

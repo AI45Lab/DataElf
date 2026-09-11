@@ -47,11 +47,12 @@ class DataElfConfig(BaseModel):
     explorer: ExplorerConfig = Field(default_factory=ExplorerConfig)
     domains: dict[str, dict[str, Any]] = Field(default_factory=dict)
     env: dict[str, str] = Field(default_factory=dict)
+    server: dict[str, Any] = Field(default_factory=dict)
 
     @classmethod
     def from_env(cls) -> "DataElfConfig":
         values = load_config_file()
-        _reject_unknown(values, {"runtime", "explorer", "domains", "env"}, "root")
+        _reject_unknown(values, {"runtime", "explorer", "domains", "env", "server"}, "root")
         runtime_values = _section(values, "runtime")
         explorer_values = _section(values, "explorer")
         pi_values = _section(explorer_values, "pi")
@@ -93,6 +94,7 @@ class DataElfConfig(BaseModel):
             runtime=runtime,
             explorer=ExplorerConfig(type=str(explorer_values.get("type", "pi")), pi=pi),
             domains=domains,
+            server=_section(values, "server"),
             env=runtime_env,
         )
 

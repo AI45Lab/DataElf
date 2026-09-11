@@ -25,17 +25,7 @@ def execute(request_path: Path, result_path: Path, progress_path: Path) -> Ontol
         atomic_write_json(progress_path, {"stage": stage})
 
     runner = AIIndexOntologyRunner(
-        config.stage1_config,
-        config.stage2_config,
-        ontology_template=config.ontology_template,
-        model_name=config.model_name,
-        model_max_tokens=config.model_max_tokens,
-        stage1_process_timeout_seconds=config.stage1_process_timeout_seconds,
-        stage1_request_timeout_seconds=config.stage1_request_timeout_seconds,
-        stage1_request_max_retries=config.stage1_request_max_retries,
-        stage2_request_timeout_seconds=config.stage2_request_timeout_seconds,
-        stage2_request_max_retries=config.stage2_request_max_retries,
-        stage2_total_timeout_seconds=config.stage2_total_timeout_seconds,
+        config.ontology_config,
         progress=progress,
     )
     result = runner.run(Path(request.workspace_path))

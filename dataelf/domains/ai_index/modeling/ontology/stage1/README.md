@@ -23,3 +23,6 @@ fresh-context reviewer approve 后才会发布。
 独立 CLI 支持 `--resume <run_id>` 恢复兼容 checkpoint，或用 `--repair-from <run_id>`
 进行开发修复。AI Index modeling runner 始终传入 `resume=None, repair_from=None`，不会走这些
 复用路径。完整结构和 contract 见 `../ARCHITECTURE.md`。
+
+配置统一位于 [`../config.yaml`](../config.yaml)。本 CLI 的 `--config` 接受同样的完整
+统一文件并读取对应阶段分区，已移除本目录内的独立 `config.yaml`。
