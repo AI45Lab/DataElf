@@ -160,7 +160,11 @@ def _initialize_job(spec: JobSpec, config: DataElfConfig, store: StoreLike) -> D
 
 
 def _trace_stage(store: StoreLike, job: DiscoveryJob, stage: str, result: Any) -> None:
-    store.add_trace_event(job.job_id, f"{stage}_completed", result.model_dump(mode="json"))
+    payload = result.model_dump(mode="json")
+    if "env" in payload:
+        # Trace format: variable names and configured flags, never runtime values.
+        payload["env"] = {key: bool(value) for key, value in payload["env"].items()}
+    store.add_trace_event(job.job_id, f"{stage}_completed", payload)
 
 
 def _fail(

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -518,7 +519,15 @@ def _redact_command(command: list[str]) -> list[str]:
 
 
 def _redact_value(key: str, value: str) -> str:
-    if any(marker in key.upper() for marker in _SECRET_KEY_MARKERS):
+    # Connection settings may embed credentials in userinfo, query strings or DSNs.
+    # Redact the diagnostic value as a whole; the process env remains untouched.
+    connection_key = bool(set(key.upper().split("_")) & {"URI", "URL", "DSN", "CONNECTION", "CONNECTIONSTRING"})
+    authenticated_url = bool(re.search(r"://[^/\s?#]*@", value))
+    authenticated_query = bool(re.search(
+        r"[?&][^=&\s]*(?:key|token|secret|password|signature|credential)[^=&\s]*=",
+        value, re.IGNORECASE,
+    ))
+    if connection_key or authenticated_url or authenticated_query or any(marker in key.upper() for marker in _SECRET_KEY_MARKERS):
         return "<redacted>" if value else ""
     return value
 
