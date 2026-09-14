@@ -146,6 +146,22 @@ review.py          domain semantic review
 - `review`: applies semantic checks after generic artifact validation.
 - `result_ids`: exposes the domain's primary result identifiers for the workspace index.
 
+### Domain Pi resources
+
+Pi's built-in tools (`read`, `bash`, `edit`, `write`, `grep`, `find`, and `ls`) are provided by Pi as the common agent base. DataElf does not define a second tool registry and does not convert Python helpers into Pi tools.
+
+A domain may add Pi-native behavior through the official Pi extension mechanism. An extension is a JavaScript/TypeScript module and may register one or more model-callable tools with `pi.registerTool(...)`. Keep those files under the domain:
+
+```text
+dataelf/domains/<domain>/
+├── tools.py                 # optional Python helpers for analysis scripts
+└── pi/
+    ├── extensions/          # optional Pi .js/.mjs/.ts extensions
+    └── skills/              # optional directories containing SKILL.md
+```
+
+At run time DataElf discovers the domain's `pi/extensions/` files and `pi/skills/**/SKILL.md`, then passes them to Pi with explicit `--extension` and `--skill` flags. Python `tools.py` remains an internal library used by scripts; it is not automatically visible to Pi. The AI Index domain currently uses this Python pattern through `AIIndexClient`.
+
 Every stage communicates through `ArtifactRef` and `StageResult`. Core output validation checks workspace containment, required/non-empty files, JSON validity, and declared JSON roots. The final `artifact_manifest.json` is therefore domain-neutral.
 
 Adding another domain does not require edits to workflow, workspace creation, prompt composition, Pi execution, or generic output validation. Tests include a fake domain with its own adapter, optional modeler, output contract, and reviewer to enforce this boundary.
@@ -222,7 +238,7 @@ DataElf selects the Explorer model through `explorer.pi.model` (for example, `bo
 
 `explorer.pi.log_mode` can be `quiet`, `summary`, or `raw`. Raw JSON events are always saved to `logs/pi_events.jsonl`; terminal verbosity does not change the artifact contract.
 
-Official Pi CLI resource flags belong in `explorer.pi.extra_args`, for example:
+Official Pi CLI resource flags can still be passed through `explorer.pi.extra_args` for advanced integrations, but domain resources should normally use the directory convention above:
 
 ```yaml
 explorer:

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
+import shutil
+import subprocess
+
+import pytest
 
 from dataelf.discovery.agent_resources import discover_domain_resources, resolve_domain_resources
-from dataelf.discovery.contracts import AgentResources, DomainManifest, JobSpec
+from dataelf.discovery.contracts import AgentResources, DiscoveryContext, DomainManifest, JobSpec
 from dataelf.discovery.pi_cli_explorer import PiCliInsightsExplorer
 
 
@@ -50,11 +55,59 @@ def test_domain_resources_reject_paths_outside_domain(tmp_path: Path) -> None:
         raise AssertionError("outside resource should be rejected")
 
 
-def test_pi_command_loads_only_explicit_domain_resources() -> None:
-    extension = Path("dataelf/domains/ai_index/pi/extensions/ai_index_tools.mjs").resolve()
+def test_pi_command_loads_only_explicit_domain_resources(tmp_path: Path) -> None:
+    extension = tmp_path / "example.mjs"
+    extension.write_text("export default function(pi) {}", encoding="utf-8")
     context = type("Context", (), {"agent_resources": AgentResources(extensions=[extension]),})()
     command = PiCliInsightsExplorer(pi_binary="fake")._build_command("fake", Path("/tmp/prompt.md"), context, {})
     assert "--no-extensions" in command
     assert command[command.index("--extension") + 1] == str(extension)
     assert "--no-skills" in command
 
+
+def test_ai_index_skill_reaches_real_pi_loader(tmp_path: Path) -> None:
+    """Use Pi's real parser, without API calls, after DataElf resolves CLI paths."""
+    repo = Path(__file__).resolve().parents[1]
+    loader = repo / "node_modules/@earendil-works/pi-coding-agent/dist/core/skills.js"
+    node = shutil.which("node")
+    if not node or not loader.is_file():
+        pytest.skip("Run dataelf setup to enable the real Pi skill-loader integration test")
+    skill = tmp_path / "domain/pi/skills/ai-index-evidence-audit/SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("---\nname: ai-index-evidence-audit\ndescription: Test skill.\n---\nUse it.\n", encoding="utf-8")
+    resources = AgentResources(skills=[skill])
+    context = DiscoveryContext(
+        workspace_path=str(tmp_path), spec=JobSpec(domain="fake", objective="test"),
+        manifest=DomainManifest(domain="fake", version="1", display_name="Fake", plugin="x:y"),
+        agent_resources=resources,
+    )
+    command = PiCliInsightsExplorer(pi_binary="fake")._build_command(
+        "fake", tmp_path / "prompt.md", context, {},
+    )
+    paths = [command[i + 1] for i, value in enumerate(command) if value == "--skill"]
+    assert len(paths) == 1
+    assert Path(paths[0]).is_relative_to(tmp_path / "domain")
+    # A skill in Pi's ambient project directory must not leak into this run.
+    ambient = tmp_path / ".pi/skills/unselected/SKILL.md"
+    ambient.parent.mkdir(parents=True)
+    ambient.write_text("---\nname: unselected\ndescription: Should not load.\n---\nIgnore.\n", encoding="utf-8")
+    script = """
+const input = JSON.parse(process.argv[1]);
+const {loadSkills, formatSkillsForPrompt} = await import(input.loader);
+const result = loadSkills({cwd: input.cwd, agentDir: input.cwd + '/agent',
+  skillPaths: input.paths, includeDefaults: false});
+console.log(JSON.stringify({names: result.skills.map(s => s.name),
+  prompt: formatSkillsForPrompt(result.skills), diagnostics: result.diagnostics}));
+"""
+    result = subprocess.run(
+        [node, "--input-type=module", "-e", script, json.dumps({
+            "loader": loader.as_uri(), "cwd": str(tmp_path), "paths": paths,
+        })], capture_output=True, text=True, check=True, timeout=30,
+    )
+    loaded = json.loads(result.stdout)
+    assert loaded["names"] == ["ai-index-evidence-audit"]
+    assert paths[0] in loaded["prompt"]
+    assert loaded["diagnostics"] == []
+    other = tmp_path / "domains/other"
+    other.mkdir(parents=True)
+    assert discover_domain_resources(other).skills == []
