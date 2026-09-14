@@ -1,0 +1,58 @@
+{
+  "synthetic": true,
+  "purpose": "Human-authored test oracle only; never include this file in Agent input or prompt.",
+  "expected": {
+    "status": "insufficient_evidence",
+    "key_pointer": null,
+    "support_pointers": []
+  },
+  "rejected_conclusions": [
+    {
+      "pointer": "/calls/1/envelope/result/records/0/chosen_trace/0",
+      "claim": "An unseen first step caused failure.",
+      "reason": "The field was omitted; this position does not exist."
+    }
+  ],
+  "report": {
+    "schema_version": "2",
+    "result_id": "failure_analysis",
+    "status": "insufficient_evidence",
+    "objective": "Locate the consequential failure in this synthetic execution.",
+    "scope": {
+      "basis": "bounded_tool_responses",
+      "call_count": 2,
+      "search_count": 1,
+      "get_count": 1,
+      "truncated": true,
+      "omitted_fields": [
+        {
+          "call_id": "call_2",
+          "record_index": 0,
+          "field": "chosen_trace"
+        }
+      ],
+      "omitted_records": 0,
+      "trace_state": "omitted",
+      "trace_type": "missing",
+      "trace_length": null
+    },
+    "task_goal": null,
+    "success_condition": null,
+    "key_failure": null,
+    "direct_cause": null,
+    "outcome": null,
+    "possible_root_causes": [],
+    "other_explanations": [],
+    "uncertainty": "The requested trace was omitted; the task goal, decisions and outcome cannot be established from reward alone.",
+    "limitations": [
+      "bounded_record_not_full_session",
+      "granularity_unverified",
+      "truncated_output",
+      "chosen_trace_omitted",
+      "task_goal_unknown",
+      "success_condition_unknown",
+      "outcome_unknown",
+      "critical_context_unavailable"
+    ]
+  }
+}

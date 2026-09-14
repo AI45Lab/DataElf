@@ -13,7 +13,7 @@ CLI / API
   -> domain review
 ```
 
-The current built-in domain is `ai_index`. All cases use the same domain-aware entrypoint:
+The source tree includes `ai_index` and `trajectory_analysis`. All cases use the same domain-aware entrypoint:
 
 ```bash
 dataelf run --domain ai_index "围绕 Agentic LLMs，基于 AI Index，发现最近值得关注的 3 个 insight"
@@ -188,6 +188,12 @@ dataelf run --domain ai_index --modeling --ontology-template ai_index_search \
 ```
 
 The modeler returns standard evidence artifacts; it does not replace the core prompt path. Detailed ontology operation and troubleshooting are documented in [`dataelf/domains/ai_index/modeling/ontology/README.md`](dataelf/domains/ai_index/modeling/ontology/README.md), with module responsibilities in [`ARCHITECTURE.md`](dataelf/domains/ai_index/modeling/ontology/ARCHITECTURE.md).
+
+## Trajectory Analysis domain
+
+The `trajectory_analysis` domain uses a domain-owned Python Client to query WT Serving read-only and identify evidence-supported deviations in agent trajectories. It owns bounded acquisition, analysis instructions, and report review; no global WT registration is required.
+
+See the [Trajectory Analysis README](dataelf/domains/trajectory_analysis/README.md) for installation, configuration, a normal task example, artifacts, Skill/Client development, tests, and source/wheel/POSIX limits.
 
 ## Workspace
 

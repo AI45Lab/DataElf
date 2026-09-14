@@ -1,0 +1,127 @@
+{
+  "synthetic": true,
+  "purpose": "Human-authored test oracle only; never include this file in Agent input or prompt.",
+  "expected": {
+    "status": "located",
+    "key_pointer": "/calls/1/envelope/result/records/0/chosen_trace/3",
+    "support_pointers": [
+      "/calls/1/envelope/result/records/0/chosen_trace/3",
+      "/calls/1/envelope/result/records/0/chosen_trace/4",
+      "/calls/1/envelope/result/records/0/chosen_trace/2"
+    ]
+  },
+  "rejected_conclusions": [
+    {
+      "pointer": "/calls/1/envelope/result/records/0/chosen_trace/5",
+      "claim": "The last event must be the initiating error.",
+      "reason": "It records the outcome; the earlier consequential decision is evidenced separately."
+    },
+    {
+      "pointer": "/calls/1/envelope/result/records/0/chosen_trace/1",
+      "claim": "The initial timeout caused the final invoice rejection.",
+      "reason": "The retry succeeded before the later stale-price decision."
+    }
+  ],
+  "report": {
+    "schema_version": "2",
+    "result_id": "failure_analysis",
+    "status": "located",
+    "objective": "Locate the consequential failure in this synthetic execution.",
+    "scope": {
+      "basis": "bounded_tool_responses",
+      "call_count": 2,
+      "search_count": 1,
+      "get_count": 1,
+      "truncated": false,
+      "omitted_fields": [],
+      "omitted_records": 0,
+      "trace_state": "present",
+      "trace_type": "array",
+      "trace_length": 6
+    },
+    "task_goal": {
+      "statement": "Produce the invoice using the approved price.",
+      "basis": "observed",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/0",
+          "why": "The task statement identifies the requested operation."
+        }
+      ]
+    },
+    "success_condition": {
+      "statement": "The total must use the freshly approved unit price.",
+      "basis": "observed",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/0",
+          "why": "The task states how success is judged."
+        }
+      ]
+    },
+    "key_failure": {
+      "statement": "After a successful retry, the later decision used stale data. The recovered timeout is not the unresolved contributor.",
+      "basis": "inferred",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/3",
+          "why": "This action introduces the mismatch later rejected by the validator; subsequent observations show no recovery."
+        },
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/4",
+          "why": "The validator links the decision to the rejected result."
+        },
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/2",
+          "why": "The retry recovered the earlier timeout before the harmful decision."
+        }
+      ]
+    },
+    "direct_cause": {
+      "statement": "The invoice uses a stale price instead of the recovered approved price.",
+      "basis": "inferred",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/3",
+          "why": "The recorded action explains the validator mismatch."
+        }
+      ]
+    },
+    "outcome": {
+      "statement": "The rejected result remained uncorrected.",
+      "basis": "observed",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/5",
+          "why": "The final observation explicitly records failure without recovery."
+        }
+      ]
+    },
+    "possible_root_causes": [],
+    "other_explanations": [
+      {
+        "statement": "An unrecorded policy misunderstanding could explain the stale-price choice.",
+        "basis": "inferred",
+        "evidence": [
+          {
+            "path": "raw/trajectory_analysis/tool_calls.json",
+            "pointer": "/calls/1/envelope/result/records/0/chosen_trace/3",
+            "why": "The action is observed but its motivation is absent."
+          }
+        ]
+      }
+    ],
+    "uncertainty": "The internal motivation is not recorded; a root cause beyond the observed behavior is unknown.",
+    "limitations": [
+      "bounded_record_not_full_session",
+      "granularity_unverified"
+    ]
+  }
+}
