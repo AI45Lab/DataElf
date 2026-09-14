@@ -14,13 +14,21 @@ class DomainRegistry:
         self.root = root or Path(__file__).resolve().parents[1] / "domains"
 
     def load_manifest(self, domain: str) -> DomainManifest:
-        path = self.root / domain / "domain.yaml"
+        path = self.domain_path(domain) / "domain.yaml"
         if not path.is_file():
             raise FileNotFoundError(f"Domain manifest not found: {path}")
         manifest = DomainManifest.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
         if manifest.domain != domain:
             raise ValueError(f"Domain manifest {path} declares {manifest.domain!r}, expected {domain!r}")
         return manifest
+
+    def domain_path(self, domain: str) -> Path:
+        """Return the checked-in root directory for a registered domain."""
+        path = (self.root / domain).resolve()
+        root = self.root.resolve()
+        if not path.is_relative_to(root):
+            raise ValueError(f"Domain path escapes registry root: {domain!r}")
+        return path
 
     def load_plugin(self, domain: str, config: Any) -> DomainPlugin:
         manifest = self.load_manifest(domain)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from pathlib import Path
 from pathlib import PurePosixPath
 from typing import Any, Literal, Protocol
 
@@ -85,6 +86,18 @@ class ExplorerRunResult(BaseModel):
     error_message: str | None = None
 
 
+class AgentResources(BaseModel):
+    """Resources that a domain wants the selected agent runtime to load.
+
+    Paths are resolved by the domain registry and are passed to the concrete
+    explorer (currently Pi) as explicit runtime resources. Built-in Pi tools
+    are intentionally not listed here; they are common DataElf policy.
+    """
+
+    extensions: list[Path] = Field(default_factory=list)
+    skills: list[Path] = Field(default_factory=list)
+
+
 class ReviewResult(BaseModel):
     review_id: str
     job_id: str
@@ -132,6 +145,7 @@ class DiscoveryContext(BaseModel):
     env: dict[str, str] = Field(default_factory=dict)
     domain_context: dict[str, Any] = Field(default_factory=dict)
     artifacts: list[ArtifactRef] = Field(default_factory=list)
+    agent_resources: AgentResources = Field(default_factory=AgentResources)
     prompt_path: str | None = None
 
 
@@ -156,13 +170,16 @@ class DomainPlugin(Protocol):
 
     def result_ids(self, workspace_path: str) -> list[str]: ...
 
+    # Optional: the registry also discovers conventional domain/pi resources.
+    def agent_resources(self, spec: JobSpec, config: Any) -> AgentResources: ...
+
 
 class InsightsExplorer(Protocol):
     def run(self, job: DiscoveryJob, context: DiscoveryContext) -> ExplorerRunResult: ...
 
 
 __all__ = [
-    "ArtifactRef", "DiscoveryContext", "DiscoveryJob", "DomainManifest", "DomainModeler",
+    "AgentResources", "ArtifactRef", "DiscoveryContext", "DiscoveryJob", "DomainManifest", "DomainModeler",
     "DomainPlugin", "ExplorerRunResult", "InsightsExplorer", "JobSpec", "ModelingStageResult",
     "OutputArtifactSpec", "OutputContract", "ReviewResult", "StageResult",
 ]
