@@ -27,11 +27,17 @@ class TrajectoryAnalysisPlugin:
         parameters = dict(spec.parameters)
         for key, default in {'reward': 0, 'limit': 1, 'fields': ['chosen_trace']}.items():
             parameters.setdefault(key, default)
-        if (set(parameters) != {'reward', 'limit', 'fields'}
+        if (set(parameters) - {'reward', 'limit', 'fields', 'job_id', 'session_id'}
                 or type(parameters['reward']) not in (int, float) or parameters['reward'] != 0
                 or type(parameters['limit']) is not int or parameters['limit'] != 1
                 or parameters['fields'] != ['chosen_trace']):
             raise ValueError('TRAJECTORY_PARAMETERS_UNSUPPORTED')
+        for key in ("job_id", "session_id"):
+            if key in parameters:
+                value = parameters[key]
+                if not (isinstance(value, str) and 0 < len(value) <= 1024
+                        and all(ord(c) >= 32 and ord(c) != 127 for c in value)):
+                    raise ValueError("TRAJECTORY_PARAMETERS_UNSUPPORTED")
         allowed_inputs = {'fixture_file'} if self.config.mode == 'fixture' else set()
         if set(spec.inputs) - allowed_inputs:
             raise ValueError('TRAJECTORY_INPUTS_UNSUPPORTED')

@@ -26,7 +26,7 @@ class TrajectoryConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     mode: Literal["tool", "fixture"] = "tool"
     tool_python: str = sys.executable
-    skill_path: str | None = str(Path(__file__).resolve().parent / "skills/wt-serving-query/SKILL.md")
+    skill_path: str | None = str(Path(__file__).resolve().parent / "pi/skills/wt-serving-query/SKILL.md")
     profile: Literal["test"] = "test"
     modeling: ModelingConfig = Field(default_factory=ModelingConfig)
 

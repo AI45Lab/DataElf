@@ -7,6 +7,7 @@ from typing import Any, Protocol
 
 from dataelf.config import DataElfConfig
 from dataelf.discovery.artifacts import ArtifactContractError, validate_outputs, validate_stage_artifacts, write_artifact_manifest
+from dataelf.discovery.agent_resources import resolve_domain_resources
 from dataelf.discovery.contracts import (
     ArtifactRef,
     DiscoveryContext,
@@ -47,7 +48,8 @@ class NullStore:
 def run_job(spec: JobSpec, config: DataElfConfig, registry: DomainRegistry | None = None) -> DiscoveryJob:
     config.ensure_dirs()
     store = _create_store(config)
-    plugin = (registry or DomainRegistry()).load_plugin(spec.domain, config)
+    domain_registry = registry or DomainRegistry()
+    plugin = domain_registry.load_plugin(spec.domain, config)
     spec = plugin.normalize_spec(spec)
     job = _initialize_job(spec, config, store)
     workspace = prepare_workspace(Path(job.workspace_path), spec)
@@ -55,9 +57,13 @@ def run_job(spec: JobSpec, config: DataElfConfig, registry: DomainRegistry | Non
         artifact_id="job_spec", kind="job_spec", path="job_spec.json", role="input",
         producer_stage="core", media_type="application/json",
     ))
+    try:
+        agent_resources = resolve_domain_resources(domain_registry.domain_path(spec.domain), plugin, spec, config)
+    except (FileNotFoundError, ValueError) as exc:
+        return _fail(job, store, workspace, "agent_resources", "AGENT_RESOURCES_INVALID", str(exc))
     context = DiscoveryContext(
         workspace_path=str(workspace), spec=spec, manifest=plugin.manifest,
-        model=config.explorer.pi.model, env=dict(config.env),
+        model=config.explorer.pi.model, env=dict(config.env), agent_resources=agent_resources,
     )
 
     preparation = plugin.prepare(spec, str(workspace), config)

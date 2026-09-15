@@ -23,9 +23,10 @@ from .connector import (
 
 
 class TrajectoryClient:
-    def __init__(self, workspace: Path, python: str):
+    def __init__(self, workspace: Path, python: str, search_filters: dict | None = None):
         self.workspace = workspace
         self.python = python
+        self._search_filters = dict(search_filters or {})
 
     @classmethod
     def from_env(cls) -> TrajectoryClient:
@@ -40,10 +41,22 @@ class TrajectoryClient:
             require(Path(python).is_absolute(), "QUERY_PYTHON_INVALID")
         except (OSError, KeyError, ValueError):
             raise EvidenceError("QUERY_CLIENT_ENV_INVALID") from None
-        return cls(workspace, python)
+        parameters = read_json(workspace, "job_spec.json").get("parameters", {})
+        filters = {key: parameters[key] for key in ("job_id", "session_id")
+                   if key in parameters}
+        return cls(workspace, python, search_filters=filters)
 
-    def search_records(self, *, reward: float = 0, limit: int = 1):
-        return self._call("wt_search_records", {"reward": reward, "limit": limit})
+    def search_records(self, *, reward: float = 0, limit: int = 1,
+                       job_id: str | None = None, session_id: str | None = None):
+        arguments = {"reward": reward, "limit": limit}
+        for key, explicit in (("job_id", job_id), ("session_id", session_id)):
+            fixed = self._search_filters.get(key)
+            require(fixed is None or explicit is None or explicit == fixed,
+                    "QUERY_SEARCH_FILTER_MISMATCH")
+            value = fixed if fixed is not None else explicit
+            if value is not None:
+                arguments[key] = value
+        return self._call("wt_search_records", arguments)
 
     def get_record(self, record_id: str, *, fields: list[str] | None = None):
         return self._call("wt_get_record", {"record_id": record_id,

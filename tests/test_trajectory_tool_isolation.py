@@ -1,4 +1,4 @@
-"""Offline resource-boundary tests; explicit Pi loading is not DataElf auto-loading.
+"""Offline tests for domain-scoped Pi resources and Python acquisition.
 
 Default discovery must not expose WT. Positive acquisition uses existing Pi code execution.
 """
@@ -62,7 +62,7 @@ def test_tool_is_an_internal_package_without_other_domain_imports():
 
 def test_skill_default_is_domain_owned_and_cwd_independent():
     skill = Path(TrajectoryConfig().skill_path)
-    assert skill == DOMAIN / "skills/wt-serving-query/SKILL.md"
+    assert skill == DOMAIN / "pi/skills/wt-serving-query/SKILL.md"
     assert skill.is_file() and skill.is_absolute()
     assert not skill.is_relative_to(ROOT / ".pi")
 
@@ -335,3 +335,43 @@ def test_client_failure_is_visible_and_never_unrecorded_success(tmp_path, failur
         assert result.returncode != 0 and not raw_path.exists()
         assert not (tmp_path / 'sdk-calls.jsonl').exists()
     assert 'SYNTHETIC_PRIVATE_ERROR' not in result.stdout + result.stderr
+
+
+def test_domain_resource_commands_are_scoped(tmp_path):
+    """Build commands for two domains without leaking the WT Skill."""
+    from dataelf.discovery.agent_resources import resolve_domain_resources
+    from test_discovery_mvp import _fake_registry
+
+    cfg = DataElfConfig(domains={"trajectory_analysis": {"mode": "fixture"}})
+    skill = (DOMAIN / "pi/skills/wt-serving-query/SKILL.md").resolve()
+    explorer = create_explorer(cfg)
+
+    for registry, domain, expected in [
+        (DomainRegistry(), "trajectory_analysis", [skill]),
+        (_fake_registry(tmp_path), "fake", []),
+    ]:
+        spec = JobSpec(domain=domain, objective="synthetic resource selection")
+        plugin = registry.load_plugin(domain, cfg)
+        resources = resolve_domain_resources(
+            registry.domain_path(domain), plugin, spec, cfg,
+        )
+        assert resources.skills == expected
+        assert resources.extensions == []
+
+        ctx = DiscoveryContext(
+            workspace_path=str(tmp_path),
+            spec=spec,
+            manifest=plugin.manifest,
+            agent_resources=resources,
+        )
+        command = explorer._build_command(
+            "synthetic-pi", tmp_path / "prompt.md", ctx, {},
+        )
+        assert "--no-skills" in command
+        assert "--no-extensions" in command
+        loaded = [
+            Path(command[i + 1])
+            for i, arg in enumerate(command) if arg == "--skill"
+        ]
+        assert loaded == expected
+        assert "--extension" not in command

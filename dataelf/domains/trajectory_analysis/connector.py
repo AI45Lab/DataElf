@@ -42,9 +42,15 @@ def _write(workspace, relative, value):
 def validate_arguments(tool, args):
     require(isinstance(args, dict), "QUERY_ARGUMENTS_INVALID")
     if tool == "wt_search_records":
-        require(set(args) == {"reward", "limit"} and type(args['reward']) in (int, float)
+        require({"reward", "limit"} <= set(args) <= {"reward", "limit", "job_id", "session_id"} and type(args['reward']) in (int, float)
                 and args['reward'] == 0 and type(args['limit']) is int and args['limit'] == 1,
                 "QUERY_SEARCH_ARGUMENTS")
+        for key in ("job_id", "session_id"):
+            if key in args:
+                value = args[key]
+                require(isinstance(value, str) and 0 < len(value) <= 1024
+                        and all(ord(c) >= 32 and ord(c) != 127 for c in value),
+                        "QUERY_SEARCH_ARGUMENTS")
     else:
         require(tool == "wt_get_record" and {'record_id', 'fields'} <= set(args) <= {'record_id', 'fields', 'job_id'}
                 and isinstance(args['fields'], list) and len(args['fields']) == 1
@@ -146,6 +152,9 @@ def validate_sequence(calls, *, complete=False):
         require(type(row.get('reward')) in (int, float) and row['reward'] == 0, 'QUERY_REWARD_MISMATCH')
         if index == 0:
             require(isinstance(row.get('id'), str) and bool(row['id']), 'QUERY_RECORD_LINK_MISMATCH')
+            require(all(row.get(key) == args[key]
+                        for key in ("job_id", "session_id") if key in args),
+                    "QUERY_SEARCH_FILTER_MISMATCH")
             selected = row
         else:
             for key in ('id', 'job_id', 'session_id', 'step_id'):

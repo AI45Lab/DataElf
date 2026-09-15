@@ -18,7 +18,7 @@ uv pip install --python .venv/bin/python \
   -r dataelf/domains/trajectory_analysis/requirements-wt.txt
 ```
 
-项目安装与 `dataelf setup` 不包含 WT SDK；[requirements-wt.txt](requirements-wt.txt) 单独固定其来源，取得依赖需要相应仓库访问。已有环境不必重装或覆盖配置。Skill 已位于源码的 [skills/wt-serving-query/SKILL.md](skills/wt-serving-query/SKILL.md)，无需单独安装。prepare 只校验所选 Python、Skill 和 SDK 导入并传递运行信息，不安装依赖或查询 WT。
+项目安装与 `dataelf setup` 不包含 WT SDK；[requirements-wt.txt](requirements-wt.txt) 单独固定其来源，取得依赖需要相应仓库访问。已有环境不必重装或覆盖配置。Skill 已位于源码的 [pi/skills/wt-serving-query/SKILL.md](pi/skills/wt-serving-query/SKILL.md)，无需单独安装。prepare 只校验所选 Python、Skill 和 SDK 导入并传递运行信息，不安装依赖或查询 WT。
 
 将以下无凭据片段合入本地配置，替换 provider/model；可用 `DATAELF_CONFIG_FILE` 选择配置文件：
 
@@ -75,7 +75,7 @@ dataelf run --domain trajectory_analysis --no-modeling \
 | 领域文件 | 职责 |
 |---|---|
 | [domain.yaml](domain.yaml)、[plugin.py](plugin.py)、[config.py](config.py) | manifest、typed config、prepare、输出契约及插件入口 |
-| [prompt.py](prompt.py)、[Skill](skills/wt-serving-query/SKILL.md) | 分析方法与读取/调用指令；Skill 负责查询约定 |
+| [prompt.py](prompt.py)、[Skill](pi/skills/wt-serving-query/SKILL.md) | 分析方法与读取/调用指令；Skill 负责查询约定 |
 | [client.py](client.py)、[connector.py](connector.py) | Agent 入口、持久预算、raw 和来源投影 |
 | [Tool](tools/wt_serving/adapter.py)、[bridge](tools/wt_serving/bridge.py)、[catalog](tools/wt_serving/catalog.py) | 只读参数、JSON 子进程协议与 SDK 适配 |
 | [analysis.py](analysis.py)、[review.py](review.py) | 报告与采集一致性检查，插件委托 review_analysis |

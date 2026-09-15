@@ -7,12 +7,13 @@ import re
 import shlex
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Thread
 
 from dataelf.discovery.contracts import ArtifactRef, DiscoveryContext, DiscoveryJob, ExplorerRunResult
-from dataelf.discovery.pi_runtime import runtime_ready_for_process
+from dataelf.discovery.pi_runtime import is_managed_binary, managed_pi_resources, runtime_ready_for_process
 
 
 DEFAULT_PI_MODE = "json"
@@ -98,8 +99,8 @@ class PiCliInsightsExplorer:
             stderr_path.write_text(message + "\n", encoding="utf-8")
             return ExplorerRunResult(status="failed", warnings=[message], error_code=error_code, error_message=message)
 
-        command = self._build_command(pi_binary, prompt_path)
         env = self._build_env(workspace_path, job, context)
+        command = self._build_command(pi_binary, prompt_path, context, env)
         if not runtime_ready_for_process(pi_binary, self.cwd.resolve(), env):
             message = "DataElf's explorer runtime is incomplete. Run `dataelf setup` and try again."
             stdout_path.write_text("", encoding="utf-8")
@@ -161,12 +162,28 @@ class PiCliInsightsExplorer:
         # only used when the user explicitly configures ``binary: pi``.
         return None
 
-    def _build_command(self, pi_binary: str, prompt_path: Path) -> list[str]:
+    def _build_command(
+        self,
+        pi_binary: str,
+        prompt_path: Path,
+        context: DiscoveryContext | None = None,
+        env: dict[str, str] | None = None,
+    ) -> list[str]:
         command = [pi_binary, "--mode", self.mode, "--no-session"]
         if self.approve_project:
             command.append("--approve")
         if self.model:
             command.extend(["--model", self.model])
+        # Resource discovery is deliberately disabled and replaced with an
+        # explicit, deterministic list. This prevents another domain's
+        # project-local extension or skill from leaking into the current job.
+        command.append("--no-extensions")
+        common = managed_pi_resources(self.cwd.resolve(), env or {}) if is_managed_binary(Path(pi_binary)) else None
+        for extension in [*(common.extensions if common else []), *((context.agent_resources.extensions if context else []))]:
+            command.extend(["--extension", str(extension)])
+        command.append("--no-skills")
+        for skill in [*(common.skills if common else []), *((context.agent_resources.skills if context else []))]:
+            command.extend(["--skill", str(skill)])
         if self.extra_args:
             command.extend(shlex.split(self.extra_args))
         command.extend([f"@{prompt_path.resolve()}", "Run this DataElf discovery task and write the required workspace artifacts."])
@@ -186,6 +203,7 @@ class PiCliInsightsExplorer:
         env["DATAELF_JOB_WORKSPACE"] = str(workspace_path)
         env["DATAELF_JOB_ID"] = job.job_id
         env["DATAELF_DOMAIN"] = context.spec.domain
+        env["DATAELF_PYTHON"] = sys.executable
         if any(artifact.kind == "ontology_rdf" for artifact in context.artifacts):
             env["DATAELF_PI_ONTOLOGY"] = "1"
         else:
@@ -237,6 +255,13 @@ _ENV_ALLOWLIST = {
     "LOGNAME",
     "PYTHONPATH",
     "BRAVE_API_KEY",
+    "TAVILY_API_KEY",
+    "EXA_API_KEY",
+    "PERPLEXITY_API_KEY",
+    "PARALLEL_API_KEY",
+    "GOOGLE_GEMINI_BASE_URL",
+    "CLOUDFLARE_API_KEY",
+    "PI_ALLOW_BROWSER_COOKIES",
     "OPENAI_API_KEY",
     "OPENAI_BASE_URL",
     "OPENAI_API_BASE",
