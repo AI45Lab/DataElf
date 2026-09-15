@@ -1,0 +1,95 @@
+{
+  "synthetic": true,
+  "purpose": "Human-authored test oracle only; never include this file in Agent input or prompt.",
+  "expected": {
+    "status": "located",
+    "key_pointer": "/calls/1/envelope/result/records/0/chosen_trace/3/action"
+  },
+  "rejected_conclusions": [],
+  "report": {
+    "schema_version": "2",
+    "result_id": "failure_analysis",
+    "status": "located",
+    "objective": "Locate the consequential failure in this synthetic execution.",
+    "scope": {
+      "basis": "bounded_tool_responses",
+      "call_count": 2,
+      "search_count": 1,
+      "get_count": 1,
+      "truncated": false,
+      "omitted_fields": [],
+      "omitted_records": 0,
+      "trace_state": "present",
+      "trace_type": "array",
+      "trace_length": 5
+    },
+    "task_goal": {
+      "statement": "Calculate the invoice with the fresh price.",
+      "basis": "observed",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/0/request",
+          "why": "The request explicitly requires the fresh price."
+        }
+      ]
+    },
+    "success_condition": {
+      "statement": "Use and verify the freshly retrieved price.",
+      "basis": "observed",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/0/request",
+          "why": "The request explicitly requires the fresh price."
+        }
+      ]
+    },
+    "key_failure": {
+      "statement": "After recovery, choosing cached price 10 deviates from the fresh-price requirement; it plausibly understates the invoice.",
+      "basis": "inferred",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/3/action",
+          "why": "The recorded action uses the cached price instead."
+        },
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/0/request",
+          "why": "The request explicitly requires the fresh price."
+        },
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/2/feedback",
+          "why": "Retry recovered the timeout and supplied price 12."
+        }
+      ]
+    },
+    "direct_cause": {
+      "statement": "Using 10 instead of the returned 12 would understate the total for two units by 4; this follows from visible actions, not an evaluator explanation.",
+      "basis": "inferred",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/3/action",
+          "why": "The recorded action uses the cached price instead."
+        },
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/2/feedback",
+          "why": "Retry recovered the timeout and supplied price 12."
+        }
+      ]
+    },
+    "outcome": null,
+    "possible_root_causes": [],
+    "other_explanations": [],
+    "uncertainty": "No ground truth or external failure feedback exists. The cache choice motivation is unknown. The arithmetic-only passing check does not validate the source price; the earlier timeout recovered.",
+    "limitations": [
+      "bounded_record_not_full_session",
+      "granularity_unverified",
+      "outcome_unknown"
+    ]
+  }
+}

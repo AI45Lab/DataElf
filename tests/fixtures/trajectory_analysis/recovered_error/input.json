@@ -1,0 +1,74 @@
+[
+  {
+    "tool": "wt_search_records",
+    "arguments": {
+      "reward": 0,
+      "limit": 1
+    },
+    "envelope": {
+      "isError": false,
+      "result": {
+        "records": [
+          {
+            "id": "SYNTHETIC_PRIVATE_recovered_error",
+            "reward": 0
+          }
+        ],
+        "limit": 1,
+        "truncated": false,
+        "omitted_fields": [],
+        "omitted_records": 0
+      }
+    }
+  },
+  {
+    "tool": "wt_get_record",
+    "arguments": {
+      "record_id": "SYNTHETIC_PRIVATE_recovered_error",
+      "fields": [
+        "chosen_trace"
+      ]
+    },
+    "envelope": {
+      "isError": false,
+      "result": {
+        "records": [
+          {
+            "id": "SYNTHETIC_PRIVATE_recovered_error",
+            "reward": 0,
+            "chosen_trace": [
+              {
+                "kind": "task",
+                "text": "SYNTHETIC TASK: Calculate an invoice using the freshly retrieved approved unit price. Success requires the approved total."
+              },
+              {
+                "kind": "observation",
+                "text": "First price lookup fails with a transient timeout."
+              },
+              {
+                "kind": "observation",
+                "text": "Retry succeeds and returns the approved unit price."
+              },
+              {
+                "kind": "action",
+                "text": "Discards the fresh price and uses an older cached price for the invoice."
+              },
+              {
+                "kind": "observation",
+                "text": "Validator rejects the invoice: its price differs from the freshly approved price."
+              },
+              {
+                "kind": "final",
+                "text": "No price correction is attempted; the rejected invoice remains the final result."
+              }
+            ]
+          }
+        ],
+        "limit": 1,
+        "truncated": false,
+        "omitted_fields": [],
+        "omitted_records": 0
+      }
+    }
+  }
+]
