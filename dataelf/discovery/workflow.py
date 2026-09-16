@@ -8,6 +8,7 @@ from typing import Any, Protocol
 
 from dataelf.config import DataElfConfig
 from dataelf.discovery.artifacts import ArtifactContractError, validate_outputs, validate_stage_artifacts, write_artifact_manifest
+from dataelf.discovery.agent_resources import resolve_domain_resources
 from dataelf.discovery.contracts import (
     ArtifactRef,
     DiscoveryContext,
@@ -58,6 +59,8 @@ def run_job(
     control.secrets.update(secret_values(config.model_dump()) | secret_values(os.environ))
     config.ensure_dirs()
     store = _create_store(config)
+    domain_registry = registry or DomainRegistry()
+    injected_plugin = plugin is not None
     with activate_run(control):
         job = _initialize_job(spec, config, store)
         workspace = prepare_workspace(Path(job.workspace_path), spec)
@@ -71,13 +74,22 @@ def run_job(
             control.check()
             if spec.workflow_profile == "server" and (plugin is None or explorer is None):
                 raise ValueError("server profile requires explicit plugin and explorer components")
-            plugin = plugin or (registry or DomainRegistry()).load_plugin(spec.domain, config)
+            plugin = plugin if injected_plugin else domain_registry.load_plugin(spec.domain, config)
             spec = plugin.normalize_spec(spec)
             job.spec = spec
             prepare_workspace(workspace, spec)
+            try:
+                # Injected profiles own their resource declarations. Do not
+                # implicitly load research resources from the domain directory.
+                agent_resources = resolve_domain_resources(
+                    domain_registry.domain_path(spec.domain), plugin, spec, config,
+                    discover=not injected_plugin,
+                )
+            except (FileNotFoundError, ValueError) as exc:
+                return _fail(job, store, workspace, "agent_resources", "AGENT_RESOURCES_INVALID", redact_text(exc, control.secrets))
             context = DiscoveryContext(
                 workspace_path=str(workspace), spec=spec, manifest=plugin.manifest,
-                model=config.explorer.pi.model, env=dict(config.env),
+                model=config.explorer.pi.model, env=dict(config.env), agent_resources=agent_resources,
             )
             return _run_stages(job, config, store, workspace, plugin, context, explorer)
         except Exception as exc:
@@ -208,9 +220,20 @@ def _initialize_job(spec: JobSpec, config: DataElfConfig, store: StoreLike) -> D
 
 def _trace_stage(store: StoreLike, job: DiscoveryJob, stage: str, result: Any) -> None:
     control = current_run()
-    payload = redact_data(result.model_dump(mode="json", exclude={"env"}), control.secrets if control else ())
+    payload = result.model_dump(mode="json")
+    has_environment = "env" in payload
+    environment = payload.pop("env", {})
+    secrets = secret_values(environment)
+    if control:
+        control.secrets.update(secrets)
+        secrets = control.secrets
+    payload = redact_data(payload, secrets)
+    # Preserve main's presence-only database trace without persisting values.
+    if has_environment:
+        payload["env"] = {key: bool(value) for key, value in environment.items()}
     store.add_trace_event(job.job_id, f"{stage}_completed", payload)
     if control:
+        # The workspace trace additionally excludes the environment field.
         control.record(f"{stage}_completed", payload)
 
 

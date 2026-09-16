@@ -50,7 +50,18 @@ def test_managed_pi_server_agent_does_not_require_fusion(tmp_path, monkeypatch, 
     package = tmp_path / "npm/node_modules/@quarkos/pi-fusion/package.json"
     package.parent.mkdir(parents=True)
     package.write_text('{}')
+    assert research.run(job, context).error_code == "EXPLORER_RUNTIME_NOT_READY"
+    web = tmp_path / "npm/node_modules/pi-web-access/package.json"
+    web.parent.mkdir(parents=True)
+    web.write_text('{}')
     assert research.run(job, context).status == "completed"
+    # Even if managed packages exist, a Server runner must not load them.
+    extension = package.parent / "index.js"
+    extension.write_text("export default function() {}")
+    package.write_text('{"pi":{"extensions":["index.js"]}}')
+    command = runner._build_command(str(binary), prompt, context, context.env)
+    assert str(extension) not in command
+    assert str(extension) in research._build_command(str(binary), prompt, context, context.env)
 
 
 def test_no_package_requirements_does_not_allow_missing_pi(tmp_path):

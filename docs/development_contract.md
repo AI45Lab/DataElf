@@ -353,7 +353,35 @@ Pi 接收 core 合成的 prompt、当前 `JobSpec`、prepared/modeling artifact 
 
 项目级 Pi runtime 由 `dataelf setup` 管理。它负责准备锁定的 Node/Pi CLI、Pi 分析包和项目内 npm cache，并在 `.dataelf/runtime/pi.json` 写入不含凭证的运行时清单。`dataelf run` 只消费已准备好的 runtime；不要在 domain plugin、case 脚本或用户文档中要求手工执行 npm/Pi 安装命令。Node.js/npm 仍是当前短期方案的主机前置依赖。
 
-运行依赖由执行组件装配：research 默认要求项目内 Fusion 包；Server 显式加载自己的扩展资源，不要求 Fusion，也不向临时 agent 目录安装包。共享 Pi 执行器通过 `required_packages` 接收包依赖，默认值保持 research 行为。API 的运行控制、组件与 workspace 通过 `run_job(..., plugin=..., explorer=..., control=...)` 注入；核心不反向依赖服务包。
+### 8.1 Pi skills、extensions 和 tools
+
+Pi 内置 tools 由 Pi core 提供，是所有 domain 的公共 agent 能力。DataElf 不定义第二套 tool registry，也不把 Python `tools.py` 转换成 Pi tool。
+
+需要模型直接调用自定义能力时，domain 使用 Pi 官方 extension 机制：
+
+```text
+dataelf/domains/<domain>/
+  tools.py                 # Python helper，供脚本或 Python adapter 调用
+  pi/extensions/*.js|*.mjs|*.ts
+  pi/skills/**/SKILL.md
+```
+
+一个 extension 可以多次调用 `pi.registerTool(...)` 注册多个 custom tools，也可以订阅 Pi 生命周期事件。开发者负责 tool schema、执行逻辑、错误处理和依赖；DataElf 负责在选中该 domain 的 job 中发现、校验并传递 extension 路径。
+
+skill 是 Markdown 指令，不是可执行 tool。目录必须包含 Pi 识别的 `SKILL.md`。DataElf 关闭自动 extension/skill discovery，然后显式加载公共 Pi resources 和当前 domain resources：
+
+```text
+pi --no-extensions --extension <common> --extension <domain>
+   --no-skills --skill <domain-skill>
+```
+
+普通 domain 只需按约定目录放置资源，不需要新增顶层配置字段。需要动态选择资源时，才在 DomainPlugin 的 agent resource hook 中返回路径。新增资源时应增加命令构造或 fake Pi 测试，验证未选中的 domain resource 不会被加载。
+
+通过 `run_job(..., plugin=..., explorer=..., control=...)` 注入的执行组件不会被 registry 覆盖，任务只初始化一次。注入的 plugin 仅加载其 hook 显式声明的 domain resources，不自动加载同目录的 research 扩展和 skills；路径仍遵守 domain 目录边界校验。资源必须传入实际使用的 `DiscoveryContext`。
+
+Pi 执行器的 `required_packages` 同时决定依赖检查与公共资源加载。research 默认使用全部受管包（Fusion、`pi-web-access`）；Server 显式传空元组并加载服务扩展，因此不会检查或加载 research 包，也不会向临时 agent 目录安装它们。核心不反向导入服务包。
+
+AI Index 当前不提供正式 Pi custom tools。它通过 prompt 指导 Pi 编写 Python 脚本，脚本调用 `AIIndexClient`；这是 domain 内部 Python 模式，不是 DataElf 的通用 tool 转换机制。
 
 ## 9. Recommended package layout
 
@@ -384,8 +412,9 @@ dataelf/domains/example/
 4. **实现 `prepare()`**：创建 domain workspace 目录，接入 connector/adapter，保存 raw，生成 normalized tables，返回 `StageResult(context, env, artifacts)`。
 5. **按需实现 modeling**：不需要建模就让 `create_modeler()` 返回 `None`；需要时实现 domain-owned modeler，并返回 workspace 内的 `ModelingStageResult` artifacts。建模失败必须在 explorer 前终止。
 6. **实现 prompt、output contract 和 review**：`build_prompt()` 只写领域分析方法；`output_contract()` 声明相对 workspace 的正式文件；`review()` 检查领域语义、证据、数量和质量，不重复 generic validator。
-7. **先用 fake Pi 跑通 core**：通过 `run_job(JobSpec(domain="<name>", ...), config, registry=...)` 做离线端到端测试，确认不需要改 `dataelf/discovery/`。现有最小参考是 `tests/test_discovery_mvp.py` 中的 `FakePlugin`、`_fake_registry()` 和 `test_fake_domain_runs_without_core_changes()`。
-8. **再接真实数据和真实 Pi**：先跑 fixture/offline tests，再做显式 smoke/integration test；保留 job workspace、review、artifact manifest 和日志用于诊断。
+7. **按需添加 Pi resources**：需要模型直接调用 custom tool 时，在 domain 的 `pi/extensions/` 编写 JS/TS extension 并用 `pi.registerTool()` 注册；需要领域指令时，在 `pi/skills/` 添加 `SKILL.md`。仅供 Python 脚本调用的能力放在 `tools.py`。
+8. **先用 fake Pi 跑通 core**：通过 `run_job(JobSpec(domain="<name>", ...), config, registry=...)` 做离线端到端测试，确认不需要改 `dataelf/discovery/`。现有最小参考是 `tests/test_discovery_mvp.py` 中的 `FakePlugin`、`_fake_registry()` 和 `test_fake_domain_runs_without_core_changes()`。
+9. **再接真实数据和真实 Pi**：先跑 fixture/offline tests，再做显式 smoke/integration test；保留 job workspace、review、artifact manifest 和日志用于诊断。
 
 完成后，新增 case 的主链路应是：
 
