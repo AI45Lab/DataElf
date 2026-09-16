@@ -271,7 +271,7 @@ def test_real_preflight_missing_never_falls_back(setup, monkeypatch):
     assert not (Path(job.workspace_path) / RAW).exists()
 
 
-def test_wheel_manifest_and_factory_load(tmp_path):
+def test_wheel_domain_resources_and_optional_dependency(tmp_path):
     import shutil
     import subprocess
     import zipfile
@@ -286,12 +286,74 @@ def test_wheel_manifest_and_factory_load(tmp_path):
     installed = tmp_path / 'installed'; installed.mkdir()
     with zipfile.ZipFile(wheel) as package:
         assert 'dataelf/domains/trajectory_analysis/domain.yaml' in package.namelist()
+        for resource in (
+            'dataelf/domains/trajectory_analysis/pi/skills/wt-serving-query/SKILL.md',
+            'dataelf/domains/trajectory_analysis/requirements-wt.txt',
+        ):
+            assert package.read(resource) == (root / resource).read_bytes()
         package.extractall(installed)
     code = ('from dataelf.config import DataElfConfig; from dataelf.discovery.domain_registry import DomainRegistry; '
             'p=DomainRegistry().load_plugin("trajectory_analysis",DataElfConfig()); '
             'assert p.manifest.domain == "trajectory_analysis"; '
             'assert "installed" in str(DomainRegistry().root)')
-    checked = subprocess.run([sys.executable, '-c', code], cwd=installed, env={'PYTHONPATH': str(installed)}, capture_output=True)
+    import textwrap
+    code += "\n" + textwrap.dedent("""
+
+        import os
+        from pathlib import Path
+        from importlib.metadata import distribution
+        from packaging.requirements import Requirement
+        from dataelf.discovery.agent_resources import resolve_domain_resources
+        from dataelf.discovery.contracts import DiscoveryContext, JobSpec
+        from dataelf.discovery.explorer_factory import create_explorer
+
+        installed_root = Path(os.environ['PYTHONPATH']).resolve()
+        registry = DomainRegistry()
+        assert registry.root.is_relative_to(installed_root)
+
+        domain_root = registry.domain_path('trajectory_analysis')
+        skill = Path(p.config.skill_path)
+        assert skill.is_relative_to(installed_root) and skill.is_file()
+        assert 'name: wt-serving-query' in skill.read_text()
+
+        dist = distribution('dataelf')
+        assert Path(dist.locate_file('')).resolve() == installed_root
+        sdk = [
+            req for value in dist.requires or []
+            if (req := Requirement(value)).name == 'wt-data-platform-sdk'
+        ]
+        assert len(sdk) == 1
+        pin = next(
+            Requirement(line).url
+            for line in (domain_root / 'requirements-wt.txt').read_text().splitlines()
+            if line.startswith('wt-data-platform-sdk')
+        )
+        assert sdk[0].url == pin
+        assert sdk[0].marker is not None
+        assert sdk[0].marker.evaluate({'extra': 'trajectory'})
+        assert not sdk[0].marker.evaluate({'extra': ''})
+        assert not sdk[0].marker.evaluate({'extra': 'dev'})
+
+        config = DataElfConfig()
+        spec = JobSpec(domain='trajectory_analysis', objective='offline wheel check')
+        resources = resolve_domain_resources(domain_root, p, spec, config)
+        assert resources.skills == [skill]
+        assert resources.extensions == []
+
+        context = DiscoveryContext(
+            workspace_path=str(Path.cwd()), spec=spec,
+            manifest=p.manifest, agent_resources=resources,
+        )
+        command = create_explorer(config)._build_command(
+            'synthetic-pi', Path('prompt.md'), context, {},
+        )
+        assert '--no-skills' in command and '--no-extensions' in command
+        assert [
+            Path(command[i + 1])
+            for i, arg in enumerate(command) if arg == '--skill'
+        ] == [skill]
+    """)
+    checked = subprocess.run([sys.executable, '-c', code], cwd=tmp_path, env={'PYTHONPATH': str(installed)}, capture_output=True)
     assert checked.returncode == 0, 'unpacked installed wheel manifest/factory failed'
 
 

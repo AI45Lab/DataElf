@@ -6,19 +6,27 @@
 
 ## 安装与配置
 
-首次准备源码环境时，先安装项目，再由公共 `dataelf setup` 准备锁定的 Pi/runtime 依赖：
+首次准备源码环境时，通过 `trajectory` 可选依赖安装 WT SDK，再由公共 `dataelf setup` 准备 Pi/runtime：
 
 ```bash
 uv venv
-uv pip install -e ".[dev]"
+uv pip install -e ".[dev,trajectory]"
 source .venv/bin/activate
 dataelf setup
 dataelf init
-uv pip install --python .venv/bin/python \
-  -r dataelf/domains/trajectory_analysis/requirements-wt.txt
 ```
 
-项目安装与 `dataelf setup` 不包含 WT SDK；[requirements-wt.txt](requirements-wt.txt) 单独固定其来源，取得依赖需要相应仓库访问。已有环境不必重装或覆盖配置。Skill 已位于源码的 [pi/skills/wt-serving-query/SKILL.md](pi/skills/wt-serving-query/SKILL.md)，无需单独安装。prepare 只校验所选 Python、Skill 和 SDK 导入并传递运行信息，不安装依赖或查询 WT。
+默认安装和 `dataelf setup` 不安装 WT SDK。`trajectory` extra 使用与 [requirements-wt.txt](requirements-wt.txt) 相同的 SDK Git commit，安装需要 Git、网络及依赖仓库访问权限。
+
+非 editable 安装可在源码目录执行 `uv pip install '.[trajectory]'`，也可安装构建好的 wheel（替换文件路径）：
+
+```bash
+uv pip install --python .venv/bin/python '/absolute/path/dataelf-0.1.0-py3-none-any.whl[trajectory]'
+```
+
+wheel 和 sdist 收录 [Skill](pi/skills/wt-serving-query/SKILL.md) 及 `requirements-wt.txt`，无需另拷 Skill。SDK 由 extra 安装，不内嵌在 wheel 中。完整 job 仍需公共 Pi/runtime、provider 和凭据配置；当前完整运行流程以源码 checkout 为准。
+
+已有环境不必重建或覆盖配置。prepare 只校验所选 Python、Skill 和 SDK 导入并传递运行信息，不安装依赖或查询 WT。
 
 将以下无凭据片段合入本地配置，替换 provider/model；可用 `DATAELF_CONFIG_FILE` 选择配置文件：
 
@@ -37,7 +45,7 @@ domains:
       enabled: false
 ```
 
-`tool_python` 默认当前 Python，可由 `DATAELF_TRAJECTORY_TOOL_PYTHON` 覆盖；该解释器须能导入 DataElf 和固定 WT SDK。`skill_path` 默认包内 Skill，显式覆盖时使用绝对路径。profile 仅支持 test，modeling 不支持开启；fixture 模式只供显式合成输入使用，不自动回退。
+`tool_python` 默认当前 Python，可由 `DATAELF_TRAJECTORY_TOOL_PYTHON` 覆盖；该解释器须能导入 DataElf 和固定 WT SDK。`skill_path` 默认包内 Skill；显式覆盖只影响 preflight 和传给 Agent 的读取路径，不替换公共资源发现结果，通常保留默认值。profile 仅支持 test，modeling 不支持开启；fixture 模式只供显式合成输入使用，不自动回退。
 
 WT 凭据 `WT_SDK_DB_URI`、`WT_SDK_S3_ENDPOINT`、`AWS_ACCESS_KEY_ID`、`AWS_SECRET_ACCESS_KEY` 由启动 DataElf 的 shell 提供；仅放入 YAML 的 env 映射不能满足 domain preflight。模型凭据按公共 provider 配置规则提供，不写进提交文件。
 
@@ -80,17 +88,17 @@ dataelf run --domain trajectory_analysis --no-modeling \
 | [Tool](tools/wt_serving/adapter.py)、[bridge](tools/wt_serving/bridge.py)、[catalog](tools/wt_serving/catalog.py) | 只读参数、JSON 子进程协议与 SDK 适配 |
 | [analysis.py](analysis.py)、[review.py](review.py) | 报告与采集一致性检查，插件委托 review_analysis |
 
-默认 Skill 路径由 config 从 `Path(__file__).resolve().parent` 解析。`plugin.prepare()` 经 `StageResult.env` 提供 `DATAELF_TRAJECTORY_SKILL` 的绝对路径、`DATAELF_TRAJECTORY_TOOL_PYTHON` 和 capture 信息；公共 [workflow](../../discovery/workflow.py) 合并 context.env，由 [Pi explorer](../../discovery/pi_cli_explorer.py) 传给子进程，并补充 `DATAELF_JOB_WORKSPACE`、`DATAELF_DOMAIN`、PYTHONPATH。
+本 domain 使用公共资源加载契约。Skill 位于 `pi/skills/wt-serving-query/SKILL.md`，无需全局注册或手工配置 `--skill`。
 
-另一路是 `build_prompt()` → 公共 [prompt_builder](../../discovery/prompt_builder.py) → `prompts/discovery_prompt.md` → Pi 的 `@文件` 参数。领域 prompt 指导 Agent 读取 Skill，但公共层不将 Skill 正文自动注入上下文。**传入路径不等于读取内容**，domain 目录也不触发 Pi 自动加载。
+1. 公共 [workflow](../../discovery/workflow.py) 调用 [resolve_domain_resources](../../discovery/agent_resources.py)，发现当前 domain 的 `pi/skills/**/SKILL.md`，校验路径并写入 `DiscoveryContext.agent_resources`。
+2. [Pi explorer](../../discovery/pi_cli_explorer.py) 使用 `--no-skills`、`--no-extensions` 关闭默认自动发现，再显式传入受管公共资源和当前 domain 的资源。WT Skill 通过 `--skill <绝对路径>` 交给 Pi，其他 domain 不会因此获得它。
+3. `build_prompt()` 经公共 [prompt_builder](../../discovery/prompt_builder.py) 生成任务 prompt，由 Pi 的 `@文件` 参数接收。资源加载与任务指令分别传递。
 
-当前 prompt 允许内置 read 或 Python `Path.read_text()`。例如 Agent 先通过现有 bash 取得唯一的非敏感路径，再把返回值作为 read 的实际 path 参数：
+`plugin.prepare()` 另外通过 `StageResult.env` 提供 `DATAELF_TRAJECTORY_SKILL`、`DATAELF_TRAJECTORY_TOOL_PYTHON` 和 capture 信息，公共执行器将其传给 Pi 子进程。默认 Skill 路径从 config 所在模块解析；env 路径用于指导读取，不承担 Skill 注册。Tool 仍由 Python Client 调用，不注册为 Pi extension 工具。
 
-```bash
-printf '%s\n' "$DATAELF_TRAJECTORY_SKILL"
-```
+**不需要操作者手动读取或注入 Skill。** 当前领域 prompt 仍要求 Agent 在 WT 调用前阅读 Skill，可使用内置 read 或 Python `Path.read_text()`。这是查询操作指令；当前 review 检查调用证据、产物和报告引用，不以 Skill 读取事件作为通过条件。
 
-不要假设 read 自动展开环境变量，也不要打印整个 env。已核验过这种“取路径后内置 read 成功返回 Skill”的实际方式，不保证每次任务都完成阅读。阅读成功应以匹配 toolCallId 的开始/结束、目标路径、成功状态和返回内容为依据，仅有 prompt 指令或文件名不够。
+公共资源加载成功不等于 Agent 已阅读或遵循正文。如需审计实际阅读，应另外核对读取事件的目标路径、成功返回内容及其与 Client 执行的先后顺序。不要打印整个 env 或凭据。
 
 读完 Skill 后，Agent 在当前 workspace 写入脚本，并用选定解释器执行。任务内的最小 Client 示例为：
 
@@ -122,7 +130,7 @@ Tool 通用 limit 上限20不改变本 case 预算。仅 Serving/test/serving_te
 
 ### 同事复用步骤
 
-在自己的 domain 保存 Skill、业务 Client 和 typed config，从模块位置解析资源；prepare 通过 StageResult 提供必要信息，prompt 指导读取及调用，再用 OutputContract、只读当前 workspace 的 review 和 result_ids 管理输出。自有环境变量、凭据和业务预算在本领域定义，不照抄 WT。复用现有 DomainPlugin 和 Pi 代码执行即可，无需公共参数、加载器或全局注册。
+在自己的 domain 的 `pi/skills/<名称>/SKILL.md` 保存 Skill，由公共执行器按当前 domain 发现并传给 Pi。领域持有业务 Client 和 typed config；prepare 通过 StageResult 提供必要信息，prompt 指导读取及调用，再用 OutputContract、只读当前 workspace 的 review 和 result_ids 管理输出。自有环境变量、凭据和业务预算在本领域定义，不照抄 WT。复用现有 DomainPlugin 和 Pi 代码执行即可，无需新增公共加载器或全局注册。
 
 ## 测试与限制
 
@@ -132,10 +140,10 @@ Tool 通用 limit 上限20不改变本 case 预算。仅 Serving/test/serving_te
 .venv/bin/python -m pytest -q tests/test_trajectory*.py
 ```
 
-七个测试文件分别覆盖基础接入、分析证据、有界采集、operator、SDK preflight、Pi/跨域隔离及 Tool 约束。五组合成 fixture 覆盖早期偏差、恢复、无 ground truth、补查和省略；expected.json 只供测试/假 Pi 输出。fake SDK/fake Pi 验证工程行为，不证明模型能力。
+六个测试文件分别覆盖基础接入及打包、分析证据、有界采集、SDK preflight、Pi/跨域隔离及 Tool 约束。五组合成 fixture 覆盖早期偏差、恢复、无 ground truth、补查和省略；expected.json 只供测试/假 Pi 输出。fake SDK/fake Pi 验证工程行为，不证明模型能力。
 
 Pi 集成测试需 Node22.19+ 和已有 Pi package；使用 `DATAELF_TRAJECTORY_TEST_NODE`/PATH 及可选 `DATAELF_TRAJECTORY_TEST_PI_ROOT` 配置，不在测试中安装依赖。部分离线测试需要已安装固定 WT SDK，但不连接真实服务。
 
-现有源码辅助脚本 `scripts/trajectory_local.py` 的 check 仅检查 domain preflight、Client import 和代码执行/旧 flags 配置；audit 检查指定 workspace 的报告、采集状态和引用。它们不验证模型登录、代理、Skill 阅读或因果正确。测试中的 operator 用例还依赖该脚本和现有 `examples/trajectory_analysis.yaml`；只导出 domain 与测试时须一并确认这些外部依赖，不能把缺依赖的导出当作可运行测试集。
+分发验证应检查实际 wheel 中的 Skill、依赖文件及可选 SDK 声明，并在源码目录外验证默认 Skill 路径和公共加载结果。
 
-源码 Skill 可定位不等于 wheel 已收录：当前 package-data 缺 Skill Markdown，完整 wheel 安装未验收。recorder 使用 POSIX fcntl，不支持原生 Windows Python。领域指令和 containment 不是操作系统沙箱。文件存在、进程得到路径、实际阅读成功、Client 查询成功是不同层次；review/audit、completed 或 located 均不能单独证明模型推断正确。
+recorder 使用 POSIX fcntl，不支持原生 Windows Python。领域指令和 containment 不是操作系统沙箱。文件存在、进程得到路径、实际阅读成功、Client 查询成功是不同层次；review、completed 或 located 均不能单独证明模型推断正确。
