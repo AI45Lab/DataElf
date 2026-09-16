@@ -1,0 +1,53 @@
+[
+  {
+    "tool": "wt_search_records",
+    "arguments": {
+      "reward": 0,
+      "limit": 1
+    },
+    "envelope": {
+      "isError": false,
+      "result": {
+        "records": [
+          {
+            "id": "SYNTHETIC_PRIVATE_omitted_context",
+            "reward": 0
+          }
+        ],
+        "limit": 1,
+        "truncated": false,
+        "omitted_fields": [],
+        "omitted_records": 0
+      }
+    }
+  },
+  {
+    "tool": "wt_get_record",
+    "arguments": {
+      "record_id": "SYNTHETIC_PRIVATE_omitted_context",
+      "fields": [
+        "chosen_trace"
+      ]
+    },
+    "envelope": {
+      "isError": false,
+      "result": {
+        "records": [
+          {
+            "id": "SYNTHETIC_PRIVATE_omitted_context",
+            "reward": 0
+          }
+        ],
+        "limit": 1,
+        "truncated": true,
+        "omitted_fields": [
+          {
+            "record_index": 0,
+            "field": "chosen_trace"
+          }
+        ],
+        "omitted_records": 0
+      }
+    }
+  }
+]

@@ -1,0 +1,116 @@
+{
+  "synthetic": true,
+  "purpose": "Human-authored test oracle only; never include this file in Agent input or prompt.",
+  "expected": {
+    "status": "located",
+    "key_pointer": "/calls/1/envelope/result/records/0/chosen_trace/1",
+    "support_pointers": [
+      "/calls/1/envelope/result/records/0/chosen_trace/1",
+      "/calls/1/envelope/result/records/0/chosen_trace/2"
+    ]
+  },
+  "rejected_conclusions": [
+    {
+      "pointer": "/calls/1/envelope/result/records/0/chosen_trace/3",
+      "claim": "The last event must be the initiating error.",
+      "reason": "It records the outcome; the earlier consequential decision is evidenced separately."
+    }
+  ],
+  "report": {
+    "schema_version": "2",
+    "result_id": "failure_analysis",
+    "status": "located",
+    "objective": "Locate the consequential failure in this synthetic execution.",
+    "scope": {
+      "basis": "bounded_tool_responses",
+      "call_count": 2,
+      "search_count": 1,
+      "get_count": 1,
+      "truncated": false,
+      "omitted_fields": [],
+      "omitted_records": 0,
+      "trace_state": "present",
+      "trace_type": "array",
+      "trace_length": 4
+    },
+    "task_goal": {
+      "statement": "Perform the requested conversion.",
+      "basis": "observed",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/0",
+          "why": "The task statement identifies the requested operation."
+        }
+      ]
+    },
+    "success_condition": {
+      "statement": "The converted result must pass the stated validator.",
+      "basis": "observed",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/0",
+          "why": "The task states how success is judged."
+        }
+      ]
+    },
+    "key_failure": {
+      "statement": "The earlier conversion used the wrong factor; the final submission only perpetuated that error.",
+      "basis": "inferred",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/1",
+          "why": "This action introduces the mismatch later rejected by the validator; subsequent observations show no recovery."
+        },
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/2",
+          "why": "The validator links the decision to the rejected result."
+        }
+      ]
+    },
+    "direct_cause": {
+      "statement": "The applied conversion factor differs from the required one.",
+      "basis": "inferred",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/1",
+          "why": "The recorded action explains the validator mismatch."
+        }
+      ]
+    },
+    "outcome": {
+      "statement": "The rejected result remained uncorrected.",
+      "basis": "observed",
+      "evidence": [
+        {
+          "path": "raw/trajectory_analysis/tool_calls.json",
+          "pointer": "/calls/1/envelope/result/records/0/chosen_trace/3",
+          "why": "The final observation explicitly records failure without recovery."
+        }
+      ]
+    },
+    "possible_root_causes": [],
+    "other_explanations": [
+      {
+        "statement": "A transcription slip rather than a persistent misunderstanding could explain the action.",
+        "basis": "inferred",
+        "evidence": [
+          {
+            "path": "raw/trajectory_analysis/tool_calls.json",
+            "pointer": "/calls/1/envelope/result/records/0/chosen_trace/1",
+            "why": "The action is observed but its motivation is absent."
+          }
+        ]
+      }
+    ],
+    "uncertainty": "The internal motivation is not recorded; a root cause beyond the observed behavior is unknown.",
+    "limitations": [
+      "bounded_record_not_full_session",
+      "granularity_unverified"
+    ]
+  }
+}
