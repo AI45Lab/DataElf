@@ -67,7 +67,7 @@ server:
   state_dir: null
   max_concurrent_jobs: 5
   intent:
-    model_name: GLM-5.2-w4a8c8
+    model_name: glm-5.2-1m
     base_url: null
     api_key: null
     timeout_seconds: 90
@@ -101,8 +101,24 @@ server:
 意图模型与研究模型分别选择：
 
 1. `server.intent.model_name` 必须显式指定。`base_url/api_key` 未填时读取 `OPENAI_BASE_URL/OPENAI_API_KEY`，进程环境优先于配置的 `env`；显式 server.intent 字段优先于环境默认值。意图地址支持 `/v1` 基址或完整 `/v1/chat/completions`。
-2. 研究模型使用 `explorer.pi.model` 的 `provider/model-id`，例如 `openai/GLM-5.2-w4a8c8`。provider 必须在 Pi 注册表中存在；仓库部署通常使用 `.pi/agent/models.json`，由 `PI_CODING_AGENT_DIR` 选择 agent 目录。模型 ID、协议、上下文窗口和 reasoning 兼容参数按实际模型配置。
+2. 研究模型使用 `explorer.pi.model` 的 `provider/model-id`，例如 `openai/glm-5.2-1m`。provider 必须在 Pi 注册表中存在；仓库部署通常使用 `.pi/agent/models.json`，由 `PI_CODING_AGENT_DIR` 选择 agent 目录。模型 ID、协议、上下文窗口和 reasoning 兼容参数按实际模型配置。
 3. Pi provider 的端点和凭据按其注册表读取；使用 OpenAI-compatible provider 时通常配置 `/v1` 基址。修改意图模型配置不会自动修改 Pi 模型。
+
+PJLab 的 `glm-5.2-1m` 已注册在 `.pi/agent/models.json`，研究模型选择
+`explorer.pi.model: openai/glm-5.2-1m`，地址为 `https://token.pjlab.org.cn/v1`。
+在启动服务的同一终端设置 `OPENAI_API_KEY` 为该平台的 Key；注册表中的
+`"apiKey": "OPENAI_API_KEY"` 是环境变量引用，无需替换成真实 Key。
+意图模型选择 `server.intent.model_name: glm-5.2-1m`、
+`server.intent.base_url: https://token.pjlab.org.cn/v1`，并将
+`server.intent.api_key` 保持为 `null`，即可共用该 Key。
+确保 `env.PI_CODING_AGENT_DIR: .pi/agent` 指向仓库注册表。当前上下文和最大输出
+分别按保守值 128000 / 16384 配置；模型名称中的 `1m` 不代表已验证该端点的上下文上限。
+
+CLI Ontology 的 Stage 1 generator/reviewer 和 Stage 2 compiler/reviewer 也使用
+`glm-5.2-1m`，在统一 `ontology/config.yaml` 中选择。它们读取 `OPENAI_API_KEY` 和
+`OPENAI_BASE_URL`；本地配置及部署示例的 `env.OPENAI_BASE_URL` 已设为
+`https://token.pjlab.org.cn/v1`。如果启动终端还保留旧的 `OPENAI_BASE_URL`，请更新或
+取消该变量，否则按现有配置规则，环境变量会覆盖 YAML 中的地址。
 
 使用 swproxy 的环境，先在独立终端按当前环境约定启用 swproxy，再在同一环境启动服务，使 URL 和 key 自动传入。不必将临时凭据复制进配置文件；服务和启动脚本本身不会调用 swproxy。
 
@@ -110,19 +126,22 @@ server:
 
 ## 5. 启动服务
 
-前台运行：
+前台运行，默认加载仓库根目录的 `dataelf.local.yaml`，监听地址、端口及状态目录从配置读取：
 
 ```bash
-bash dataelf_server/deployment/start.sh --config dataelf.local.yaml --max-concurrent-jobs 5
+bash dataelf_server/deployment/start.sh
 ```
 
 等价 Python 入口：
 
 ```bash
-.venv/bin/python -m dataelf_server --config dataelf.local.yaml --max-concurrent-jobs 5
+python -m dataelf_server --config dataelf.local.yaml
 ```
 
-安装后也可以使用 `.venv/bin/dataelf-serve`。脚本统一调用同一个 Python 入口，`DATAELF_PYTHON` 可覆盖脚本使用的解释器。
+`start.sh` 优先查找已安装的 Conda base Python，再检查 PATH 中的 Python；自动选择需满足 Python 3.11+ 且能导入 FastAPI/Uvicorn。脚本不会安装依赖，启动时会打印选中的解释器路径。自定义安装位置可用 `DATAELF_PYTHON` 指定。
+本地使用仓库 `.venv` 时运行 `bash dataelf_server/deployment/start_local.sh`。
+两个脚本均默认加载仓库的 `dataelf.local.yaml`，`DATAELF_PYTHON` 可覆盖解释器。
+启动前自动输出 `[environment]` 检查结果：Python 路径和依赖、有效配置与监听地址、Node/Pi 版本、状态目录临时 SQLite 写入及可用空间。失败时停止启动，不安装依赖，也不输出密钥。检查不调用模型或数据源接口，不保证后续网络调用成功。
 
 并发参数优先级为启动参数 `--max-concurrent-jobs` > 环境变量 `DATAELF_SERVER_MAX_CONCURRENT_JOBS` > 配置 `server.max_concurrent_jobs` > 默认值 5。仅允许 1～5，修改后重启生效。失败重试进入同一 FIFO 队列，占用同样的并发名额；任务完成顺序取决于各自耗时。保持单个 Uvicorn 进程，不要用 `--workers 5` 代替任务并发。关停时取消所有运行中的任务并标记排队任务为失败。
 
@@ -132,7 +151,8 @@ bash dataelf_server/deployment/start.sh --config dataelf.local.yaml --max-concur
 bash dataelf_server/deployment/start.sh \
   --config dataelf.local.yaml \
   --host 0.0.0.0 --port 8000 \
-  --state-dir .dataelf/server
+  --state-dir .dataelf/server \
+  --max-concurrent-jobs 5
 ```
 
 客户端将 `127.0.0.1` 换成实际服务地址。示例端口不代表当前已有进程运行；启动前确认端口未被其他实例占用。不要使用多个 uvicorn workers，也不要让两个进程共享同一状态目录；状态目录由实例锁保护。

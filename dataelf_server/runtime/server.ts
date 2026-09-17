@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { Type, type Context, type SimpleStreamOptions } from "@earendil-works/pi-ai";
 import { defineTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { nonStreamingOpenAI } from "./nonstream_openai.ts";
+import { compatibleThinkingPayload, withoutThinking } from "./thinking.ts";
 
 const ONTOLOGY_FINALIZE_TOOL = "dataelf_finalize_rdf_insights";
 const ONTOLOGY_ANALYSIS_TOOL = "dataelf_submit_rdf_analysis";
@@ -463,6 +464,7 @@ export default function registerServer(pi: ExtensionAPI) {
             });
         }
     });
+    pi.on("message_end", (event) => ({ message: withoutThinking(event.message) }));
     pi.on("context", async (event, ctx) => {
         if (!scopeV2) return;
         const context = { messages: event.messages } as Context;
@@ -522,8 +524,9 @@ ${scopeV2SourceEvidence(candidateSignalSourceIds())}`;
         ] };
     });
     pi.on("before_provider_request", (event, ctx) => {
-        if (!scopeV2 || !requiredTool || !event.payload || typeof event.payload !== "object") return;
-        const payload = { ...(event.payload as Record<string, any>) };
+        if (!event.payload || typeof event.payload !== "object") return;
+        const payload = compatibleThinkingPayload({ ...(event.payload as Record<string, any>) }, ctx.model);
+        if (!scopeV2 || !requiredTool) return payload;
         // Keep the phase gate at system priority, as in the original service.
         // A user-only gate can lose to the coding agent's default bash guidance
         // on compatible providers which ignore a forced function selection.

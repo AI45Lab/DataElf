@@ -1,0 +1,4 @@
+# Optional runtime dependencies for this domain Tool, not automatically installed by DataElf.
+pydantic>=2
+wt-data-platform-sdk @ git+https://github.com/AI45Lab/wt-data-platform-sdk.git@e831c14fc6c45f78362fa3088973419ba651fabe
+# Original SDK 0.6.1 / DLDB v1.1.2 fe7615c6fecaa9af34ec581352149cb30bbbbd66 compatibility retained.

@@ -41,8 +41,16 @@ domains:
       ontology_config: dataelf/domains/ai_index/modeling/ontology/config.yaml
 ```
 
-省略 `ontology_config` 时使用本地 `ontology/config.yaml`，开启建模时该文件必须存在且有效。
-该文件被 Git 忽略，不随仓库分发；首次部署需要自行提供完整配置，或通过 `--ontology-config` 指定已有配置。
+省略 `ontology_config` 时优先使用本地 `ontology/config.yaml`；默认文件不存在时使用随仓库和安装包分发的 `config.yaml.example`。显式指定其他不存在的路径仍报错。
+本地 `config.yaml` 被 Git 忽略且不进入安装包；首次部署请复制示例，去掉 `.example` 后缀：
+
+```bash
+cp -n dataelf/domains/ai_index/modeling/ontology/config.yaml.example \
+  dataelf/domains/ai_index/modeling/ontology/config.yaml
+```
+
+修改四个角色的模型 `name`，在服务环境变量或私有 DataElf 配置的 `env` 中设置自己的 `OPENAI_BASE_URL` 和 `OPENAI_API_KEY`。`api_key_env` / `base_url_env` 填变量名，不直接填 Key 或 URL；示例不包含任何凭据或私有地址。
+从旧配置迁移时，将旧 `stage1/config.yaml`、`stage2/config.yaml` 的内容分别放入统一文件的 `stage1`、`stage2` 段；模板、分页和 worker 超时移到顶层。相对资源路径的基准上移一层到 `ontology/`，应调整路径或沿用示例的资源路径。外层建模配置改为 `enabled` 和 `ontology_config`。
 关闭建模时不读取文件。显式空路径无效。
 
 所有 ontology 参数集中在本地 `config.yaml`：

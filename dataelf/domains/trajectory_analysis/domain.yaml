@@ -1,0 +1,13 @@
+domain: trajectory_analysis
+version: "3"
+display_name: Trajectory Failure Localization Analysis
+plugin: dataelf.domains.trajectory_analysis.plugin:create_plugin
+capabilities:
+  - bounded_readonly_wt_query
+  - query_metadata_projection
+  - evidence_referenced_failure_analysis
+  - failure_report_review
+workspace_dirs:
+  - raw/trajectory_analysis
+  - tables/trajectory_analysis
+  - reports

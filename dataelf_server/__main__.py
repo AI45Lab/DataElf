@@ -10,6 +10,7 @@ def main() -> None:
     parser.add_argument("--host")
     parser.add_argument("--port", type=int)
     parser.add_argument("--state-dir", help="Override server state directory")
+    parser.add_argument("--check-environment", action="store_true", help="Check local runtime before starting")
     parser.add_argument("--max-concurrent-jobs", type=int, choices=range(1, 6),
                         help="Concurrent task limit (1-5; default 5, configurable)")
     args = parser.parse_args()
@@ -19,6 +20,13 @@ def main() -> None:
         value = getattr(args, key)
         if value is not None:
             os.environ[f"DATAELF_SERVER_{key.upper()}"] = str(value)
+    if args.check_environment:
+        from dataelf_server.deployment.preflight import check_python, report
+        try:
+            check_python()
+        except Exception as exc:
+            report(f"FAILED: {exc}")
+            raise SystemExit(1) from None
     try:
         import uvicorn
         from dataelf_server.app import create_app
@@ -27,7 +35,22 @@ def main() -> None:
             parser.error('Install project dependencies with: uv sync (or python -m pip install -e .)')
         raise
     from dataelf_server.settings import Settings
-    settings = Settings.from_env()
+    if args.check_environment:
+        from dataelf_server.deployment.preflight import check_runtime
+        try:
+            settings = Settings.from_env()
+        except Exception as exc:
+            report(f"FAILED: configuration could not be loaded ({type(exc).__name__}); check YAML and environment overrides")
+            raise SystemExit(1) from None
+        try:
+            check_runtime(settings)
+        except Exception as exc:
+            from dataelf.discovery.redaction import redact_text, secret_values
+            secrets = secret_values(settings.core.model_dump()) | secret_values(os.environ)
+            report(f"FAILED: {redact_text(str(exc), secrets)}")
+            raise SystemExit(1) from None
+    else:
+        settings = Settings.from_env()
     uvicorn.run(create_app(settings=settings), host=settings.server.host, port=settings.server.port, workers=1)
 
 

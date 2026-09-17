@@ -13,7 +13,7 @@ CLI / API
   -> domain review
 ```
 
-The current built-in domain is `ai_index`. All cases use the same domain-aware entrypoint:
+The source tree includes `ai_index` and `trajectory_analysis`. All cases use the same domain-aware entrypoint:
 
 ```bash
 dataelf run --domain ai_index "围绕 Agentic LLMs，基于 AI Index，发现最近值得关注的 3 个 insight"
@@ -190,8 +190,28 @@ All ontology settings live in the local `dataelf/domains/ai_index/modeling/ontol
 timeout, retry, source, quality, and artifact settings. The agent config accepts only
 `domains.ai_index.modeling.enabled` and `domains.ai_index.modeling.ontology_config`.
 The config path defaults to the local file shown above; an explicit empty path is rejected.
-This file is ignored by Git and is not included in the repository. Before enabling modeling,
-provide a complete configuration at that path or select an existing file with `--ontology-config`.
+The local file is ignored by Git and excluded from distributions. A complete, credential-free
+`config.yaml.example` is tracked and packaged; a fresh clone falls back to it when the default
+local file is absent. Explicit custom paths must exist. To customize your deployment, copy it:
+
+```bash
+cp -n dataelf/domains/ai_index/modeling/ontology/config.yaml.example \
+  dataelf/domains/ai_index/modeling/ontology/config.yaml
+```
+
+Edit the `name` fields under `stage1.generator`, `stage1.reviewer`, `stage2.compiler`, and
+`stage2.reviewer` for your model. Set `OPENAI_BASE_URL` to your own model API base URL and
+`OPENAI_API_KEY` to your own credential in the service environment or private DataElf config's
+`env` mapping. The `api_key_env` / `base_url_env` fields contain variable names, not actual
+keys or URLs. Do not add secrets to the example.
+
+Migration from the former stage-specific configuration: copy the example first, transfer the
+contents of old `stage1/config.yaml` into its `stage1` section and old `stage2/config.yaml` into
+its `stage2` section. Move template selection, page size and worker timeout to the top-level
+`ontology_template`, `raw_page_size`, and `worker_timeout_seconds`. Relative resource paths
+are now relative to `ontology/`, one directory above the old stage configs; adjust them or
+retain the example's `domain_pack_path` and `pi.repo` defaults. Replace old stage-specific
+outer modeling options with `enabled` and `ontology_config`.
 
 Select a different unified ontology configuration:
 
@@ -207,6 +227,12 @@ inside it resolve against its directory. A relative outer `ontology_config` path
 against the invoking process's working directory and is made absolute before worker launch.
 
 The modeler returns standard evidence artifacts; it does not replace the core prompt path. Detailed ontology operation and troubleshooting are documented in [`dataelf/domains/ai_index/modeling/ontology/README.md`](dataelf/domains/ai_index/modeling/ontology/README.md), with module responsibilities in [`ARCHITECTURE.md`](dataelf/domains/ai_index/modeling/ontology/ARCHITECTURE.md).
+
+## Trajectory Analysis domain
+
+The `trajectory_analysis` domain uses a domain-owned Python Client to query WT Serving read-only and identify evidence-supported deviations in agent trajectories. It owns bounded acquisition, analysis instructions, and report review; no global WT registration is required.
+
+See the [Trajectory Analysis README](dataelf/domains/trajectory_analysis/README.md) for installation, configuration, a normal task example, artifacts, Skill/Client development, tests, and source/wheel/POSIX limits.
 
 ## Workspace
 

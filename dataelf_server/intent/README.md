@@ -59,7 +59,7 @@ print(intent.model_dump_json(indent=2))
 ```yaml
 server:
   intent:
-    model_name: GLM-5.2-w4a8c8
+    model_name: glm-5.2-1m
     base_url: null
     api_key: null
     timeout_seconds: 90

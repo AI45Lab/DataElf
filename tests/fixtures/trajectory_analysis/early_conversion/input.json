@@ -1,0 +1,66 @@
+[
+  {
+    "tool": "wt_search_records",
+    "arguments": {
+      "reward": 0,
+      "limit": 1
+    },
+    "envelope": {
+      "isError": false,
+      "result": {
+        "records": [
+          {
+            "id": "SYNTHETIC_PRIVATE_early_conversion",
+            "reward": 0
+          }
+        ],
+        "limit": 1,
+        "truncated": false,
+        "omitted_fields": [],
+        "omitted_records": 0
+      }
+    }
+  },
+  {
+    "tool": "wt_get_record",
+    "arguments": {
+      "record_id": "SYNTHETIC_PRIVATE_early_conversion",
+      "fields": [
+        "chosen_trace"
+      ]
+    },
+    "envelope": {
+      "isError": false,
+      "result": {
+        "records": [
+          {
+            "id": "SYNTHETIC_PRIVATE_early_conversion",
+            "reward": 0,
+            "chosen_trace": [
+              {
+                "kind": "task",
+                "text": "SYNTHETIC TASK: Convert 2 metres to centimetres. Success means the validated answer is 200 cm."
+              },
+              {
+                "kind": "action",
+                "text": "Applies a metres-to-centimetres factor of 10 and obtains 20 cm."
+              },
+              {
+                "kind": "observation",
+                "text": "Validator rejects 20 cm: the conversion requires a factor of 100."
+              },
+              {
+                "kind": "final",
+                "text": "Submits the rejected 20 cm without a correction; task failed."
+              }
+            ]
+          }
+        ],
+        "limit": 1,
+        "truncated": false,
+        "omitted_fields": [],
+        "omitted_records": 0
+      }
+    }
+  }
+]

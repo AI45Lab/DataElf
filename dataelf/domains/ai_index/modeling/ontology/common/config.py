@@ -7,11 +7,19 @@ import yaml
 
 
 DEFAULT_ONTOLOGY_CONFIG = Path(__file__).resolve().parents[1] / "config.yaml"
+EXAMPLE_ONTOLOGY_CONFIG = DEFAULT_ONTOLOGY_CONFIG.with_suffix(".yaml.example")
+
+
+def resolve_config_path(path: str | Path) -> Path:
+    target = Path(path).expanduser().resolve()
+    if target == DEFAULT_ONTOLOGY_CONFIG and not target.exists():
+        return EXAMPLE_ONTOLOGY_CONFIG
+    return target
 
 
 def read_config(path: str | Path) -> tuple[Path, dict[str, Any]]:
     """Read the single ontology configuration; stage-relative files are unsupported."""
-    target = Path(path).expanduser().resolve()
+    target = resolve_config_path(path)
     raw = yaml.safe_load(target.read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
         raise ValueError("ontology configuration must be a mapping")

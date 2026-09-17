@@ -1,0 +1,134 @@
+# Copy to config.yaml and select your model names below.
+# Set OPENAI_BASE_URL and OPENAI_API_KEY in your own environment; never put secrets here.
+# All paths below are relative to this file, except workspace artifact paths.
+# null runs the Stage 1 agent; ai_index_search binds the reviewed fixed template.
+ontology_template: ai_index_search
+raw_page_size: 50
+worker_timeout_seconds: 9120
+
+stage1:
+  source:
+    format: ai_index_raw
+    raw_subdir: raw/ai_index
+    json_glob: "*.json"
+    tables_subdir: tables
+    csv_glob: "*.csv"
+    include_tables: []
+    exclude_tables: []
+    sample_rows: 5
+    max_sample_rows: 50
+    profile_max_rows: null
+    redact_columns:
+      - email
+
+  ontology:
+    id: dataelf_ai_index
+    namespace: "urn:dataelf:ontology:ai-index:"
+    title: DataElf AI Index Ontology
+    label_language: en
+    domain_pack_path: ../../domain.yaml
+    competency_questions:
+      - Which scholars authored a paper and which institutions are associated with that paper?
+      - Which institutions, papers, and venues are connected to a scholar?
+      - Which funding events or rounds are associated with institutions that produced a paper?
+      - How can papers be navigated by topic, venue, award, and available observation metrics?
+      - How can every domain entity, relation, observation, and non-promoted raw field be navigated to its exact raw document, record, fragment, and JSON Pointer?
+
+  generator:
+    provider: openai
+    name: GLM-5.2-W4A8C8
+    context_window: 1000000
+    max_tokens: 65536
+    temperature: 0.1
+    process_timeout_seconds: 7200
+    request_timeout_seconds: 900
+    request_max_retries: 3
+    api_key_env: OPENAI_API_KEY
+    base_url_env: OPENAI_BASE_URL
+
+  reviewer:
+    provider: openai
+    name: GLM-5.2-W4A8C8
+    context_window: 1000000
+    max_tokens: 8192
+    temperature: 0.0
+    process_timeout_seconds: 7200
+    request_timeout_seconds: 900
+    request_max_retries: 3
+    api_key_env: OPENAI_API_KEY
+    base_url_env: OPENAI_BASE_URL
+
+  pi:
+    # Repository root. The runtime uses the project-local npm package installed
+    # by `npm install`; a Pi source checkout layout remains supported as well.
+    repo: ../../../../..
+    node: node
+    supported_version: 0.80.3
+
+  quality:
+    max_repair_rounds: 5
+    manual_audit_required: false
+    require_all_tables_classified: true
+    require_all_columns_classified: true
+    require_domain_hints_resolved: true
+    blocking_severities:
+      - critical
+      - high
+      - medium
+
+  checkpoint:
+    enabled: true
+    resume: auto
+    retain_completed: true
+
+  artifacts:
+    subdir: ontology/stage1
+
+stage2:
+  compiler:
+    provider: openai
+    name: GLM-5.2-W4A8C8
+    context_window: 1000000
+    max_tokens: 2048
+    temperature: 0.0
+    request_timeout_seconds: 600
+    request_max_retries: 3
+    api_key_env: OPENAI_API_KEY
+    base_url_env: OPENAI_BASE_URL
+
+  reviewer:
+    provider: openai
+    name: GLM-5.2-W4A8C8
+    context_window: 1000000
+    max_tokens: 8192
+    temperature: 0.0
+    request_timeout_seconds: 600
+    request_max_retries: 3
+    api_key_env: OPENAI_API_KEY
+    base_url_env: OPENAI_BASE_URL
+
+  total_stage_timeout_seconds: 1800
+
+  output:
+    artifacts_subdir: ontology/stage2
+    stable_suffix: ".rdf"
+    rdfxml_name: graph.rdf
+    ntriples_name: graph.nt
+    nquads_name: graph.nq
+    manifest_name: manifest.json
+    validation_name: validation.json
+
+  vocabulary:
+    provenance_namespace: "urn:dataelf:ontology:stage2:"
+
+  quality:
+    max_repair_rounds: 5
+    require_all_documents: true
+    require_all_records: true
+    require_all_fragments: true
+    require_reviewer_approve: true
+    manual_audit_required: false
+    blocking_severities:
+      - critical
+      - high
+      - medium

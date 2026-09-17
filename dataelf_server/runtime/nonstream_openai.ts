@@ -1,3 +1,4 @@
+import { stripThinkingPrefix } from "./thinking.ts";
 import { spawn } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import {
@@ -615,6 +616,8 @@ export function nonStreamingOpenAI(
 			const choice = envelope.choices?.[0];
 			const message = choice?.message;
 			if (!message) throw new Error("OpenAI-compatible response has no first assistant message");
+			// Strip thought markup before the legacy textual-tool parser can see it.
+			if (message.content) message.content = stripThinkingPrefix(message.content);
 			const textualToolCalls = message.tool_calls?.length
 				? { matched: false, toolCalls: [] }
 				: parseTextualToolCalls(message.content);

@@ -66,7 +66,8 @@ class AIIndexDomainConfig(BaseModel):
         if not self.modeling.enabled:
             return
 
-        if not self.modeling.ontology_config.is_file():
+        from dataelf.domains.ai_index.modeling.ontology.common.config import resolve_config_path
+        if not resolve_config_path(self.modeling.ontology_config).is_file():
             raise ValueError(f"ontology_config is not a file: {self.modeling.ontology_config}")
         try:
             from dataelf.domains.ai_index.modeling.ontology.config import load_config

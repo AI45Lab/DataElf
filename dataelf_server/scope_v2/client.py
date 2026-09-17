@@ -93,10 +93,10 @@ class ScopeV2AIIndexClient:
                     self._sleeper(_retry_delay(exc, attempt))
                     continue
                 raise error from exc
-            except urllib.error.URLError as exc:
+            except (urllib.error.URLError, TimeoutError) as exc:
                 error = ScopeV2AIIndexError(
                     code="network_error",
-                    message=str(exc.reason),
+                    message=str(exc.reason if isinstance(exc, urllib.error.URLError) else exc),
                 )
                 last_error = error
                 if attempt < 2:
