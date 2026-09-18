@@ -111,3 +111,72 @@ console.log(JSON.stringify({names: result.skills.map(s => s.name),
     other = tmp_path / "domains/other"
     other.mkdir(parents=True)
     assert discover_domain_resources(other).skills == []
+
+
+@pytest.mark.parametrize("injected", [False, True])
+def test_workflow_keeps_selected_plugin_and_resources(tmp_path, monkeypatch, injected):
+    from tests.test_discovery_mvp import _fake_registry, _write_fake_pi, _config
+    from dataelf.discovery.workflow import run_job
+    from dataelf.discovery.run_control import RunControl, current_run
+    import dataelf.discovery.workflow as workflow
+
+    registry = _fake_registry(tmp_path)
+    root = registry.domain_path("fake")
+    extension = root / "pi/extensions/domain.ts"
+    extension.parent.mkdir(parents=True)
+    extension.write_text("export default function() {}")
+    skill = root / "pi/skills/evidence/SKILL.md"
+    skill.parent.mkdir(parents=True)
+    skill.write_text("# Evidence")
+    declared = root / "explicit.ts"
+    declared.write_text("export default function() {}")
+    config = _config(tmp_path, _write_fake_pi(tmp_path))
+    plugin = registry.load_plugin("fake", config)
+    plugin.agent_resources = lambda *args: AgentResources(extensions=[declared])
+    normalize = plugin.normalize_spec
+    normalized = []
+    def once(spec):
+        assert current_run() is not None
+        normalized.append(spec)
+        return normalize(spec)
+    plugin.normalize_spec = once
+    def load(*args):
+        assert not injected, "injected plugin must never be replaced"
+        return plugin
+    monkeypatch.setattr(registry, "load_plugin", load)
+    initialized = []
+    initialize = workflow._initialize_job
+    def initialize_once(*args):
+        initialized.append(1)
+        return initialize(*args)
+    monkeypatch.setattr(workflow, "_initialize_job", initialize_once)
+    contexts = []
+    class Explorer(PiCliInsightsExplorer):
+        def run(self, job, context):
+            contexts.append(context)
+            return super().run(job, context)
+    spec = JobSpec(domain="fake", objective="test", workflow_profile="server" if injected else "research")
+    job = run_job(spec, config, registry=registry, plugin=plugin if injected else None,
+                  explorer=Explorer(pi_binary=config.explorer.pi.binary),
+                  control=RunControl(job_id="selected", workspace_path=tmp_path / "attempt"))
+    assert job.status == "completed", job.error_message
+    assert len(initialized) == len(normalized) == len(contexts) == 1
+    assert contexts[0].agent_resources.extensions == ([declared] if injected else [extension, declared])
+    assert contexts[0].agent_resources.skills == ([] if injected else [skill])
+    command = json.loads((tmp_path / "attempt/logs/pi_command.json").read_text())["command"]
+    assert str(declared) in command
+    assert (str(extension) in command) is (not injected)
+    assert (str(skill) in command) is (not injected)
+    assert job.job_id == "selected"
+
+
+def test_server_missing_components_does_not_load_research(tmp_path, monkeypatch):
+    from tests.test_discovery_mvp import _fake_registry, _write_fake_pi, _config
+    from dataelf.discovery.workflow import run_job
+    registry = _fake_registry(tmp_path)
+    monkeypatch.setattr(registry, "load_plugin", lambda *args: pytest.fail("silent research fallback"))
+    job = run_job(JobSpec(domain="fake", objective="test", workflow_profile="server"),
+                  _config(tmp_path, _write_fake_pi(tmp_path)), registry=registry)
+    assert job.status == "failed"
+    assert "requires explicit" in job.error_message
+    assert (Path(job.workspace_path) / "workspace_index.json").is_file()

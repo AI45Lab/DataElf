@@ -19,6 +19,7 @@ class JobSpec(BaseModel):
     requested_outputs: list[str] = Field(default_factory=list)
     modeling_strategy: str | None = None
     explorer: Literal["pi"] = "pi"
+    workflow_profile: Literal["research", "server"] = "research"
 
 
 class ArtifactRef(BaseModel):

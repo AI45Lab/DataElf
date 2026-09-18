@@ -7,8 +7,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+from dataelf.discovery.redaction import redact_text, secret_values
+from dataelf.discovery.run_control import terminate_process, current_run, check_cancelled
+
 from dataelf.domains.ai_index.modeling.ontology.common.artifacts import atomic_write_json
 from dataelf.domains.ai_index.config import AIIndexModelingConfig
+from dataelf.domains.ai_index.modeling.ontology.config import load_config
 from dataelf.domains.ai_index.modeling.contracts import (
     AI_INDEX_MODELING_STAGE1_INCOMPLETE,
     AI_INDEX_MODELING_STAGE2_FAILED,
@@ -24,6 +28,8 @@ def run_ontology_subprocess(
     config: AIIndexModelingConfig,
     runtime_env: dict[str, str],
 ) -> OntologyRunResult:
+    config = config.model_copy(update={"ontology_config": config.ontology_config.expanduser().resolve()})
+    ontology_config = load_config(config.ontology_config)
     control_dir = workspace / "modeling" / "ai_index"
     logs_dir = workspace / "logs"
     control_dir.mkdir(parents=True, exist_ok=True)
@@ -51,11 +57,13 @@ def run_ontology_subprocess(
         str(progress_path),
     ]
     environment = os.environ.copy()
+    environment["DATAELF_MANAGED_PROCESS_GROUP"] = "1"
     environment.update({key: str(value) for key, value in runtime_env.items()})
     repo_root = Path(__file__).resolve().parents[4]
     existing_pythonpath = environment.get("PYTHONPATH", "")
     environment["PYTHONPATH"] = str(repo_root) if not existing_pythonpath else f"{repo_root}{os.pathsep}{existing_pythonpath}"
-    timeout = config.stage1_process_timeout_seconds + config.stage2_total_timeout_seconds + 120
+    timeout = ontology_config.worker_timeout_seconds
+    check_cancelled()
     process = subprocess.Popen(
         command,
         cwd=repo_root,
@@ -65,34 +73,43 @@ def run_ontology_subprocess(
         text=True,
         start_new_session=True,
     )
+    control = current_run()
     try:
-        stdout, stderr = process.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        stdout, stderr = _terminate_process_group(process)
-        stdout_path.write_text(stdout or "", encoding="utf-8")
-        stderr_path.write_text((stderr or "") + f"\nModeling subprocess timed out after {timeout} seconds.\n", encoding="utf-8")
-        return _subprocess_failure(progress_path, AI_INDEX_MODELING_SUBPROCESS_TIMEOUT, "AI Index modeling subprocess timed out.")
-    except KeyboardInterrupt:
-        _terminate_process_group(process)
-        raise
-    stdout_path.write_text(stdout or "", encoding="utf-8")
-    stderr_path.write_text(stderr or "", encoding="utf-8")
-    if result_path.is_file():
+        if control:
+            control.register(process)
         try:
-            return OntologyRunResult.model_validate_json(result_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            pass
-    if process.returncode != 0:
+            stdout, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            stdout, stderr = _terminate_process_group(process)
+            stdout_path.write_text(redact_text(stdout or "", secret_values(environment)), encoding="utf-8")
+            stderr_path.write_text((stderr or "") + f"\nModeling subprocess timed out after {timeout} seconds.\n", encoding="utf-8")
+            return _subprocess_failure(progress_path, AI_INDEX_MODELING_SUBPROCESS_TIMEOUT, "AI Index modeling subprocess timed out.")
+        except KeyboardInterrupt:
+            _terminate_process_group(process)
+            raise
+        stdout_path.write_text(redact_text(stdout or "", secret_values(environment)), encoding="utf-8")
+        stderr_path.write_text(redact_text(stderr or "", secret_values(environment)), encoding="utf-8")
+        check_cancelled()
+        if result_path.is_file():
+            try:
+                return OntologyRunResult.model_validate_json(result_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                pass
+        if process.returncode != 0:
+            return _subprocess_failure(
+                progress_path,
+                AI_INDEX_MODELING_SUBPROCESS_FAILED,
+                f"AI Index modeling subprocess exited with code {process.returncode}; see {stderr_path}.",
+            )
         return _subprocess_failure(
             progress_path,
             AI_INDEX_MODELING_SUBPROCESS_FAILED,
-            f"AI Index modeling subprocess exited with code {process.returncode}; see {stderr_path}.",
+            "AI Index modeling subprocess completed without a valid result contract.",
         )
-    return _subprocess_failure(
-        progress_path,
-        AI_INDEX_MODELING_SUBPROCESS_FAILED,
-        "AI Index modeling subprocess completed without a valid result contract.",
-    )
+    finally:
+        terminate_process(process)
+        if control:
+            control.unregister(process)
 
 
 def _subprocess_failure(progress_path: Path, fallback_code: str, message: str) -> OntologyRunResult:
@@ -116,12 +133,9 @@ def _subprocess_failure(progress_path: Path, fallback_code: str, message: str) -
 
 
 def _terminate_process_group(process: subprocess.Popen[str]) -> tuple[str, str]:
-    os.killpg(process.pid, signal.SIGTERM)
-    try:
-        return process.communicate(timeout=10)
-    except subprocess.TimeoutExpired:
-        os.killpg(process.pid, signal.SIGKILL)
-        return process.communicate()
+    terminate_process(process)
+    return process.communicate(timeout=5)
+
 
 
 __all__ = ["run_ontology_subprocess"]

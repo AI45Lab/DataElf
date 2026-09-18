@@ -1,0 +1,38 @@
+runtime:
+  workspace_dir: .dataelf
+explorer:
+  type: pi
+  pi:
+    binary: null
+    cwd: .
+    model: null             # provider/model registered in Pi; null inherits Pi settings
+    mode: json
+    timeout_seconds: 3600
+    log_mode: summary
+domains:
+  ai_index:
+    source:
+      mode: api
+      base_url: https://index.shlab.org.cn/api/v2
+      api_key: ""           # supply AI_INDEX_API_KEY in the service environment
+    modeling:
+      enabled: false        # research default; server selects its own modeler
+      ontology_config: dataelf/domains/ai_index/modeling/ontology/config.yaml
+env:
+  PI_CODING_AGENT_DIR: .pi/agent
+  # OPENAI_API_KEY: "<your-provider-key>"   # prefer an environment variable
+server:
+  host: 127.0.0.1
+  port: 8000
+  max_concurrent_jobs: 5     # default and maximum 5; 1..5 allowed
+  state_dir: null            # <runtime.workspace_dir>/server
+  intent:
+    model_name: GLM-5.2-w4a8c8  # required; no implicit model selection
+    base_url: null             # defaults to OPENAI_BASE_URL; /v1 or full completion URL
+    api_key: null              # defaults to OPENAI_API_KEY
+    timeout_seconds: 90
+  source:
+    max_pages: 50             # increase for older dates; bounded to 1..1000
+  pi:
+    transport: inherit      # nonstream is optional, for openai-completions providers
+    synthesis_retry_timeout_seconds: 1800

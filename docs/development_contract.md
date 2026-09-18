@@ -377,6 +377,10 @@ pi --no-extensions --extension <common> --extension <domain>
 
 普通 domain 只需按约定目录放置资源，不需要新增顶层配置字段。需要动态选择资源时，才在 DomainPlugin 的 agent resource hook 中返回路径。新增资源时应增加命令构造或 fake Pi 测试，验证未选中的 domain resource 不会被加载。
 
+通过 `run_job(..., plugin=..., explorer=..., control=...)` 注入的执行组件不会被 registry 覆盖，任务只初始化一次。注入的 plugin 仅加载其 hook 显式声明的 domain resources，不自动加载同目录的 research 扩展和 skills；路径仍遵守 domain 目录边界校验。资源必须传入实际使用的 `DiscoveryContext`。
+
+Pi 执行器的 `required_packages` 同时决定依赖检查与公共资源加载。research 默认使用全部受管包（Fusion、`pi-web-access`）；Server 显式传空元组并加载服务扩展，因此不会检查或加载 research 包，也不会向临时 agent 目录安装它们。核心不反向导入服务包。
+
 AI Index 当前不提供正式 Pi custom tools。它通过 prompt 指导 Pi 编写 Python 脚本，脚本调用 `AIIndexClient`；这是 domain 内部 Python 模式，不是 DataElf 的通用 tool 转换机制。
 
 ## 9. Recommended package layout

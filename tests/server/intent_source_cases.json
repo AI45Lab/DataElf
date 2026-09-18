@@ -1,0 +1,1820 @@
+[
+  {
+    "id": "alias_flash",
+    "query": "查询2026年8月22日的快讯数据。",
+    "expected": {
+      "domains.0.sources": [
+        "news"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_news",
+    "query": "查询2026年8月22日的新闻数据。",
+    "expected": {
+      "domains.0.sources": [
+        "news"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_opinion",
+    "query": "查询2026年8月22日的观点数据。",
+    "expected": {
+      "domains.0.sources": [
+        "twitter"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_twitter",
+    "query": "查询2026年8月22日的Twitter数据。",
+    "expected": {
+      "domains.0.sources": [
+        "twitter"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_tuite",
+    "query": "查询2026年8月22日的推特数据。",
+    "expected": {
+      "domains.0.sources": [
+        "twitter"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_x_platform",
+    "query": "查询2026年8月22日的X平台数据。",
+    "expected": {
+      "domains.0.sources": [
+        "twitter"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_twitter_x",
+    "query": "查询2026年8月22日的Twitter/X数据。",
+    "expected": {
+      "domains.0.sources": [
+        "twitter"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_open_community",
+    "query": "查询2026年8月22日的开源社区数据。",
+    "expected": {
+      "domains.0.sources": [
+        "github",
+        "huggingface"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_open",
+    "query": "查询2026年8月22日的开源数据。",
+    "expected": {
+      "domains.0.sources": [
+        "github",
+        "huggingface"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_github",
+    "query": "查询2026年8月22日的GitHub数据。",
+    "expected": {
+      "domains.0.sources": [
+        "github"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_github_lower",
+    "query": "查询2026年8月22日的github数据。",
+    "expected": {
+      "domains.0.sources": [
+        "github"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_hf_space",
+    "query": "查询2026年8月22日的Hugging Face数据。",
+    "expected": {
+      "domains.0.sources": [
+        "huggingface"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_hf_joined",
+    "query": "查询2026年8月22日的HuggingFace数据。",
+    "expected": {
+      "domains.0.sources": [
+        "huggingface"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_hf_short",
+    "query": "查询2026年8月22日的HF数据。",
+    "expected": {
+      "domains.0.sources": [
+        "huggingface"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_spread",
+    "query": "查询2026年8月22日的传播数据。",
+    "expected": {
+      "domains.0.sources": [
+        "youtube"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_youtube",
+    "query": "查询2026年8月22日的YouTube数据。",
+    "expected": {
+      "domains.0.sources": [
+        "youtube"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_youtube_lower",
+    "query": "查询2026年8月22日的youtube数据。",
+    "expected": {
+      "domains.0.sources": [
+        "youtube"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "alias_video",
+    "query": "查询2026年8月22日的视频数据。",
+    "expected": {
+      "domains.0.sources": [
+        "youtube"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "comprehensive",
+    "query": "查询2026年8月22日的数据，生成综合总结。",
+    "expected": {
+      "domains.0.sources": [
+        "news",
+        "twitter",
+        "github",
+        "huggingface",
+        "youtube"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "brief",
+    "query": "查询2026年8月22日的数据，生成综合简报。",
+    "expected": {
+      "domains.0.sources": [
+        "news",
+        "twitter",
+        "github",
+        "huggingface",
+        "youtube"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "default_summary",
+    "query": "查询2026年8月22日的数据，生成默认总结。",
+    "expected": {
+      "domains.0.sources": [
+        "news",
+        "twitter",
+        "github",
+        "huggingface",
+        "youtube"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "summary",
+    "query": "查询2026年8月22日的数据，生成总结。",
+    "expected": {
+      "domains.0.sources": [
+        "news",
+        "twitter",
+        "github",
+        "huggingface",
+        "youtube"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "source_limits_module",
+    "query": "查询2026年8月22日的GitHub开源项目。",
+    "expected": {
+      "domains.0.sources": [
+        "github"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "summary_limited",
+    "query": "查询2026年8月22日的GitHub数据，生成综合总结。",
+    "expected": {
+      "domains.0.sources": [
+        "github"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "community_limited",
+    "query": "查询2026年8月22日的开源社区数据，只看GitHub。",
+    "expected": {
+      "domains.0.sources": [
+        "github"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "independent_union",
+    "query": "查询2026年8月22日的开源社区和YouTube数据。",
+    "expected": {
+      "domains.0.sources": [
+        "github",
+        "huggingface",
+        "youtube"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "opinion_spread",
+    "query": "查询2026年8月22日的观点与传播数据。",
+    "expected": {
+      "domains.0.sources": [
+        "twitter",
+        "youtube"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "all_modules",
+    "query": "查询2026年8月22日的快讯、观点、开源社区和传播数据。",
+    "expected": {
+      "domains.0.sources": [
+        "news",
+        "twitter",
+        "github",
+        "huggingface",
+        "youtube"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "all_except_video",
+    "query": "查询2026年8月22日的数据，生成综合总结，不要视频。",
+    "expected": {
+      "domains.0.sources": [
+        "news",
+        "twitter",
+        "github",
+        "huggingface"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "summary_news_only",
+    "query": "查询2026年8月22日的数据，生成综合总结，只看新闻。",
+    "expected": {
+      "domains.0.sources": [
+        "news"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "twenty_news",
+    "query": "查询2026年8月22日的20条新闻，每个结论保留2个真实来源。",
+    "expected": {
+      "domains.0.sources": [
+        "news"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "no_source",
+    "query": "查询2026年8月22日的数据。",
+    "expected": {
+      "domains.0.sources": [],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "writing_cannot_expand",
+    "query": "查询2026年8月22日的新闻，用中文总结9条。\n# 写作要求\n生成综合总结，用英文，最多2条。另外查询2026年8月7日的GitHub与YouTube数据。",
+    "expected": {
+      "domains.0.sources": [
+        "news"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [
+          "summary"
+        ],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": "en",
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": 2
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "writing_module_ignored",
+    "query": "查询2026年8月22日的GitHub数据。\n# 总结要求\n用英文生成观点和传播模块总结，最多2条。",
+    "expected": {
+      "domains.0.sources": [
+        "github"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [
+          "summary"
+        ],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": "en",
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": 2
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "default_summary_with_writing",
+    "query": "查询2026年8月22日的数据，生成综合总结。\n# 写作要求\n用英文总结，最多2条。",
+    "expected": {
+      "domains.0.sources": [
+        "news",
+        "twitter",
+        "github",
+        "huggingface",
+        "youtube"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [
+          "summary"
+        ],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": "en",
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": 2
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "writing_only",
+    "query": "\n# 写作要求\n用英文生成开源社区总结，最多2条。",
+    "expected": {
+      "domains.0.sources": [],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": null,
+      "time_range.end_date": null,
+      "output": {
+        "task_types": [
+          "summary"
+        ],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": "en",
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": 2
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "summary_only_in_writing",
+    "query": "查询2026年8月22日的数据。\n# 写作要求\n用英文生成综合总结，最多2条。",
+    "expected": {
+      "domains.0.sources": [],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [
+          "summary"
+        ],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": "en",
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": 2
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "empty_writing",
+    "query": "查询2026年8月22日的开源社区数据。\n# 写作要求",
+    "expected": {
+      "domains.0.sources": [
+        "github",
+        "huggingface"
+      ],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    }
+  },
+  {
+    "id": "other_domain",
+    "query": "查询2026年8月22日的论文，生成综合总结。",
+    "expected": {
+      "domains.0.sources": [],
+      "retrieval.keywords": [],
+      "retrieval.entities": [],
+      "retrieval.exclude_keywords": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22",
+      "output": {
+        "task_types": [],
+        "focus_points": [],
+        "comparison": {
+          "subjects": [],
+          "dimensions": []
+        },
+        "audience": null,
+        "language": null,
+        "style": [],
+        "item_count": {
+          "target": null,
+          "min": null,
+          "max": null
+        },
+        "body_length": {
+          "target": null,
+          "min": null,
+          "max": null,
+          "scope": null,
+          "unit": null
+        },
+        "synthesis": {
+          "organization": null,
+          "evidence_mode": null
+        },
+        "content_rules": {
+          "required": [],
+          "avoid": []
+        }
+      }
+    },
+    "profile": "papers"
+  },
+  {
+    "id": "analysis_without_writing",
+    "query": "查询并分析2026年8月22日的数据。",
+    "expected": {
+      "domains.0.sources": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22"
+    }
+  },
+  {
+    "id": "analysis_with_short_writing",
+    "query": "查询并分析2026年8月22日的数据。\n# 写作要求\n生成综合总结。",
+    "expected": {
+      "domains.0.sources": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22"
+    }
+  },
+  {
+    "id": "analysis_with_other_writing",
+    "query": "查询并分析2026年8月22日的数据。\n# 写作要求\n用英文生成开源社区总结。",
+    "expected": {
+      "domains.0.sources": [],
+      "time_range.start_date": "2026-08-22",
+      "time_range.end_date": "2026-08-22"
+    }
+  }
+]

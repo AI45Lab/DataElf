@@ -26,6 +26,7 @@ PI_MANAGED_PACKAGES = (
     (PI_PACKAGE_NAME, PI_PACKAGE_SPEC),
     (PI_WEB_ACCESS_PACKAGE_NAME, PI_WEB_ACCESS_PACKAGE_SPEC),
 )
+PI_REQUIRED_PACKAGES = tuple(name for name, _ in PI_MANAGED_PACKAGES)
 RUNTIME_MANIFEST = Path("runtime") / "pi.json"
 
 
@@ -113,11 +114,13 @@ def pi_package_json(cwd: Path, env: dict[str, str], package_name: str) -> Path:
     return agent_dir.resolve().parent / "npm" / "node_modules" / package_name / "package.json"
 
 
-def managed_pi_resources(cwd: Path, env: dict[str, str]) -> AgentResources:
+def managed_pi_resources(
+    cwd: Path, env: dict[str, str], *, required_packages: tuple[str, ...] = PI_REQUIRED_PACKAGES,
+) -> AgentResources:
     """Return resources from DataElf-managed Pi packages for explicit loading."""
     extensions: list[Path] = []
     skills: list[Path] = []
-    for package_name, _ in PI_MANAGED_PACKAGES:
+    for package_name in required_packages:
         package_json = pi_package_json(cwd, env, package_name)
         if not package_json.is_file():
             continue
@@ -163,8 +166,15 @@ def runtime_ready(config: DataElfConfig, binary: Path | None = None) -> bool:
     )
 
 
-def runtime_ready_for_process(binary: str | Path | None, cwd: Path, env: dict[str, str]) -> bool:
-    """Readiness check for the explorer, which already has its child env."""
+def runtime_ready_for_process(
+    binary: str | Path | None, cwd: Path, env: dict[str, str],
+    *, required_packages: tuple[str, ...] = PI_REQUIRED_PACKAGES,
+) -> bool:
+    """Check the packages required by this explorer's assembled runtime.
+
+    Research uses all managed packages by default. Explicitly assembled runtimes may load
+    their resources directly and declare no project package dependencies.
+    """
     if binary is None:
         return False
     binary_path = Path(binary)
@@ -175,7 +185,7 @@ def runtime_ready_for_process(binary: str | Path | None, cwd: Path, env: dict[st
     if not agent_dir.is_absolute():
         agent_dir = cwd / agent_dir
     package_root = agent_dir.resolve().parent / "npm" / "node_modules"
-    return all((package_root / package_name / "package.json").is_file() for package_name, _ in PI_MANAGED_PACKAGES)
+    return all((package_root / package_name / "package.json").is_file() for package_name in required_packages)
 
 
 def setup_pi_runtime(config: DataElfConfig) -> PiRuntimeResult:

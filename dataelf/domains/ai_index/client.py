@@ -133,6 +133,8 @@ class AIIndexClient:
         return bounded
 
     def _register_call(self, method_name: str) -> None:
+        from dataelf.discovery.run_control import check_cancelled
+        check_cancelled()
         self._call_count += 1
         if self.max_calls is not None and self._call_count > self.max_calls:
             raise RuntimeError(

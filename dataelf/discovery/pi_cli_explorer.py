@@ -13,7 +13,9 @@ from pathlib import Path
 from threading import Thread
 
 from dataelf.discovery.contracts import ArtifactRef, DiscoveryContext, DiscoveryJob, ExplorerRunResult
-from dataelf.discovery.pi_runtime import is_managed_binary, managed_pi_resources, runtime_ready_for_process
+from dataelf.discovery.pi_runtime import PI_REQUIRED_PACKAGES, is_managed_binary, managed_pi_resources, runtime_ready_for_process
+from dataelf.discovery.redaction import redact_text, secret_values
+from dataelf.discovery.run_control import check_cancelled, current_run, terminate_process, RunCancelled
 
 
 DEFAULT_PI_MODE = "json"
@@ -56,7 +58,17 @@ class PiCliInsightsExplorer:
         approve_project: bool = True,
         stream_logs: bool | None = None,
         log_mode: str | None = None,
+        log_prefix: str = "pi",
+        compact_stream_events: bool = False,
+        detect_model_errors: bool = False,
+        required_packages: tuple[str, ...] = PI_REQUIRED_PACKAGES,
     ):
+        if not re.fullmatch(r"[a-z0-9_]+", log_prefix):
+            raise ValueError("invalid Pi log prefix")
+        self.log_prefix = log_prefix
+        self.compact_stream_events = compact_stream_events
+        self.detect_model_errors = detect_model_errors
+        self.required_packages = tuple(required_packages)
         self.pi_binary = pi_binary or os.getenv("DATAELF_PI_BINARY")
         self.model = model if model is not None else os.getenv("DATAELF_PI_MODEL")
         self.mode = mode or os.getenv("DATAELF_PI_MODE", DEFAULT_PI_MODE)
@@ -71,9 +83,9 @@ class PiCliInsightsExplorer:
         workspace_path.mkdir(parents=True, exist_ok=True)
         logs_dir = workspace_path / "logs"
         logs_dir.mkdir(parents=True, exist_ok=True)
-        stdout_path = logs_dir / "pi_stdout.log"
-        stderr_path = logs_dir / "pi_stderr.log"
-        events_path = logs_dir / "pi_events.jsonl"
+        stdout_path = logs_dir / f"{self.log_prefix}_stdout.log"
+        stderr_path = logs_dir / f"{self.log_prefix}_stderr.log"
+        events_path = logs_dir / f"{self.log_prefix}_events.jsonl"
 
         logger.info("Preparing Pi workspace: %s", workspace_path)
         if not context.prompt_path:
@@ -101,15 +113,15 @@ class PiCliInsightsExplorer:
 
         env = self._build_env(workspace_path, job, context)
         command = self._build_command(pi_binary, prompt_path, context, env)
-        if not runtime_ready_for_process(pi_binary, self.cwd.resolve(), env):
+        if not runtime_ready_for_process(pi_binary, self.cwd.resolve(), env, required_packages=self.required_packages):
             message = "DataElf's explorer runtime is incomplete. Run `dataelf setup` and try again."
             stdout_path.write_text("", encoding="utf-8")
             stderr_path.write_text(message + "\n", encoding="utf-8")
-            return ExplorerRunResult(status="failed", artifacts=_log_artifacts(workspace_path), warnings=[message], error_code="EXPLORER_RUNTIME_NOT_READY", error_message=message)
+            return ExplorerRunResult(status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix), warnings=[message], error_code="EXPLORER_RUNTIME_NOT_READY", error_message=message)
         timeout = self.timeout_seconds or _timeout_seconds(job)
         cwd = self.cwd.resolve()
-        _write_json(logs_dir / "pi_command.json", {"command": _redact_command(command), "cwd": str(cwd), "workspace_path": str(workspace_path)})
-        _write_json(logs_dir / "pi_env_redacted.json", _redact_env(env))
+        _write_json(logs_dir / f"{self.log_prefix}_command.json", {"command": _redact_command(command), "cwd": str(cwd), "workspace_path": str(workspace_path)})
+        _write_json(logs_dir / f"{self.log_prefix}_env_redacted.json", _redact_env(env))
 
         logger.info("Starting Pi CLI: binary=%s mode=%s model=%s cwd=%s timeout=%ss log_mode=%s", pi_binary, self.mode, self.model or "<pi default>", cwd, timeout, self.log_mode)
         if self.log_mode == "quiet":
@@ -117,7 +129,15 @@ class PiCliInsightsExplorer:
         elif self.log_mode == "summary":
             logger.info("Pi event summaries will be streamed; raw JSON events will also be captured in %s.", events_path)
         try:
-            completed = _run_pi_process(command, cwd=cwd, env=env, timeout=timeout, log_mode=self.log_mode)
+            completed = _run_pi_process(command, cwd=cwd, env=env, timeout=timeout, log_mode=self.log_mode, compact_json_events=self.compact_stream_events)
+        except RunCancelled as exc:
+            stdout = getattr(exc, "stdout", "")
+            stderr = getattr(exc, "stderr", "")
+            stdout_path.write_text(stdout, encoding="utf-8")
+            stderr_path.write_text(stderr + "\nRun cancelled.\n", encoding="utf-8")
+            _write_json_events(stdout, events_path)
+            return ExplorerRunResult(status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix),
+                error_code="RUN_CANCELLED", error_message="Run cancelled.")
         except subprocess.TimeoutExpired as exc:
             stdout = exc.stdout or ""
             stderr = (exc.stderr or "") + f"\nPi CLI timed out after {timeout} seconds.\n"
@@ -125,7 +145,7 @@ class PiCliInsightsExplorer:
             stderr_path.write_text(stderr, encoding="utf-8")
             _write_json_events(stdout, events_path)
             return ExplorerRunResult(
-                status="failed", artifacts=_log_artifacts(workspace_path),
+                status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix),
                 warnings=[f"Pi CLI timed out after {timeout} seconds."],
                 error_code=PI_PROCESS_TIMEOUT, error_message=f"Pi CLI timed out after {timeout} seconds.",
             )
@@ -134,18 +154,23 @@ class PiCliInsightsExplorer:
         stderr_path.write_text(completed.stderr or "", encoding="utf-8")
         event_warnings = _write_json_events(completed.stdout or "", events_path)
 
+        if self.detect_model_errors:
+            model_errors = _model_event_errors(completed.stdout or "")
+            if model_errors:
+                return ExplorerRunResult(status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix),
+                    error_code="PI_MODEL_ERROR", error_message="; ".join(model_errors), warnings=model_errors)
         if completed.returncode != 0:
             message = f"Pi CLI exited with code {completed.returncode}. See logs/pi_stderr.log."
             return ExplorerRunResult(
-                status="failed", artifacts=_log_artifacts(workspace_path), warnings=[*event_warnings, message],
+                status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix), warnings=[*event_warnings, message],
                 error_code=f"{PI_PROCESS_NONZERO_EXIT}:{completed.returncode}", error_message=message,
             )
         if event_warnings:
             return ExplorerRunResult(
-                status="failed", artifacts=_log_artifacts(workspace_path), warnings=event_warnings,
+                status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix), warnings=event_warnings,
                 error_code=PI_EVENT_PARSE_ERROR, error_message="Pi emitted malformed JSON events.",
             )
-        return ExplorerRunResult(status="completed", artifacts=_log_artifacts(workspace_path))
+        return ExplorerRunResult(status="completed", artifacts=_log_artifacts(workspace_path, self.log_prefix))
 
     def _resolve_binary(self) -> str | None:
         if self.pi_binary:
@@ -178,7 +203,7 @@ class PiCliInsightsExplorer:
         # explicit, deterministic list. This prevents another domain's
         # project-local extension or skill from leaking into the current job.
         command.append("--no-extensions")
-        common = managed_pi_resources(self.cwd.resolve(), env or {}) if is_managed_binary(Path(pi_binary)) else None
+        common = managed_pi_resources(self.cwd.resolve(), env or {}, required_packages=self.required_packages) if is_managed_binary(Path(pi_binary)) else None
         for extension in [*(common.extensions if common else []), *((context.agent_resources.extensions if context else []))]:
             command.extend(["--extension", str(extension)])
         command.append("--no-skills")
@@ -202,6 +227,8 @@ class PiCliInsightsExplorer:
         env["DATAELF_WORKSPACE"] = str(workspace_path)
         env["DATAELF_JOB_WORKSPACE"] = str(workspace_path)
         env["DATAELF_JOB_ID"] = job.job_id
+        env["DATAELF_PYTHON"] = sys.executable
+        env["DATAELF_WORKFLOW_PROFILE"] = job.spec.workflow_profile
         env["DATAELF_DOMAIN"] = context.spec.domain
         env["DATAELF_PYTHON"] = sys.executable
         if any(artifact.kind == "ontology_rdf" for artifact in context.artifacts):
@@ -221,7 +248,7 @@ class PiCliInsightsExplorer:
         return env
 
 
-def _log_artifacts(workspace: Path) -> list[ArtifactRef]:
+def _log_artifacts(workspace: Path, prefix: str = "pi") -> list[ArtifactRef]:
     result: list[ArtifactRef] = []
     for artifact_id, relative, media_type in [
         ("pi_stdout", "logs/pi_stdout.log", "text/plain"),
@@ -229,6 +256,8 @@ def _log_artifacts(workspace: Path) -> list[ArtifactRef]:
         ("pi_events", "logs/pi_events.jsonl", "application/x-ndjson"),
         ("pi_command", "logs/pi_command.json", "application/json"),
     ]:
+        artifact_id = artifact_id.replace("pi_", prefix + "_", 1)
+        relative = relative.replace("logs/pi_", "logs/" + prefix + "_", 1)
         if (workspace / relative).is_file():
             result.append(ArtifactRef(
                 artifact_id=artifact_id, kind="runtime_log", path=relative, role="log",
@@ -280,46 +309,53 @@ _ENV_ALLOWLIST = {
 _SECRET_KEY_MARKERS = ("KEY", "TOKEN", "SECRET", "PASSWORD")
 
 
-def _run_pi_process(
-    command: list[str],
-    cwd: Path,
-    env: dict[str, str],
-    timeout: int,
-    log_mode: str,
-) -> PiCompleted:
-    process = subprocess.Popen(
-        command,
-        cwd=cwd,
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        bufsize=1,
-    )
-    stdout_chunks: list[str] = []
-    stderr_chunks: list[str] = []
-    stdout_thread = Thread(target=_drain_stream, args=(process.stdout, stdout_chunks, logging.INFO, "[pi] ", log_mode, True), daemon=True)
-    stderr_thread = Thread(target=_drain_stream, args=(process.stderr, stderr_chunks, logging.WARNING, "[pi stderr] ", log_mode, False), daemon=True)
-    stdout_thread.start()
-    stderr_thread.start()
+def _run_pi_process(command, cwd, env, timeout, log_mode, compact_json_events=False) -> PiCompleted:
+    check_cancelled()
+    process = subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, text=True, bufsize=1, start_new_session=True)
+    control = current_run()
+    stdout_chunks, stderr_chunks = [], []
+    threads = [
+        Thread(target=_drain_stream, args=(process.stdout, stdout_chunks, logging.INFO, "[pi] ", log_mode, True, compact_json_events, secret_values(env)), daemon=True),
+        Thread(target=_drain_stream, args=(process.stderr, stderr_chunks, logging.WARNING, "[pi stderr] ", log_mode, False, False, secret_values(env)), daemon=True),
+    ]
     try:
-        returncode = process.wait(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        process.wait()
-        stdout_thread.join(timeout=2)
-        stderr_thread.join(timeout=2)
-        raise subprocess.TimeoutExpired(command, timeout, output="".join(stdout_chunks), stderr="".join(stderr_chunks))
-    stdout_thread.join()
-    stderr_thread.join()
-    return PiCompleted(returncode=returncode, stdout="".join(stdout_chunks), stderr="".join(stderr_chunks))
+        if control:
+            control.register(process)
+        for thread in threads:
+            thread.start()
+        try:
+            returncode = process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            terminate_process(process)
+            for thread in threads:
+                thread.join(timeout=2)
+            raise subprocess.TimeoutExpired(command, timeout, output="".join(stdout_chunks), stderr="".join(stderr_chunks))
+        for thread in threads:
+            thread.join(timeout=5)
+        check_cancelled()
+        return PiCompleted(returncode=returncode, stdout="".join(stdout_chunks), stderr="".join(stderr_chunks))
+    except RunCancelled as exc:
+        for thread in threads:
+            if thread.is_alive():
+                thread.join(timeout=2)
+        exc.stdout = "".join(stdout_chunks)
+        exc.stderr = "".join(stderr_chunks)
+        raise
+    finally:
+        if control:
+            control.unregister(process)
+        terminate_process(process)
 
 
-def _drain_stream(pipe: object, chunks: list[str], level: int, prefix: str, log_mode: str, summarize_json: bool) -> None:
+def _drain_stream(pipe: object, chunks: list[str], level: int, prefix: str, log_mode: str, summarize_json: bool, compact_json_events: bool = False, secrets=()) -> None:
     if pipe is None:
         return
     try:
         for line in pipe:
+            line = redact_text(line, secrets)
+            if compact_json_events:
+                line = _compact_pi_event_line(line)
             chunks.append(line)
             stripped = line.rstrip()
             if not stripped or log_mode == "quiet":
@@ -537,7 +573,7 @@ def _redact_command(command: list[str]) -> list[str]:
             redacted.append("<redacted>")
             redact_next = False
             continue
-        redacted.append(item)
+        redacted.append("--api-key=<redacted>" if item.startswith("--api-key=") else item)
         if item == "--api-key":
             redact_next = True
     return redacted
@@ -562,3 +598,48 @@ def _env_bool(name: str, default: bool) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _compact_pi_event_line(line: str) -> str:
+    """Drop cumulative snapshots from streaming deltas while retaining valid JSONL.
+
+    Pi's message_update events contain both the incremental delta and a complete
+    partial/message snapshot. Saving every growing snapshot makes long sessions
+    consume quadratic disk and memory. The delta is sufficient to reconstruct
+    the stream; message_end events retain completed messages.
+    """
+    try:
+        event = json.loads(line)
+    except json.JSONDecodeError:
+        return line
+    if not isinstance(event, dict) or event.get("type") != "message_update":
+        return line
+
+    assistant_event = event.get("assistantMessageEvent")
+    if isinstance(assistant_event, dict):
+        assistant_event.pop("partial", None)
+    event.pop("message", None)
+    newline = "\n" if line.endswith("\n") else ""
+    return json.dumps(event, ensure_ascii=False, separators=(",", ":")) + newline
+
+
+
+def _model_event_errors(stdout: str) -> list[str]:
+    errors: list[str] = []
+    for line in stdout.splitlines():
+        try:
+            event = json.loads(line)
+        except (ValueError, TypeError):
+            continue
+        if not isinstance(event, dict):
+            continue
+        if event.get("type") == "auto_retry_end":
+            if event.get("success"):
+                errors.clear()
+            elif event.get("finalError"):
+                errors.append(str(event["finalError"]))
+        if event.get("type") == "message_end":
+            message = event.get("message", {})
+            if isinstance(message, dict) and message.get("stopReason") in {"error", "aborted"}:
+                errors.append(str(message.get("errorMessage") or message["stopReason"]))
+    return errors

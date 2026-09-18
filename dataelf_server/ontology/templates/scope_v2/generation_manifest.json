@@ -1,0 +1,32 @@
+{
+  "model": "glm-5.2-1m",
+  "templates": {
+    "base": {
+      "status": "reused",
+      "file": "dataelf_server/ontology/templates/scope_v2/base.json"
+    },
+    "news": {
+      "status": "reused",
+      "file": "dataelf_server/ontology/templates/scope_v2/news.json"
+    },
+    "twitter": {
+      "status": "reused",
+      "file": "dataelf_server/ontology/templates/scope_v2/twitter.json"
+    },
+    "github": {
+      "status": "generated",
+      "attempt": 1,
+      "file": "dataelf_server/ontology/templates/scope_v2/github.json"
+    },
+    "huggingface": {
+      "status": "generated",
+      "attempt": 1,
+      "file": "dataelf_server/ontology/templates/scope_v2/huggingface.json"
+    },
+    "youtube": {
+      "status": "generated",
+      "attempt": 5,
+      "file": "dataelf_server/ontology/templates/scope_v2/youtube.json"
+    }
+  }
+}

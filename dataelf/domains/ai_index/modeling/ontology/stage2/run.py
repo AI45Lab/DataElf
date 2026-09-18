@@ -21,7 +21,7 @@ from dataelf.domains.ai_index.modeling.ontology.stage2.ontology_stage2.pipeline 
 )
 
 
-DEFAULT_CONFIG = Path(__file__).resolve().parent / "config.yaml"
+DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config.yaml"
 
 
 def _source_options(command: argparse.ArgumentParser) -> None:
