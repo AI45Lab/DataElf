@@ -13,10 +13,14 @@ def main() -> None:
     parser.add_argument("--check-environment", action="store_true", help="Check local runtime before starting")
     parser.add_argument("--max-concurrent-jobs", type=int, choices=range(1, 6),
                         help="Concurrent task limit (1-5; default 5, configurable)")
+    parser.add_argument("--max-pending-jobs", type=int,
+                        help="Maximum queued jobs, excluding running jobs (positive; default 50)")
     args = parser.parse_args()
+    if args.max_pending_jobs is not None and args.max_pending_jobs < 1:
+        parser.error("--max-pending-jobs must be positive")
     if args.config:
         os.environ["DATAELF_CONFIG_FILE"] = args.config
-    for key in ("host", "port", "state_dir", "max_concurrent_jobs"):
+    for key in ("host", "port", "state_dir", "max_concurrent_jobs", "max_pending_jobs"):
         value = getattr(args, key)
         if value is not None:
             os.environ[f"DATAELF_SERVER_{key.upper()}"] = str(value)

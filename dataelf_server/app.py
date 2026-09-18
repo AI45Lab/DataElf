@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from dataelf_server.presentation.errors import request_error, service_error
-from dataelf_server.jobs.manager import JobManager, RetryJobError
+from dataelf_server.jobs.manager import JobManager, RetryJobError, QueueFullError
 from dataelf_server.presentation.insights import public_insights
 from dataelf_server.presentation.schemas import InsightQueryRequest, envelope
 from dataelf_server.settings import Settings
@@ -65,6 +65,16 @@ def create_app(
                 for error in exc.errors()
             ],
         )
+
+    @app.exception_handler(QueueFullError)
+    async def queue_full_handler(request: Request, exc: QueueFullError) -> JSONResponse:
+        response = _error_response(
+            status_code=503, reason="queue_full",
+            message="任务队列已满，请稍后重新提交。", trace_id=uuid.uuid4().hex,
+            category="service_error", retryable=True, action="retry_later",
+        )
+        response.headers["Retry-After"] = "30"
+        return response
 
     @app.exception_handler(Exception)
     async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -218,6 +228,7 @@ def _error_response(
 ) -> JSONResponse:
     if category == "service_error":
         error = service_error(message=message)
+        error.update(reason=reason, stage=stage, retryable=retryable, action=action, details=details)
     else:
         error = request_error(
             reason=reason,

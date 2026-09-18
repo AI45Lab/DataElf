@@ -31,6 +31,7 @@ class ServerConfig(BaseModel):
     port: int = Field(default=8000, ge=1, le=65535)
     state_dir: Path | None = None
     max_concurrent_jobs: int = Field(default=5, ge=1, le=5)
+    max_pending_jobs: int = Field(default=50, ge=1)
     pi: ServerPiConfig = Field(default_factory=ServerPiConfig)
     intent: IntentModelConfig = Field(default_factory=IntentModelConfig)
     source: ServerSourceConfig = Field(default_factory=ServerSourceConfig)
@@ -45,7 +46,7 @@ class Settings:
     def from_env(cls) -> "Settings":
         core = DataElfConfig.from_env()
         values = dict(core.server)
-        for key in ("host", "port", "state_dir", "max_concurrent_jobs"):
+        for key in ("host", "port", "state_dir", "max_concurrent_jobs", "max_pending_jobs"):
             value = os.getenv(f"DATAELF_SERVER_{key.upper()}")
             if value is not None:
                 values[key] = value

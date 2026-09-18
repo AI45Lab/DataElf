@@ -89,6 +89,7 @@ server:
 | `DATAELF_PI_TIMEOUT_SECONDS` | Pi 主执行超时 |
 | `DATAELF_SERVER_HOST` / `DATAELF_SERVER_PORT` | 监听地址和端口 |
 | `DATAELF_SERVER_MAX_CONCURRENT_JOBS` | 覆盖同时执行任务数，默认及上限均为 5 |
+| `DATAELF_SERVER_MAX_PENDING_JOBS` | 等待队列上限，默认 50，必须大于 0；不包含运行中的任务 |
 | `DATAELF_SERVER_STATE_DIR` | 独立服务状态目录 |
 | `DATAELF_SERVER_SOURCE_MAX_PAGES` | 覆盖每来源扫描上限，例如500；不改变查询日期窗口 |
 | `DATAELF_SERVER_PI_TRANSPORT` | `inherit` 或 `nonstream` |
@@ -238,3 +239,14 @@ retry 沿用原 job ID，但创建 `attempts/0002/` 等新目录，旧产物保�
 当前意图由 LLM 解析；明确日期/区间精确过滤，不回退较早有数据的日期。部分来源为空时继续使用其余来源，全部为空时失败。写作分段、语言、条数及跨资料综合规则见 [API 调用说明](../API_USAGE.md) 和 [内容与写作配置](writing.md)。
 
 历史日期验收时，若来源记录显示 `scan_complete=false` 且达到页数上限，表示扫描尚未覆盖完整窗口，不能据此认定当天没有数据。可提高 `server.source.max_pages`（或 `DATAELF_SERVER_SOURCE_MAX_PAGES`）并重试；页数增大会增加采集时间和请求量。2026年9月10日的8月历史样例复测使用500页上限。
+
+
+### 等待队列容量
+
+`server.max_pending_jobs` 默认 50，与最多 5 个运行任务分别计数。可通过
+`DATAELF_SERVER_MAX_PENDING_JOBS` 或启动参数 `--max-pending-jobs 50` 覆盖，
+优先级为启动参数、环境变量、配置文件。必须使用正整数。
+
+队列满时，提交和重试都在创建工作目录及写入任务记录之前被拒绝，返回
+HTTP 503 `queue_full` 和 `Retry-After: 30`。容量在 worker 取出排队任务时释放；
+原有 FIFO 顺序不变。此限制不清理已完成任务的历史工作目录。

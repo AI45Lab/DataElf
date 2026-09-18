@@ -121,7 +121,7 @@ JSON 字符串中的 `\n` 表示换行。可以将上面的指令替换为第一
 curl -sS 'http://s-20260908202228-j7jhb.ailab-evobox.pjh-service.org.cn/api/v1/insight/jobs/<job_id>'
 ```
 
-任务状态为 `queued`、`running`、`completed` 或 `failed`。服务默认最多同时处理 5 个任务，其他任务按提交顺序排队。
+任务状态为 `queued`、`running`、`completed` 或 `failed`。服务默认最多同时处理 5 个任务，最多另有 50 个任务按提交顺序排队（排队上限可由部署方调整）。
 
 响应中的 `created_at` 是创建时间，`started_at` 是后台实际开始处理的时间；排队时 `started_at` 为 `null`。时间使用 UTC。
 
@@ -214,3 +214,14 @@ curl -sS -X POST 'http://s-20260908202228-j7jhb.ailab-evobox.pjh-service.org.cn/
 任务错误的 `category` 可能为 `intent_error`、`source_error`、`model_error`、`analysis_error`、`artifact_error` 或 `service_error`；请求格式错误、任务不存在等接口错误使用 `request_error`。
 
 调用方应根据 `category`、`reason`、`retryable` 和 `action` 处理，不要解析可能调整措辞的 `message`。反馈问题时请提供 `job_id` 和 `trace_id`。
+
+
+### 队列已满
+
+提交任务或重试失败任务时，如果等待队列已满，接口返回 HTTP 503，顶层
+`code: 503`、`msg: queue_full`，并保留统一的 `trace_id`、`data.error` 结构。
+错误字段为 `category: service_error`、`reason: queue_full`、`retryable: true`、
+`action: retry_later`。此时任务未被接受，不会返回新的任务 ID，也不会创建新的重试记录。
+
+响应头 `Retry-After: 30` 建议等待 30 秒后重试，不保证届时一定有空位。
+首次提交被拒绝时重新调用提交接口；重试被拒绝时继续使用原任务 ID 调用重试接口。

@@ -40,6 +40,10 @@ class RetryJobError(RuntimeError):
         self.message = message
 
 
+class QueueFullError(RuntimeError):
+    """Admission refused before creating a job or retry attempt."""
+
+
 class JobManager:
     def __init__(
         self,
@@ -77,6 +81,7 @@ class JobManager:
         with self._lock:
             if self._closed:
                 raise RuntimeError("job manager is closed")
+            self._check_queue_capacity()
             job_id = f"job_{uuid.uuid4().hex[:12]}"
             trace_id = uuid.uuid4().hex
             job_root = self.settings.workspaces_dir / job_id
@@ -93,6 +98,12 @@ class JobManager:
             self._queue.append((job_id, request_payload, workspace_path))
             self._ready.notify()
             return record
+
+    def _check_queue_capacity(self) -> None:
+        # Caller holds _lock through persistence and enqueue; workers dequeue
+        # under the same lock, so concurrent admissions cannot overbook.
+        if len(self._queue) >= self.settings.server.max_pending_jobs:
+            raise QueueFullError("Pending job queue is full")
 
     def get(self, job_id: str) -> JobRecord | None:
         return self.store.get_job(job_id)
@@ -111,6 +122,7 @@ class JobManager:
                     "job_not_retryable", "Only failed jobs can be retried."
                 )
 
+            self._check_queue_capacity()
             workspace_path = self.settings.workspaces_dir / job_id / "attempts" / f"{previous.attempt + 1:04d}"
             workspace_path.mkdir(parents=True, exist_ok=False)
             try:
