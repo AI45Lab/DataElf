@@ -1,0 +1,38 @@
+# FinanceAgentBench v2: filing retrieval plus market price history QA.
+#
+# edgar_search, parse_html_page, price_history, and retrieve_information are
+# provided by the domain generic layer.
+benchmark: finance_agent_bench_v2
+version: "1"
+display_name: FinanceAgentBench v2
+tools:
+  sql: false
+  python: true
+  web: true
+  edgar: true
+  prices: true
+source:
+  # Expects prepared filing/API artifacts and price-history data.
+  needs: [files]
+prompt:
+  source_guidance: >
+    Use the prepared filing/API artifacts and price-history data, keeping
+    filing dates, trading dates, and as-of timestamps distinct.
+  tool_guidance: >
+    Join filing and market data only after aligning entity identifiers,
+    calendars, currencies, and observation windows.
+  instructions:
+    - Do not treat price movement as a causal consequence of a filing without an explicit identification strategy.
+    - Report the event window and market-data sampling assumptions.
+  requirements:
+    - Every filing fact must cite its accession number and filing context.
+    - Every market figure must state its observation window and source.
+  output_guidance: >
+    Provide a source-grounded filing and market analysis with clear
+    event-window limitations.
+  stopping_policy: >
+    Stop once filing and market evidence jointly support or fail to support
+    the requested conclusion.
+pi:
+  extensions: []
+  skills: []

@@ -1,0 +1,34 @@
+# FinSearchComp track 2: simple historical lookup — a single financial fact or
+# figure whose format/precision constraints are stated in the question itself.
+# Source of truth: FinSearchComp repository — the answering baseline is one raw
+# user turn per question with model-side search grounding; no system prompt.
+
+benchmark: finsearchcomp_t2
+version: "1"
+display_name: FinSearchComp Track 2
+tools:
+  sql: false
+  python: true
+  web: true
+  extra: []
+source:
+  # The benchmark ships questions only; retrieval happens via the search tools.
+  needs: []
+prompt:
+  source_guidance: >
+    No documents or databases are prepared for the question.
+  output_guidance: >
+    The summary carries the answer to the question.
+outputs:
+  fields:
+    - name: key_findings
+      required: false
+    - name: evidence_refs
+      required: false
+    - name: confidence
+      required: false
+    - name: limitations
+      required: false
+pi:
+  extensions: []
+  skills: []

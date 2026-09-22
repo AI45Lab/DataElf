@@ -1,0 +1,49 @@
+# FinanceComplexQA: single-document financial report QA — each question points
+# to one reference PDF; answers come only from that document.
+# Source of truth: FinanceComplexQA repository — per-question runner prompt
+# (CN/EN templates in run_bench_cc.py) over one resolved Reference_documents
+# PDF, parsed for text and tables before answering.
+
+benchmark: finance_complex_qa
+version: "1"
+display_name: FinanceComplexQA
+tools:
+  sql: false
+  python: true
+  web: false
+  extra: []
+source:
+  # Requires the reference PDF corpus (one document per question).
+  needs: [files]
+prompt:
+  source_guidance: >
+    Read the specified financial report (.pdf file, without images) supplied
+    with the question.
+  tool_guidance: >
+    You must first parse the specified PDF file to extract its text and tables
+    for reading comprehension; then answer only from the document content — do
+    not use external knowledge or fabricate data.
+  instructions:
+    - All numerical calculations must be based on exact data explicitly given in tables or formulas in the document, derived step by step — never replace exact values in tables with approximate values such as 'about' or 'approximately' from the narrative.
+    - If the document truly lacks the necessary data and the answer cannot be computed, the answer is 'Insufficient relevant data; unable to determine the answer.'
+  output_guidance: >
+    The summary carries the final answer as a standalone paragraph; numeric
+    values keep at most 4 decimal places, or follow the format the question
+    requires.
+outputs:
+  fields:
+    - name: summary
+      prompt_hint: the final answer as a standalone paragraph
+    - name: thinking
+      prompt_hint: the step-by-step derivation, one complete paragraph
+    - name: key_findings
+      required: false
+    - name: evidence_refs
+      required: false
+    - name: confidence
+      required: false
+    - name: limitations
+      required: false
+pi:
+  extensions: []
+  skills: []

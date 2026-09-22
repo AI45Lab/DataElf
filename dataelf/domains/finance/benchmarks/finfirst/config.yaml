@@ -1,0 +1,34 @@
+# FinFIRST targeted financial QA over web search results and pages.
+benchmark: finfirst
+version: "1"
+display_name: FinFIRST
+tools:
+  sql: false
+  python: true
+  web: true
+  extra: []
+source:
+  # Web-only: retrieve evidence with the common web tools.
+  needs: []
+prompt:
+  source_guidance: >
+    Focus on the sources and time range needed to answer the explicit
+    question; broaden only when required to verify an ambiguity.
+  tool_guidance: >
+    Use search/retrieval and computation tools selectively, and keep the
+    evidence chain directly tied to the question.
+  instructions:
+    - Answer the explicit question first, then provide the shortest sufficient derivation and caveats.
+    - Do not perform open-ended exploration when the termination condition is already satisfied.
+  requirements:
+    - Ground the answer in cited web sources and record retrieval dates.
+    - State uncertainty and conflicting evidence explicitly.
+  output_guidance: >
+    Return a direct, verifiable answer with supporting figures, source
+    references, and uncertainty.
+  stopping_policy: >
+    Stop immediately after the answer is independently verified and all
+    required fields are present.
+pi:
+  extensions: []
+  skills: []

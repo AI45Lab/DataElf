@@ -1,0 +1,34 @@
+# DataClawBench: one-shot QA over a fixed enterprise/industry/policy file bundle.
+
+benchmark: dataclawbench
+version: "1"
+display_name: DataClawBench
+tools:
+  sql: false
+  python: true
+  web: false
+  extra: []
+source:
+  # Requires the benchmark's file bundle (CSV/JSON database, 18 CSVs + 1 JSON).
+  needs: [files]
+prompt:
+  source_guidance: >
+    Only use files under the supplied data directory.
+  output_guidance: >
+    The summary carries the final answer, in the form the task's output
+    guidelines require.
+outputs:
+  # The original contract is the final answer text alone; only the answer
+  # carrier stays required.
+  fields:
+    - name: key_findings
+      required: false
+    - name: evidence_refs
+      required: false
+    - name: confidence
+      required: false
+    - name: limitations
+      required: false
+pi:
+  extensions: []
+  skills: []

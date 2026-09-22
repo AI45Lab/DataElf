@@ -1,0 +1,34 @@
+# FrontierFinance: open-ended financial queries, graded against held-out rubrics.
+# Source of truth: frontier-finance repository (Samaya AI)
+
+benchmark: frontier_finance
+version: "2"
+display_name: FrontierFinance
+tools:
+  sql: false
+  python: true
+  web: true
+  extra: []
+source:
+  # The benchmark distributes queries only; nothing is prepared for the agent.
+  needs: []
+prompt:
+  source_guidance: >
+    No documents or databases are prepared for the query.
+  instructions:
+    - Each query is made on a stated date — interpret relative date terms in the query as of that date.
+  output_guidance: >
+    The summary carries the report answering the query.
+outputs:
+  fields:
+    - name: key_findings
+      required: false
+    - name: evidence_refs
+      required: false
+    - name: confidence
+      required: false
+    - name: limitations
+      required: false
+pi:
+  extensions: []
+  skills: []
