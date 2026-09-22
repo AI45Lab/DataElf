@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 from dataelf.discovery.contracts import ArtifactRef, OutputContract
@@ -37,9 +38,20 @@ def validate_outputs(workspace: Path, contract: OutputContract) -> tuple[list[Ar
     return artifacts, warnings
 
 
-def validate_stage_artifacts(workspace: Path, artifacts: list[ArtifactRef]) -> None:
+def validate_stage_artifacts(
+    workspace: Path,
+    artifacts: list[ArtifactRef],
+    *,
+    authorized_outside: list[str | Path] | None = None,
+) -> None:
+    """Validate stage artifacts, allowing only explicitly authorized links.
+
+    Stage outputs are strict by default.  Domains that intentionally expose a
+    read-only external source (for example finance link mode) must pass the
+    source paths explicitly through their ``StageResult``.
+    """
     for artifact in artifacts:
-        path = resolve_workspace_path(workspace, artifact.path)
+        path = resolve_workspace_path(workspace, artifact.path, authorized_outside=authorized_outside)
         if not path.exists():
             raise ArtifactContractError(
                 f"Stage {artifact.producer_stage!r} declared a missing artifact: {artifact.path}"
@@ -53,11 +65,28 @@ def write_artifact_manifest(workspace: Path, artifacts: list[ArtifactRef]) -> Pa
     return path
 
 
-def resolve_workspace_path(workspace: Path, relative_path: str) -> Path:
-    path = (workspace / relative_path).resolve()
-    if not path.is_relative_to(workspace.resolve()):
+def resolve_workspace_path(
+    workspace: Path,
+    relative_path: str,
+    *,
+    authorized_outside: list[str | Path] | None = None,
+) -> Path:
+    workspace = workspace.resolve()
+    # Reject lexical traversal even when an authorized path happens to be
+    # outside the workspace. External access is only through an in-workspace
+    # symlink explicitly authorized by the producing stage.
+    lexical_path = Path(os.path.normpath(workspace / relative_path))
+    if not lexical_path.is_relative_to(workspace):
         raise ArtifactContractError(f"Artifact path escapes workspace: {relative_path}")
-    return path
+    path = lexical_path.resolve()
+    if path.is_relative_to(workspace):
+        return path
+
+    for authorized in authorized_outside or []:
+        authorized_path = Path(authorized).resolve()
+        if path == authorized_path or path.is_relative_to(authorized_path):
+            return path
+    raise ArtifactContractError(f"Artifact path resolves outside workspace: {relative_path}")
 
 
 def relative_artifact_path(workspace: Path, path: str | Path) -> str:

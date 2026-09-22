@@ -13,7 +13,7 @@ CLI / API
   -> domain review
 ```
 
-The source tree includes `ai_index` and `trajectory_analysis`. All cases use the same domain-aware entrypoint:
+The source tree includes `ai_index`, `trajectory_analysis`, and `finance`. All cases use the same domain-aware entrypoint:
 
 ```bash
 dataelf run --domain ai_index "围绕 Agentic LLMs，基于 AI Index，发现最近值得关注的 3 个 insight"
@@ -233,6 +233,16 @@ The modeler returns standard evidence artifacts; it does not replace the core pr
 The `trajectory_analysis` domain uses a domain-owned Python Client to query WT Serving read-only and identify evidence-supported deviations in agent trajectories. It owns bounded acquisition, analysis instructions, and report review; no global WT registration is required.
 
 See the [Trajectory Analysis README](dataelf/domains/trajectory_analysis/README.md) for installation, configuration, a normal task example, artifacts, Skill/Client development, tests, and source/wheel/POSIX limits.
+
+## Finance domain
+
+The `finance` domain provides generic financial data-analysis capability. Data sources are composable (`source.sqlite` and `source.files`, web-only, or `source.fixture` for offline runs), and a benchmark (`ddr_10k` and others, selected via `--param benchmark=<name>`) presets the task type, tool flags, and prompt profile. The domain owns the finance tool set, output contracts, and review:
+
+```bash
+dataelf run --domain finance "Explore company financial facts and report the strongest insights"
+```
+
+See the [Finance README](dataelf/domains/finance/README.md) for installation, configuration, data sources, tool flags, benchmark presets, artifacts, and limitations.
 
 ## Workspace
 

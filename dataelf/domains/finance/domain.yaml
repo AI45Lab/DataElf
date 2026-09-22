@@ -1,0 +1,10 @@
+domain: finance
+version: "1"
+display_name: Finance Analysis
+plugin: dataelf.domains.finance.plugin:create_plugin
+capabilities:
+  - structured_data_access
+  - financial_analysis
+workspace_dirs:
+  - raw/web
+  - results

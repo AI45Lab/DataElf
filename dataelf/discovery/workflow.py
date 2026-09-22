@@ -117,7 +117,10 @@ def _run_stages(job, config, store, workspace, plugin, context, explorer):
     if preparation.status != "completed":
         return _fail(job, store, workspace, "domain_prepare", preparation.error_code, preparation.error_message)
     try:
-        validate_stage_artifacts(workspace, preparation.artifacts)
+        validate_stage_artifacts(
+            workspace, preparation.artifacts,
+            authorized_outside=preparation.authorized_outside,
+        )
     except ArtifactContractError as exc:
         return _fail(job, store, workspace, "domain_prepare", "STAGE_ARTIFACT_INVALID", str(exc))
     job.artifacts.extend(preparation.artifacts)

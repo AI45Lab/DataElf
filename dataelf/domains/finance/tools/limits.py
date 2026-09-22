@@ -1,0 +1,25 @@
+"""Tool result limits, per TOOL_RESULT_LIMITS_PLAN.md.
+
+Every tool gets a default and a hard cap, truncation is always reported in
+the payload, and full data (filing text, database, files) stays on disk for
+range reads.
+"""
+
+from __future__ import annotations
+
+LIST_FILES_DEFAULT_LIMIT = 100
+LIST_FILES_HARD_LIMIT = 500
+PARSE_TEXT_MIN_CHARS = 200
+PARSE_TEXT_DEFAULT_CHARS = 12_000
+PARSE_TEXT_MAX_CHARS = 30_000
+PARSE_TABLES_MAX = 10
+PARSE_TABLE_ROWS_MAX = 50
+PARSE_ROW_CELLS_MAX = 30
+PARSE_CELL_CHARS_MAX = 500
+RETRIEVE_KEY_CHARS_MAX = 16_000
+RETRIEVE_PROMPT_CHARS_MAX = 30_000
+QUERY_ROWS_DEFAULT = 20
+QUERY_ROWS_HARD_LIMIT = 100
+QUERY_CELL_CHARS_MAX = 2_000
+CODE_STDOUT_CHARS_MAX = 20_000
+CODE_STDERR_CHARS_MAX = 12_000
