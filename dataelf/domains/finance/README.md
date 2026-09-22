@@ -38,8 +38,8 @@ domains:
       # Finance-only Pi process budget; this example allows 60 minutes.
       max_runtime_seconds: 3600
       # Optional SEC contact identity and helper-model override.
-      user_agent: "DataElf Finance (contact: analyst@example.com)"
-      retrieve_model: "provider/model"
+      http_user_agent: "DataElf Finance (contact: analyst@example.com)"
+      retrieve_information_model: "provider/model"
 ```
 
 `domains.finance.analysis.max_runtime_seconds` is converted to the job's
