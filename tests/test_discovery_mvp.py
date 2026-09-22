@@ -9,7 +9,7 @@ from typer.testing import CliRunner
 
 from dataelf.cli import app
 from dataelf.config import DataElfConfig, ExplorerConfig, PiConfig, RuntimeConfig, write_config_template
-from dataelf.discovery.artifacts import ArtifactContractError, validate_outputs
+from dataelf.discovery.artifacts import ArtifactContractError, validate_outputs, validate_stage_artifacts
 from dataelf.discovery.contracts import (
     ArtifactRef,
     DiscoveryContext,
@@ -231,6 +231,37 @@ def test_output_contract_rejects_workspace_escape(tmp_path: Path) -> None:
     )
     with pytest.raises(ArtifactContractError, match="escapes workspace"):
         validate_outputs(tmp_path, contract)
+
+
+def test_output_contract_rejects_external_symlink(tmp_path: Path) -> None:
+    outside = tmp_path.parent / "external-results.json"
+    outside.write_text('{"rows": []}\n', encoding="utf-8")
+    (tmp_path / "results.json").symlink_to(outside)
+    contract = OutputContract(
+        contract_id="symlink",
+        artifacts=[OutputArtifactSpec(
+            artifact_id="results", path="results.json", kind="result",
+            media_type="application/json", json_root="rows",
+        )],
+    )
+    with pytest.raises(ArtifactContractError, match="resolves outside workspace"):
+        validate_outputs(tmp_path, contract)
+
+
+def test_stage_artifact_external_symlink_requires_explicit_authorization(tmp_path: Path) -> None:
+    outside = tmp_path.parent / "external-finance.db"
+    outside.write_bytes(b"sqlite fixture")
+    link = tmp_path / "tables" / "finance" / "finance.db"
+    link.parent.mkdir(parents=True)
+    link.symlink_to(outside)
+    artifact = ArtifactRef(
+        artifact_id="finance_database", kind="sqlite_database",
+        path="tables/finance/finance.db", role="input",
+        producer_stage="domain_prepare",
+    )
+    with pytest.raises(ArtifactContractError, match="resolves outside workspace"):
+        validate_stage_artifacts(tmp_path, [artifact])
+    validate_stage_artifacts(tmp_path, [artifact], authorized_outside=[str(outside)])
 
 
 def test_modeling_failure_is_attributed_to_domain_modeling(tmp_path: Path) -> None:
