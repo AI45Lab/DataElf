@@ -1,0 +1,57 @@
+# DDR-Bench 10-K filing analysis (open-ended insight discovery).
+# Source of truth: DDR_Bench repository (arXiv 2602.02039), scenario "10k".
+
+benchmark: ddr_10k
+version: "1"
+display_name: DDR-Bench 10-K Filings
+tools:
+  sql: true
+  python: true
+  web: false
+  extra: []
+source:
+  # Requires the relational filing database.
+  needs: [sqlite]
+prompt:
+  source_guidance: >
+    The prepared SQLite database holds SEC 10-K filing data.
+  tool_guidance: >
+    Keep exploring and analyzing the data for the given task. Always return
+    both the text content and the tool call: state what you are thinking and
+    planning to do, then call the appropriate tool. Your reasoning should contain insights derived from the
+    last turn's tool call results, but do not include any insights or
+    reasoning in the tool calls — tools are only for data exploration. Try
+    your best to use the tools to get more information: keep exploring, and
+    build more and more complex parameters as the turns go on and you will
+    discover more in the data. First use the tools to check what data is
+    available to you.
+  instructions:
+    - Every insight must relate to the requested company and its data in this database.
+    - Make each tool call for a reason, and let the insight you derive from its result answer that reason.
+    - Description-only steps (checking what data is available, describing schemas) and failed calls are setup or retries, not findings.
+  requirements:
+    - Keep all the data and statistics needed in each insight — values, periods, units, and counts stay with the claim they support.
+  output_guidance: >
+    key_findings carries all insights collected from the whole dialogue and
+    tool calls for the requested company, each with its supporting figures;
+    the summary is the comprehensive final summary of your analysis and findings.
+  stopping_policy: >
+    Only finish when you are absolutely certain that no more information can
+    be gathered — finishing immediately ends the session, so think twice
+    before finishing: while any tool call could still gather more
+    information, keep exploring.
+outputs:
+  fields:
+    - name: summary
+      prompt_hint: the comprehensive final summary of your analysis and findings
+    - name: key_findings
+      prompt_hint: all insights collected from the whole dialogue and tool calls, each with its supporting figures
+    - name: evidence_refs
+      required: false
+    - name: confidence
+      required: false
+    - name: limitations
+      required: false
+pi:
+  extensions: []
+  skills: []

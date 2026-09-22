@@ -1,0 +1,4 @@
+# Optional runtime dependencies for this domain, not automatically installed by DataElf.
+# Installed via the root `finance` extra: uv pip install -e ".[finance]"
+openpyxl>=3.1
+pypdf>=5

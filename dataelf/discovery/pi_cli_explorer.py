@@ -305,6 +305,19 @@ _ENV_ALLOWLIST = {
     "PI_TELEMETRY",
     "NPM_CONFIG_CACHE",
     "npm_config_cache",
+    "NODE_USE_ENV_PROXY",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "ALL_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "all_proxy",
+    "NODE_EXTRA_CA_CERTS",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "REQUESTS_CA_BUNDLE",
 }
 _SECRET_KEY_MARKERS = ("KEY", "TOKEN", "SECRET", "PASSWORD")
 

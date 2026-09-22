@@ -1,0 +1,38 @@
+# FinanceAgentBench v1.1: SEC filing retrieval and extraction QA.
+#
+# edgar_search, parse_html_page, and retrieve_information are provided by the
+# domain generic layer (tools.edgar).
+benchmark: finance_agent_bench_v1_1
+version: "1"
+display_name: FinanceAgentBench v1.1
+tools:
+  sql: false
+  python: true
+  web: true
+  edgar: true
+  prices: false
+source:
+  # Expects prepared filing HTML/XML/XBRL and API JSON artifacts.
+  needs: [files]
+prompt:
+  source_guidance: >
+    Use the prepared filing HTML/XML/XBRL and structured API artifacts.
+    Preserve accession, filing date, section, and fact identifiers.
+  tool_guidance: >
+    Select among retrieval/parsing tools based on whether the claim is
+    structural, textual, or numeric; validate extracted facts against the
+    filing context.
+  instructions:
+    - Disambiguate fiscal period, form, segment, unit, and restatement context before reporting a number.
+    - Use primary filing evidence for filing-derived claims.
+  requirements:
+    - Every reported fact must cite its accession number and filing context.
+    - Distinguish as-filed values from restated or derived values.
+  output_guidance: >
+    Answer with filing-grounded facts and explicit extraction provenance.
+  stopping_policy: >
+    Stop once every requested claim has a sufficient primary filing or
+    structured-data reference.
+pi:
+  extensions: []
+  skills: []

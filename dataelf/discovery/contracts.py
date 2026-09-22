@@ -41,6 +41,7 @@ class StageResult(BaseModel):
     artifacts: list[ArtifactRef] = Field(default_factory=list)
     context: dict[str, Any] = Field(default_factory=dict)
     env: dict[str, str] = Field(default_factory=dict)
+    authorized_outside: list[str] = Field(default_factory=list)
     metrics: dict[str, str | int | float | bool] = Field(default_factory=dict)
     error_code: str | None = None
     error_message: str | None = None

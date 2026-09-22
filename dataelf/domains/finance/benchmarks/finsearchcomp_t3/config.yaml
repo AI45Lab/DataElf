@@ -1,0 +1,35 @@
+# FinSearchComp track 3: complex historical investigation — multi-hop lookups
+# chained with computation (e.g. "largest single-month increase, which month and
+# how much"), format/precision constraints stated in the question itself.
+# Source of truth: FinSearchComp repository — the answering baseline is one raw
+# user turn per question with model-side search grounding; no system prompt.
+
+benchmark: finsearchcomp_t3
+version: "2"
+display_name: FinSearchComp Track 3
+tools:
+  sql: false
+  python: true
+  web: true
+  extra: []
+source:
+  # The benchmark ships questions only; retrieval happens via the search tools.
+  needs: []
+prompt:
+  source_guidance: >
+    No documents or databases are prepared for the question.
+  output_guidance: >
+    The summary carries the answer to the question.
+outputs:
+  fields:
+    - name: key_findings
+      required: false
+    - name: evidence_refs
+      required: false
+    - name: confidence
+      required: false
+    - name: limitations
+      required: false
+pi:
+  extensions: []
+  skills: []
