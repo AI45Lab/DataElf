@@ -16,7 +16,11 @@ from dataelf_server.intent.config import IntentModelConfig
 
 class ServerPiConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    execution_policy: Literal["bounded", "unbounded"] = "bounded"
+    protocol_repair_attempts: int = Field(default=2, ge=0, strict=True)
+    tool_protocol: Literal["model_compat", "native", "glm_text"] = "model_compat"
     transport: Literal["inherit", "nonstream"] = "inherit"
+    max_output_tokens: int | None = Field(default=None, gt=0, strict=True)
     synthesis_retry_timeout_seconds: int = Field(default=1800, ge=60)
 
 
@@ -51,10 +55,10 @@ class Settings:
             if value is not None:
                 values[key] = value
         pi = dict(values.get("pi") or {})
-        for key in ("transport", "synthesis_retry_timeout_seconds"):
+        for key in ("transport", "synthesis_retry_timeout_seconds", "execution_policy", "tool_protocol", "max_output_tokens", "protocol_repair_attempts"):
             value = os.getenv(f"DATAELF_SERVER_PI_{key.upper()}")
             if value is not None:
-                pi[key] = value
+                pi[key] = int(value) if key in {"max_output_tokens", "protocol_repair_attempts"} else value
         values["pi"] = pi
         source = dict(values.get("source") or {})
         if (max_pages := os.getenv("DATAELF_SERVER_SOURCE_MAX_PAGES")) is not None:

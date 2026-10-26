@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
 from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from dataelf.ontology.config import OntologySettings
 
 
 DEFAULT_CONFIG_FILE = Path("dataelf.local.yaml")
@@ -48,11 +50,35 @@ class DataElfConfig(BaseModel):
     domains: dict[str, dict[str, Any]] = Field(default_factory=dict)
     env: dict[str, str] = Field(default_factory=dict)
     server: dict[str, Any] = Field(default_factory=dict)
+    ontology: OntologySettings = Field(default_factory=OntologySettings)
+    workflow_policy: str = "legacy"
+
+    def ontology_for_domain(self, domain: str) -> OntologySettings:
+        """Resolve legacy AI settings only after the AI workflow is selected."""
+        if domain != "ai_index":
+            return self.ontology
+        legacy = dict(self.domains.get("ai_index", {}).get("modeling", {}) or {})
+        for field, env in (("enabled", "DATAELF_AI_INDEX_MODELING_ENABLED"), ("ontology_config", "DATAELF_AI_INDEX_MODELING_ONTOLOGY_CONFIG")):
+            if os.getenv(env) not in (None, ""):
+                legacy[field] = os.environ[env]
+        if not legacy:
+            return self.ontology
+        old = OntologySettings.model_validate(legacy)
+        if "ontology" in self.model_fields_set:
+            for key in legacy:
+                left, right = getattr(old, key), getattr(self.ontology, key)
+                if key == "ontology_config":
+                    left, right = Path(left).resolve(), Path(right).resolve()
+                if left != right:
+                    raise ValueError(f"conflicting ontology and domains.ai_index.modeling settings: {key}")
+            return self.ontology
+        warnings.warn("domains.ai_index.modeling is deprecated; use root ontology for the explicit research workflow", DeprecationWarning, stacklevel=2)
+        return old
 
     @classmethod
     def from_env(cls) -> "DataElfConfig":
         values = load_config_file()
-        _reject_unknown(values, {"runtime", "explorer", "domains", "env", "server"}, "root")
+        _reject_unknown(values, {"runtime", "explorer", "domains", "env", "server", "ontology", "workflow_policy"}, "root")
         runtime_values = _section(values, "runtime")
         explorer_values = _section(values, "explorer")
         pi_values = _section(explorer_values, "pi")
@@ -91,6 +117,8 @@ class DataElfConfig(BaseModel):
             if os.getenv(key) is not None:
                 runtime_env[key] = str(os.environ[key])
         return cls(
+            **({"ontology": values["ontology"]} if "ontology" in values else {}),
+            workflow_policy=str(_env("DATAELF_WORKFLOW_POLICY", values.get("workflow_policy", "legacy"))),
             runtime=runtime,
             explorer=ExplorerConfig(type=str(explorer_values.get("type", "pi")), pi=pi),
             domains=domains,

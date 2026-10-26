@@ -5,15 +5,15 @@ from pathlib import Path
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
+
+from dataelf.ontology.config import OntologySettings
 
 
 DEFAULT_AI_INDEX_BASE_URL = "https://index.shlab.org.cn/api/v2"
 DEFAULT_AI_INDEX_API_KEY = ""
 DEFAULT_AI_INDEX_MODE = "api"
 AI_INDEX_FIXTURE_FILES = ("papers.json", "institutions.json", "scholars.json")
-AI_INDEX_ONTOLOGY_ROOT = Path(__file__).resolve().parent / "modeling" / "ontology"
-DEFAULT_AI_INDEX_ONTOLOGY_CONFIG = AI_INDEX_ONTOLOGY_ROOT / "config.yaml"
 
 
 class AIIndexSourceConfig(BaseModel):
@@ -22,6 +22,7 @@ class AIIndexSourceConfig(BaseModel):
     base_url: str = DEFAULT_AI_INDEX_BASE_URL
     api_key: str = DEFAULT_AI_INDEX_API_KEY
     fixtures_dir: Path = Field(default_factory=lambda: Path("fixtures/ai_index"))
+    page_size: int = Field(default=50, ge=1, le=50)
 
     def validate_for_run(self) -> None:
         if self.mode == "api":
@@ -43,46 +44,42 @@ class AIIndexSourceConfig(BaseModel):
             )
 
 
-class AIIndexModelingConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    enabled: bool = False
-    ontology_config: Path = Field(default_factory=lambda: DEFAULT_AI_INDEX_ONTOLOGY_CONFIG)
+# Kept as the historical outer-config name; validation and defaults are shared.
+AIIndexModelingConfig = OntologySettings
 
-    @field_validator("ontology_config", mode="before")
-    @classmethod
-    def normalize_config_path(cls, value: Any) -> Path:
-        if not isinstance(value, (str, Path)) or not str(value).strip():
-            raise ValueError("ontology_config must be a non-empty file path")
-        return Path(str(value).strip()).expanduser().resolve()
+
+class AIIndexAnalysisConfig(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    analyst_model: str | None = None
+    reviewer_model: str | None = None
+    analyst_max_output_tokens: int | None = Field(default=None,gt=0,strict=True)
+    reviewer_max_output_tokens: int | None = Field(default=None,gt=0,strict=True)
 
 
 class AIIndexDomainConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     source: AIIndexSourceConfig = Field(default_factory=AIIndexSourceConfig)
     modeling: AIIndexModelingConfig = Field(default_factory=AIIndexModelingConfig)
+    analysis: AIIndexAnalysisConfig = Field(default_factory=AIIndexAnalysisConfig)
 
     def validate_for_run(self) -> None:
         self.source.validate_for_run()
         if not self.modeling.enabled:
             return
 
-        from dataelf.domains.ai_index.modeling.ontology.common.config import resolve_config_path
-        if not resolve_config_path(self.modeling.ontology_config).is_file():
-            raise ValueError(f"ontology_config is not a file: {self.modeling.ontology_config}")
         try:
-            from dataelf.domains.ai_index.modeling.ontology.config import load_config
-
-            ontology = load_config(self.modeling.ontology_config)
-            if ontology.ontology_template:
-                from dataelf.domains.ai_index.modeling.template import load_template
-
-                load_template(ontology.ontology_template)
+            from dataelf.ontology.legacy_ai_index import load_modeling_config
+            ontology = load_modeling_config(self.modeling.ontology_config)
+            if ontology.mode == "template":
+                raise ValueError('AI_INDEX_TEMPLATE_RETIRED: use dynamic ontology or --resume-graph-manifest for an approved revision; serve fixed rules and other domains are unchanged')
+        except FileNotFoundError as exc:
+            raise ValueError(f"ontology_config is not a file: {self.modeling.ontology_config}") from exc
         except Exception as exc:
             raise ValueError(f"Invalid ontology configuration: {exc}") from exc
 
     @classmethod
     def from_mapping(cls, values: dict[str, Any]) -> "AIIndexDomainConfig":
-        unknown = sorted(set(values) - {"source", "modeling"})
+        unknown = sorted(set(values) - {"source", "modeling", "analysis"})
         if unknown:
             raise ValueError(f"Unknown AI Index config keys: {', '.join(unknown)}")
         raw_source = values.get("source", {})
@@ -105,11 +102,10 @@ class AIIndexDomainConfig(BaseModel):
             value = os.getenv(env_name)
             if value not in (None, ""):
                 modeling[field] = value
-        return cls.model_validate({"source": source, "modeling": modeling})
+        return cls.model_validate({"source": source, "modeling": modeling, "analysis":values.get('analysis',{})})
 
 
 __all__ = [
-    "AI_INDEX_ONTOLOGY_ROOT", "AIIndexDomainConfig", "AIIndexModelingConfig", "AIIndexSourceConfig",
+    "AIIndexDomainConfig", "AIIndexModelingConfig", "AIIndexSourceConfig",
     "DEFAULT_AI_INDEX_API_KEY", "DEFAULT_AI_INDEX_BASE_URL", "DEFAULT_AI_INDEX_MODE",
-    "DEFAULT_AI_INDEX_ONTOLOGY_CONFIG",
 ]

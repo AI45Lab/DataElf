@@ -52,5 +52,6 @@ def build_scope_plan(intent: Intent, query: str, *, now: datetime | None = None,
         version=SCOPE_VERSION, query=query, mode="comprehensive_daily" if comprehensive else "module_recent",
         modules=["comprehensive"] if comprehensive else modules,
         timezone=TIMEZONE_NAME, window=TimeWindow(start=start.isoformat(), end=end.isoformat()),
-        calls=calls, time_mode="date_range", retrieval=intent.retrieval.model_dump(),
+        calls=calls, time_mode="date_range", research_topics=list(intent.research_topics),
+        retrieval=intent.retrieval.model_dump(exclude={'title_keywords'} if not intent.retrieval.title_keywords else set()),
     )

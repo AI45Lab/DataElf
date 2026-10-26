@@ -70,7 +70,8 @@ class ServerProfile:
         plan_data = spec.parameters.get("scope_plan", {})
         contract = write_contract(workspace, mode=plan_data["mode"], modules=plan_data.get("modules", []),
                                   output=Output.model_validate(spec.parameters["output"]),
-                                  retrieval=spec.parameters["intent_input"]["retrieval"])
+                                  retrieval=spec.parameters["intent_input"]["retrieval"],
+                                  research_topics=spec.parameters["intent_input"].get('research_topics', []))
         env = {"DATAELF_SCOPE": scope, "DATAELF_INSIGHT_CONTRACT_PATH": str(contract), "DATAELF_WORKFLOW_PROFILE": "server"}
         artifacts = [ArtifactRef(artifact_id="server_writing_contract", kind="writing_contract", path=contract.relative_to(workspace).as_posix(), role="input", producer_stage="domain_prepare", media_type="text/markdown")]
         context = {"scope": scope}

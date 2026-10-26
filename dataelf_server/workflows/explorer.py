@@ -1,4 +1,4 @@
-"""Server completion policy around the shared Pi process executor."""
+"""Server completion policy around the service-owned Pi executor."""
 from __future__ import annotations
 
 import json
@@ -7,17 +7,17 @@ from pathlib import Path
 
 from dataelf.discovery.artifacts import validate_outputs, ArtifactContractError
 from dataelf.discovery.contracts import ArtifactRef, ExplorerRunResult
-from dataelf.discovery.pi_cli_explorer import PiCliInsightsExplorer
 from dataelf.discovery.run_control import check_cancelled
 from dataelf_server.analysis.rdf_analysis import validate_analysis_manifest
 from dataelf_server.analysis.validation import PipelineError, workspace_insights
 from dataelf_server.prompts.synthesis import _build_synthesis_retry_prompt
 from dataelf_server.workflows.profile import ServerProfile
 from dataelf_server.runtime.agent import isolated_agent
+from dataelf_server.runtime.explorer import ServerPiExplorer
 
 
 class ServerExplorer:
-    def __init__(self, settings, *, runner_factory=PiCliInsightsExplorer):
+    def __init__(self, settings, *, runner_factory=ServerPiExplorer):
         self.settings = settings
         self.runner_factory = runner_factory
 
@@ -27,12 +27,15 @@ class ServerExplorer:
         # Explicit resources isolate server behavior from project research/Fusion extensions.
         args = shlex.split(pi.extra_args or "")
         args.extend(["--no-extensions", "--no-skills", "--no-prompt-templates", "--no-themes", "-e", str(extension)])
-        return self.runner_factory(pi_binary=pi.binary, model=pi.model, mode=pi.mode,
+        runner = self.runner_factory(pi_binary=pi.binary, model=pi.model, mode=pi.mode,
             cwd=self.settings.project_root,
             timeout_seconds=self.settings.server.pi.synthesis_retry_timeout_seconds if retry else pi.timeout_seconds,
             extra_args=shlex.join(args), log_mode=pi.log_mode,
             log_prefix="pi_synthesis_retry" if retry else "pi", compact_stream_events=True, detect_model_errors=True,
             required_packages=())
+        if isinstance(runner, ServerPiExplorer):
+            runner.execution_policy = self.settings.server.pi.execution_policy
+        return runner
 
     def run(self, job, context):
         with isolated_agent(self.settings, context.env) as env:
@@ -42,19 +45,22 @@ class ServerExplorer:
         workspace = Path(context.workspace_path)
         scope = job.spec.parameters["scope"]
         context = context.model_copy(update={"env": {**context.env,
-            "DATAELF_SERVER_TRANSPORT": self.settings.server.pi.transport}})
+            "DATAELF_SERVER_MAX_OUTPUT_TOKENS":str(self.settings.server.pi.max_output_tokens or ""),
+            "DATAELF_SERVER_PROTOCOL_REPAIR_ATTEMPTS": str(self.settings.server.pi.protocol_repair_attempts),
+            "DATAELF_SERVER_TRANSPORT": self.settings.server.pi.transport,
+            "DATAELF_SERVER_TOOL_PROTOCOL": self.settings.server.pi.tool_protocol}})
         first = self._runner(scope).run(job, context)
         check_cancelled()
         issues = self._issues(workspace, job)
         # Only parser/termination false negatives can recover validated output.
-        recoverable = (first.error_code or "").split(":")[0] in {"PI_EVENT_PARSE_ERROR", "PI_MODEL_ERROR"}
+        recoverable = (first.error_code or "").split(":")[0] in {"PI_EVENT_PARSE_ERROR", "PI_MODEL_ERROR", "PI_OUTPUT_TRUNCATED"}
         if not issues and (first.status == "completed" or recoverable):
             self._record(workspace, "pi", first, issues)
             return ExplorerRunResult(status="completed", artifacts=first.artifacts + self._inventory(workspace))
         self._record(workspace, "pi", first, issues)
         verified = not validate_analysis_manifest(workspace) if scope == "scope_v2" else self._legacy_evidence(workspace)
         retryable = first.status == "completed" or (first.error_code or "").split(":")[0] in {
-            "PI_PROCESS_TIMEOUT", "PI_EVENT_PARSE_ERROR", "PI_PROCESS_NONZERO_EXIT", "PI_MODEL_ERROR"}
+            "PI_PROCESS_TIMEOUT", "PI_EVENT_PARSE_ERROR", "PI_PROCESS_NONZERO_EXIT", "PI_MODEL_ERROR", "PI_OUTPUT_TRUNCATED"}
         if not verified or not retryable:
             return self._failure(first, issues, workspace)
         prompt = workspace / "prompts/synthesis_retry.md"

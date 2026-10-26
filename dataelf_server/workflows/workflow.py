@@ -1,0 +1,197 @@
+"""Server-owned legacy execution, derived from DataElf 78f2ef4.
+
+No CLI research runner dependency. Repository license applies.
+"""
+from __future__ import annotations
+
+import json
+import os
+import logging
+from pathlib import Path
+from typing import Any, Protocol
+
+from dataelf.config import DataElfConfig
+from dataelf.discovery.artifacts import ArtifactContractError, validate_outputs, validate_stage_artifacts, write_artifact_manifest
+from dataelf_server.workflows.agent_resources import resolve_domain_resources
+from dataelf.discovery.contracts import (
+    ArtifactRef,
+    DiscoveryContext,
+    DiscoveryJob,
+    DomainPlugin,
+    JobSpec,
+    InsightsExplorer,
+    ReviewResult,
+)
+from dataelf_server.workflows.prompt_builder import write_discovery_prompt
+from dataelf.discovery.workspace import prepare_workspace
+from dataelf.discovery.redaction import redact_text, redact_data, secret_values
+from dataelf.discovery.run_control import RunControl, RunCancelled, activate_run, check_cancelled, current_run
+from dataelf.schemas import new_id, now_utc
+from dataelf.stores.sqlite_store import SQLiteStore
+
+
+from .completion import execute, _stage, _trace_stage, _fail, _finalize, _write_review
+
+logger = logging.getLogger("dataelf.discovery")
+
+
+class StoreLike(Protocol):
+    def save_discovery_job(self, job: DiscoveryJob) -> None: ...
+    def add_trace_event(self, job_id: str, event_type: str, payload: dict[str, Any]) -> str: ...
+    def save_quality_review(self, review: ReviewResult) -> None: ...
+
+
+class NullStore:
+    def save_discovery_job(self, job: DiscoveryJob) -> None:
+        return None
+
+    def add_trace_event(self, job_id: str, event_type: str, payload: dict[str, Any]) -> str:
+        logger.debug("trace skipped: %s %s %s", job_id, event_type, payload)
+        return ""
+
+    def save_quality_review(self, review: ReviewResult) -> None:
+        return None
+
+
+def run_job(
+    spec: JobSpec, config: DataElfConfig, registry=None,
+    *, plugin: DomainPlugin | None = None, explorer: InsightsExplorer | None = None,
+    control: RunControl | None = None,
+) -> DiscoveryJob:
+    """Execute one job; optional injected components preserve the default research path."""
+    if spec.workflow_policy != "legacy" or spec.workflow_profile != "server":
+        raise ValueError("Server runtime requires the legacy/server selection")
+    control = control or RunControl()
+    control.secrets.update(secret_values(config.model_dump()) | secret_values(os.environ))
+    config.ensure_dirs()
+    store = _create_store(config)
+    with activate_run(control):
+        job = _initialize_job(spec, config, store)
+        workspace = prepare_workspace(Path(job.workspace_path), spec)
+        control.workspace_path = workspace
+        job.artifacts.append(ArtifactRef(
+            artifact_id="job_spec", kind="job_spec", path="job_spec.json", role="input",
+            producer_stage="core", media_type="application/json",
+        ))
+        try:
+            control.emit("initialization")
+            control.check()
+            if spec.workflow_profile == "server" and (plugin is None or explorer is None):
+                raise ValueError("server profile requires explicit plugin and explorer components")
+            normalized = plugin.normalize_spec(spec)
+            if (normalized.domain, normalized.workflow_profile, normalized.workflow_policy) != (spec.domain, spec.workflow_profile, spec.workflow_policy):
+                raise ValueError("Plugin cannot change the saved workflow selection")
+            spec = JobSpec.model_validate(normalized.model_dump())
+            job.spec = spec
+            prepare_workspace(workspace, spec)
+            try:
+                # Injected profiles own their resource declarations. Do not
+                # implicitly load research resources from the domain directory.
+                agent_resources = resolve_domain_resources(
+                    (registry.domain_path(spec.domain) if registry is not None else
+                     Path(__file__).resolve().parents[2] / "dataelf/domains" / spec.domain), plugin, spec, config,
+                    discover=False,
+                )
+            except (FileNotFoundError, ValueError) as exc:
+                return _fail(job, store, workspace, "agent_resources", "AGENT_RESOURCES_INVALID", redact_text(exc, control.secrets))
+            context = DiscoveryContext(
+                workspace_path=str(workspace), spec=spec, manifest=plugin.manifest,
+                model=config.explorer.pi.model, env=dict(config.env), agent_resources=agent_resources,
+            )
+            return _run_stages(job, config, store, workspace, plugin, context, explorer)
+        except Exception as exc:
+            code = "RUN_CANCELLED" if isinstance(exc, RunCancelled) else getattr(exc, "code", f"{control.stage.upper()}_FAILED")
+            message = redact_text(exc, secret_values(config.model_dump()))
+            return _fail(job, store, workspace, control.stage, code, message)
+        finally:
+            close = getattr(store, "close", None)
+            if callable(close):
+                close()
+
+
+
+
+def _run_stages(job, config, store, workspace, plugin, context, explorer):
+    spec = job.spec
+    _stage("domain_prepare")
+    preparation = plugin.prepare(spec, str(workspace), config)
+    _trace_stage(store, job, "domain_prepare", preparation)
+    if preparation.status != "completed":
+        return _fail(job, store, workspace, "domain_prepare", preparation.error_code, preparation.error_message)
+    try:
+        validate_stage_artifacts(
+            workspace, preparation.artifacts,
+            authorized_outside=preparation.authorized_outside,
+        )
+    except ArtifactContractError as exc:
+        return _fail(job, store, workspace, "domain_prepare", "STAGE_ARTIFACT_INVALID", str(exc))
+    job.artifacts.extend(preparation.artifacts)
+    context = context.model_copy(update={
+        "domain_context": preparation.context,
+        "env": {**context.env, **preparation.env},
+        "artifacts": list(job.artifacts),
+    })
+
+    _stage("domain_prepared")
+    modeler = plugin.create_modeler(spec, config)
+    if modeler is not None:
+        _stage("domain_modeling")
+        modeling = modeler.run(job, context)
+        _trace_stage(store, job, "domain_modeling", modeling)
+        if modeling.status != "completed":
+            return _fail(job, store, workspace, "domain_modeling", modeling.error_code, modeling.error_message)
+        try:
+            validate_stage_artifacts(workspace, modeling.artifacts)
+        except ArtifactContractError as exc:
+            return _fail(job, store, workspace, "domain_modeling", "STAGE_ARTIFACT_INVALID", str(exc))
+        job.artifacts.extend(modeling.artifacts)
+        context = context.model_copy(update={
+            "domain_context": {**context.domain_context, **modeling.context},
+            "env": {**context.env, **modeling.env},
+            "artifacts": list(job.artifacts),
+        })
+
+    _stage("prompt_composition")
+    contract = plugin.output_contract(spec)
+    prompt_path = write_discovery_prompt(job, context, plugin.build_prompt(job, context), contract)
+    job.artifacts.append(ArtifactRef(
+        artifact_id="discovery_prompt", kind="prompt", path="prompts/discovery_prompt.md",
+        role="input", producer_stage="prompt_composer", media_type="text/markdown",
+    ))
+    context = context.model_copy(update={"prompt_path": str(prompt_path)})
+    _stage("explorer")
+    return execute(job, config, store, workspace, plugin, context, explorer, contract)
+
+
+
+def _create_store(config: DataElfConfig) -> StoreLike:
+    if not config.runtime.enable_sqlite:
+        return NullStore()
+    store = SQLiteStore(config.runtime.sqlite_path)
+    store.init_schema()
+    return store
+
+
+def _initialize_job(spec: JobSpec, config: DataElfConfig, store: StoreLike) -> DiscoveryJob:
+    control = current_run()
+    job_id = (control.job_id if control else None) or new_id("job")
+    job = DiscoveryJob(
+        job_id=job_id, spec=spec, status="running",
+        workspace_path=str((control.workspace_path if control else None) or config.runtime.workspaces_dir / job_id),
+    )
+    store.save_discovery_job(job)
+    store.add_trace_event(job.job_id, "job_initialized", {
+        "domain": spec.domain, "objective": spec.objective, "workspace_path": job.workspace_path,
+    })
+    return job
+
+
+
+
+
+
+
+
+
+
+__all__ = ["NullStore", "run_job"]

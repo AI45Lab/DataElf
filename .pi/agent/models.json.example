@@ -1,0 +1,17 @@
+{
+  "providers": {
+    "": {
+      "api": "openai-completions",
+      "baseUrl": "",
+      "apiKey": "",
+      "models": [
+        {
+          "id": "",
+          "name": "",
+          "reasoning": false,
+          "input": ["text"]
+        }
+      ]
+    }
+  }
+}

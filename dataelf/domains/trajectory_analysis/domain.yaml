@@ -2,6 +2,7 @@ domain: trajectory_analysis
 version: "3"
 display_name: Trajectory Failure Localization Analysis
 plugin: dataelf.domains.trajectory_analysis.plugin:create_plugin
+legacy_entry: dataelf.domains.trajectory_analysis.entry:run_job
 capabilities:
   - bounded_readonly_wt_query
   - query_metadata_projection

@@ -13,7 +13,7 @@ from rich.table import Table
 from dataelf.config import DEFAULT_CONFIG_FILE, DataElfConfig, write_config_template
 from dataelf.discovery.contracts import JobSpec
 from dataelf.discovery.pi_runtime import PiRuntimeError, setup_pi_runtime
-from dataelf.discovery.workflow import run_job
+from dataelf.discovery.entry import run_job
 from dataelf.stores.sqlite_store import SQLiteStore
 
 app = typer.Typer(help="DataElf runtime CLI")
@@ -85,8 +85,11 @@ def run(
     ontology_config: Path | None = typer.Option(
         None,
         "--ontology-config",
-        help="AI Index domain option: path to the unified ontology configuration.",
+        help="Path to the shared ontology configuration.",
     ),
+    workflow_policy: str | None = typer.Option(None, "--workflow-policy", help="Execution policy: legacy (default) or ai_index_cli_skill_review_v1."),
+    resume_graph_manifest: Path | None = typer.Option(None, "--resume-graph-manifest",
+        help="AI Index only: continue analysis from an approved immutable graph, without modeling."),
     parameter: list[str] = typer.Option(
         [],
         "--param",
@@ -97,13 +100,30 @@ def run(
     _setup_logging()
     try:
         config = _config()
+        selected_policy = workflow_policy or config.workflow_policy
+        from dataelf.ontology.capabilities import validate_scope, CLI_SKILL_REVIEW
+        validate_scope(selected_policy, domain)
+        if (resume_graph_manifest is not None or ontology_config is not None) and selected_policy != CLI_SKILL_REVIEW:
+            raise typer.BadParameter("--ontology-config and --resume-graph-manifest require --workflow-policy ai_index_cli_skill_review_v1")
+        if resume_graph_manifest is not None:
+            if domain != 'ai_index' or modeling_enabled is False:
+                raise typer.BadParameter('--resume-graph-manifest requires AI Index with modeling enabled')
+            modeling_enabled = True
         if modeling_enabled is not None:
-            config = _override_domain_modeling(config, domain, modeling_enabled)
+            if selected_policy == CLI_SKILL_REVIEW:
+                config = _override_domain_modeling(config, domain, modeling_enabled)
+            else:
+                domains = {key: dict(value) for key, value in config.domains.items()}
+                values = dict(domains.get(domain, {})); values["modeling"] = {**values.get("modeling", {}), "enabled": modeling_enabled}
+                domains[domain] = values
+                config = config.model_copy(update={"domains": domains})
 
         requested_ontology_config = ontology_config.expanduser().resolve() if ontology_config is not None else None
+        if resume_graph_manifest is not None and requested_ontology_config is None:
+            # The continuation imports an already approved revision and never
+            # executes a template/model. Do not require an obsolete local mode.
+            config = _set_domain_modeling_field(config,domain,'ontology_config',Path(__file__).parent/'ontology/config.yaml.example')
         if requested_ontology_config is not None:
-            if domain != "ai_index":
-                raise typer.BadParameter("--ontology-config is only supported by the ai_index domain")
             if modeling_enabled is False:
                 raise typer.BadParameter("--ontology-config requires --modeling")
             if modeling_enabled is None and not _domain_modeling_enabled(config, domain):
@@ -112,9 +132,12 @@ def run(
 
         spec = JobSpec(
             domain=domain,
+            workflow_policy=selected_policy,
             objective=query,
             parameters=_parse_parameters(parameter),
             modeling_strategy=_optional_text(modeling_strategy),
+            inputs=({'resume_graph_manifest': str(resume_graph_manifest.expanduser().resolve())}
+                    if resume_graph_manifest is not None else {}),
         )
         job = run_job(spec, config)
     except typer.BadParameter:
@@ -232,18 +255,10 @@ def _override_domain_modeling(config: DataElfConfig, domain: str, enabled: bool)
 
 
 def _set_domain_modeling_field(config: DataElfConfig, domain: str, field: str, value: Any) -> DataElfConfig:
-    domains = dict(config.domains)
-    domain_values = dict(domains.get(domain, {}))
-    raw_modeling = domain_values.get("modeling", {})
-    if raw_modeling is None:
-        raw_modeling = {}
-    if not isinstance(raw_modeling, dict):
-        raise typer.BadParameter(f"domains.{domain}.modeling must be a mapping/object")
-    modeling = dict(raw_modeling)
-    modeling[field] = value
-    domain_values["modeling"] = modeling
-    domains[domain] = domain_values
-    return config.model_copy(update={"domains": domains})
+    if field in {"enabled", "ontology_config"}:
+        settings = config.ontology_for_domain(domain).model_copy(update={field: value})
+        return config.model_copy(update={"ontology": settings})
+    raise ValueError(f"unsupported modeling option: {field}")
 
 
 def _parse_parameters(values: list[str]) -> dict[str, Any]:
@@ -268,11 +283,4 @@ def _optional_text(value: str | None) -> str | None:
 
 
 def _domain_modeling_enabled(config: DataElfConfig, domain: str) -> bool:
-    raw_domain = config.domain_config(domain)
-    raw_modeling = raw_domain.get("modeling", {})
-    configured = raw_modeling.get("enabled", False) if isinstance(raw_modeling, dict) else False
-    if domain == "ai_index" and os.getenv("DATAELF_AI_INDEX_MODELING_ENABLED") is not None:
-        configured = os.environ["DATAELF_AI_INDEX_MODELING_ENABLED"]
-    if isinstance(configured, bool):
-        return configured
-    return str(configured).strip().lower() in {"1", "true", "yes", "on"}
+    return config.ontology_for_domain(domain).enabled

@@ -1,5 +1,10 @@
 # DataElf Server 使用说明
 
+来源为空时，错误会区分来源返回空、日期缺失/无效、已扫描数据无日期匹配、
+严格检索条件不匹配和分页覆盖不完整。`error.details.source_diagnostics` 提供
+逐来源阶段计数与停止原因；HTTP envelope 保持不变。研究方向与明确检索限制
+分别处理，详见 [检索可靠性与错误原因](deployment/retrieval_reliability.md)。
+
 提交自然语言指令后，服务会查询相关资料，生成带有来源链接的总结和分析。本文分为意图识别和 API 使用两部分。
 
 ## 一、意图识别

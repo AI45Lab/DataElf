@@ -65,6 +65,14 @@ On Windows PowerShell, activate the virtual environment with `.venv\\Scripts\\Ac
 
 ## Configuration
 
+Copy the credential-free [main example](dataelf.local.yaml.example) and
+[Pi provider example](.pi/agent/models.json.example) into your local configuration.
+Fill the empty fields using [configuration guidance](docs/configuration_examples.md).
+The examples parse as YAML/JSON but require your model and source settings before use.
+
+See [workflow policies](docs/workflow_policies.md) for the explicit reviewed AI Index
+CLI, legacy domain compatibility, and the independent HTTP service path.
+
 DataElf has one nested configuration schema. There is no flat legacy schema and no alternate explorer configuration path.
 
 ```yaml
@@ -77,7 +85,7 @@ explorer:
   pi:
     # Optional; dataelf setup selects the project-local runtime by default.
     binary:
-    model:
+    model: ""
     mode: json
     cwd: .
     timeout_seconds:
@@ -88,18 +96,19 @@ domains:
   ai_index:
     source:
       mode: api
-      base_url: https://index.shlab.org.cn/api/v2
-      api_key: ak_...
+      base_url: ""
+      api_key: ""
       fixtures_dir: fixtures/ai_index
-    modeling:
-      enabled: false
-      ontology_config: dataelf/domains/ai_index/modeling/ontology/config.yaml
+
+ontology:
+  enabled: false
+  ontology_config: dataelf/ontology/config.yaml
 
 env:
   PI_CODING_AGENT_DIR: .pi/agent
-  OPENAI_BASE_URL: https://example.com/v1
-  OPENAI_API_KEY: sk-...
-  # BRAVE_API_KEY: ...  # only when a Brave search skill is loaded
+  OPENAI_BASE_URL: ""
+  OPENAI_API_KEY: ""
+  # BRAVE_API_KEY: ""  # only when a Brave search skill is loaded
 ```
 
 Configuration order:
@@ -163,7 +172,7 @@ The AI Index plugin owns:
 - source credentials and fixture/API selection;
 - dynamic `AIIndexClient` access;
 - optional ontology/RDF modeling;
-- the four-phase technology-intelligence prompt;
+- autonomous evidence-driven research with an independent reviewer;
 - insight output contracts and quality review.
 
 Scripts written by Pi can fetch additional data through:
@@ -180,53 +189,50 @@ The connector supports paper, institution, and scholar search plus institution f
 Enable ontology/RDF modeling for one CLI run:
 
 ```bash
-dataelf run --domain ai_index --modeling \
+dataelf run --domain ai_index --workflow-policy ai_index_cli_skill_review_v1 --modeling \
   "围绕 Agentic LLMs，发现最近值得关注的 3 个 insight"
 ```
 
-All ontology settings live in the local `dataelf/domains/ai_index/modeling/ontology/config.yaml`:
-`ontology_template` (`ai_index_search` for the fixed reviewed template, `null` for dynamic Stage 1),
-`raw_page_size`, `worker_timeout_seconds`, and the `stage1` / `stage2` sections containing model,
-timeout, retry, source, quality, and artifact settings. The agent config accepts only
-`domains.ai_index.modeling.enabled` and `domains.ai_index.modeling.ontology_config`.
-The config path defaults to the local file shown above; an explicit empty path is rejected.
-The local file is ignored by Git and excluded from distributions. A complete, credential-free
-`config.yaml.example` is tracked and packaged; a fresh clone falls back to it when the default
-local file is absent. Explicit custom paths must exist. To customize your deployment, copy it:
+Ontology now lives in `dataelf/ontology`. The main config contains only
+`ontology.enabled` and `ontology.ontology_config`. Copy the packaged
+`dataelf/ontology/config.yaml.example` to `config.yaml` to customize the
+modeler, reviewer, repair budget and output directory.
+
+Dynamic mode uses one autonomous modeler and one independent reviewer through
+a shared versioned GraphService. Modeling and analysis use the same graph tools;
+the deterministic engine executes the reviewed contract. AI Index CLI uses dynamic
+contracts; its former template-selection/export entry is retired. To continue
+analysis from an approved revision without another modeling call:
 
 ```bash
-cp -n dataelf/domains/ai_index/modeling/ontology/config.yaml.example \
-  dataelf/domains/ai_index/modeling/ontology/config.yaml
+dataelf run --domain ai_index --workflow-policy ai_index_cli_skill_review_v1 --resume-graph-manifest /absolute/revisions/r-.../manifest.json \
+  "继续核查这个已发布版本的事实与来源"
 ```
 
-Edit the `name` fields under `stage1.generator`, `stage1.reviewer`, `stage2.compiler`, and
-`stage2.reviewer` for your model. Set `OPENAI_BASE_URL` to your own model API base URL and
-`OPENAI_API_KEY` to your own credential in the service environment or private DataElf config's
-`env` mapping. The `api_key_env` / `base_url_env` fields contain variable names, not actual
-keys or URLs. Do not add secrets to the example.
+AI Index research, with or without ontology, submits complete report snapshots to
+an independent analyst/reviewer loop. It has no cumulative time, request, token or
+review-round deadline; single-response model limits and user cancellation remain.
+The other domains retain their existing execution policies and template support.
 
-Migration from the former stage-specific configuration: copy the example first, transfer the
-contents of old `stage1/config.yaml` into its `stage1` section and old `stage2/config.yaml` into
-its `stage2` section. Move template selection, page size and worker timeout to the top-level
-`ontology_template`, `raw_page_size`, and `worker_timeout_seconds`. Relative resource paths
-are now relative to `ontology/`, one directory above the old stage configs; adjust them or
-retain the example's `domain_pack_path` and `pi.repo` defaults. Replace old stage-specific
-outer modeling options with `enabled` and `ontology_config`.
+The shared API accepts already collected JSON, JSONL and CSV snapshots, with
+local evidence profiling, exact replay, nested mappings and cross-file identities.
+Serve keeps its fixed source rules under `dataelf_server/ontology/templates`;
+intent recognition, stage submissions and HTTP content contracts remain separate
+from the AI Index CLI reviewer.
 
-Select a different unified ontology configuration:
+Historical outer config names still migrate with deprecation warnings; AI Index
+CLI template-mode requests return an explicit migration error. Move acquisition pagination to
+`domains.ai_index.source.page_size`. See [ontology documentation](dataelf/ontology/README.md)
+for the public API, executable contract, configuration and migration details.
 
-```bash
-dataelf run --domain ai_index --modeling --ontology-config /path/to/ontology.yaml \
-  "围绕 Agentic LLMs，发现最近值得关注的 3 个 insight"
-```
-
-The corresponding environment variables are `DATAELF_AI_INDEX_MODELING_ENABLED` and
-`DATAELF_AI_INDEX_MODELING_ONTOLOGY_CONFIG`. Template/model/timeout environment overrides and
-`--ontology-template` are removed; put these settings in the ontology file. Relative paths
-inside it resolve against its directory. A relative outer `ontology_config` path resolves
-against the invoking process's working directory and is made absolute before worker launch.
-
-The modeler returns standard evidence artifacts; it does not replace the core prompt path. Detailed ontology operation and troubleshooting are documented in [`dataelf/domains/ai_index/modeling/ontology/README.md`](dataelf/domains/ai_index/modeling/ontology/README.md), with module responsibilities in [`ARCHITECTURE.md`](dataelf/domains/ai_index/modeling/ontology/ARCHITECTURE.md).
+AI Index research exposes `dataelf_submit_output` with the domain's JSON schema in
+the system prompt and tool declaration. The tool validates direct object arguments
+and writes only declared final artifacts. Input snapshots remain protected. AI Index requires the exact declared roots
+and completes only after `analysis_submit` and independent approval. In legacy
+non-AI-Index paths, top-level arrays are wrapped only when a declared `json_root` specifies the exact
+object envelope and all items pass validation; the original is saved in a review
+audit. Ontology Stage1 supports small validated draft patches, so format retries do
+not require regenerating the entire contract. This output tool is not enabled in Serve.
 
 ## Trajectory Analysis domain
 
@@ -269,11 +275,13 @@ Set `runtime.enable_sqlite: true` only when job lookup commands are required. Th
 
 ## Pi
 
+Set `explorer.pi.extra_args: "--thinking off"` to disable reasoning, or use `--thinking high` to enable it. For providers registered with `compat.thinkingFormat: zai`, CLI and Serve send both `thinking.type` and `chat_template_kwargs.enable_thinking`. Reasoning blocks are excluded from subsequent CLI context; raw diagnostic events remain available.
+
 Project Pi settings live in `.pi/settings.json`, `.pi/agent/models.json`, and `pi-harness.config.json`. `pi-harness.config.json` belongs to `@quarkos/pi-fusion` and is resolved from the configured Pi working directory.
 
 The supported user-facing setup path is `dataelf setup`. It owns the project-local Pi/npm lifecycle and verifies the runtime before a job starts; the files above are implementation/configuration details for maintainers and advanced integrations.
 
-DataElf selects the Explorer model through `explorer.pi.model` (for example, `boyuerich-openai/deepseek-v4-pro`). Pi owns the provider registry, endpoint, protocol, and model metadata in `.pi/agent/models.json`; credentials should be supplied through the local `env` mapping (for example, `OPENAI_API_KEY`) and referenced by the provider configuration. `.pi/settings.json` supplies Pi's fallback provider/model only when DataElf does not pass an explicit model.
+DataElf selects the Explorer model through `explorer.pi.model` (a provider/model pair registered in your own Pi configuration). Pi owns the provider registry, endpoint, protocol, and model metadata in `.pi/agent/models.json`; credentials should be supplied through the local `env` mapping (for example, `OPENAI_API_KEY`) and referenced by the provider configuration. `.pi/settings.json` supplies Pi's fallback provider/model only when DataElf does not pass an explicit model.
 
 `explorer.pi.log_mode` can be `quiet`, `summary`, or `raw`. Raw JSON events are always saved to `logs/pi_events.jsonl`; terminal verbosity does not change the artifact contract.
 

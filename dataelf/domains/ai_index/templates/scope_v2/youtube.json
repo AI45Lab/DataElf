@@ -1,0 +1,1557 @@
+{
+  "schemaVersion": "dataelf-scope-v2-template-fragment.v1",
+  "templateId": "scope_v2_youtube",
+  "source": "youtube",
+  "endpoint": "/openapi/ecosystem/y2b/search",
+  "entity": {
+    "classId": "Video",
+    "observationClassId": "VideoObservation",
+    "idPaths": [
+      "/video_id",
+      "/video_info/url"
+    ],
+    "labelPath": "/video_info/title",
+    "urlPath": "/video_info/url",
+    "publishedAtPath": "/video_info/publishtime"
+  },
+  "classes": [
+    {
+      "id": "Video",
+      "label": "Video",
+      "kind": "entity",
+      "comment": "A YouTube video record from the ecosystem search endpoint."
+    },
+    {
+      "id": "VideoObservation",
+      "label": "Video Observation",
+      "kind": "observation",
+      "comment": "Snapshot of mutable video and channel metrics at observation time."
+    },
+    {
+      "id": "Blogger",
+      "label": "Blogger",
+      "kind": "entity",
+      "comment": "YouTube channel or blogger that published the video."
+    },
+    {
+      "id": "Institution",
+      "label": "Institution",
+      "kind": "entity",
+      "comment": "An institution referenced in the video record."
+    },
+    {
+      "id": "StrategicTag",
+      "label": "Strategic Tag",
+      "kind": "concept",
+      "comment": "A strategic tag assigned to the video."
+    },
+    {
+      "id": "Domain",
+      "label": "Domain",
+      "kind": "concept",
+      "comment": "A domain or topic area associated with the video."
+    },
+    {
+      "id": "Ideology",
+      "label": "Core Ideology",
+      "kind": "concept",
+      "comment": "Core ideological analysis associated with the video."
+    }
+  ],
+  "objectProperties": [
+    {
+      "id": "hasBlogger",
+      "label": "has blogger",
+      "domain": "Video",
+      "range": "Blogger",
+      "comment": "Links a video to its publishing blogger/channel."
+    },
+    {
+      "id": "mentionsInstitution",
+      "label": "mentions institution",
+      "domain": "Video",
+      "range": "Institution",
+      "comment": "Links a video to institutions referenced in its record."
+    },
+    {
+      "id": "hasStrategicTag",
+      "label": "has strategic tag",
+      "domain": "Video",
+      "range": "StrategicTag",
+      "comment": "Links a video to its strategic tags."
+    },
+    {
+      "id": "coversDomain",
+      "label": "covers domain",
+      "domain": "Video",
+      "range": "Domain",
+      "comment": "Links a video to its associated domains or topic areas."
+    },
+    {
+      "id": "hasCoreIdeology",
+      "label": "has core ideology",
+      "domain": "Video",
+      "range": "Ideology",
+      "comment": "Links a video to its core ideology analysis node."
+    }
+  ],
+  "datatypeProperties": [
+    {
+      "id": "videoId",
+      "label": "video ID",
+      "domain": "Video",
+      "range": "xsd:string",
+      "comment": "Stable YouTube video identifier."
+    },
+    {
+      "id": "videoTitle",
+      "label": "video title",
+      "domain": "Video",
+      "range": "xsd:string",
+      "comment": "Video title text."
+    },
+    {
+      "id": "videoUrl",
+      "label": "video URL",
+      "domain": "Video",
+      "range": "xsd:anyURI",
+      "comment": "Canonical URL of the video."
+    },
+    {
+      "id": "videoIntroduction",
+      "label": "video introduction",
+      "domain": "Video",
+      "range": "xsd:string",
+      "comment": "Long-form video introduction and chapter description returned by AI Index."
+    },
+    {
+      "id": "videoTranscript",
+      "label": "video transcript",
+      "domain": "Video",
+      "range": "xsd:string",
+      "comment": "Transcript or transcript excerpt returned by AI Index."
+    },
+    {
+      "id": "videoPublisher",
+      "label": "video publisher",
+      "domain": "Video",
+      "range": "xsd:string",
+      "comment": "Publisher or channel label included in video_info."
+    },
+    {
+      "id": "videoCoverUrl",
+      "label": "video cover URL",
+      "domain": "Video",
+      "range": "xsd:anyURI",
+      "comment": "Cover image URL returned for the video."
+    },
+    {
+      "id": "videoViewCount",
+      "label": "video view count",
+      "domain": "VideoObservation",
+      "range": "xsd:integer",
+      "comment": "Number of views at observation time."
+    },
+    {
+      "id": "videoLikeCount",
+      "label": "video like count",
+      "domain": "VideoObservation",
+      "range": "xsd:integer",
+      "comment": "Number of likes at observation time."
+    },
+    {
+      "id": "videoCommentCount",
+      "label": "video comment count",
+      "domain": "VideoObservation",
+      "range": "xsd:integer",
+      "comment": "Number of comments at observation time."
+    },
+    {
+      "id": "channelFollowerCount",
+      "label": "channel follower count",
+      "domain": "VideoObservation",
+      "range": "xsd:integer",
+      "comment": "Channel follower count at observation time."
+    },
+    {
+      "id": "bloggerId",
+      "label": "blogger ID",
+      "domain": "Blogger",
+      "range": "xsd:string",
+      "comment": "Stable channel/blogger identifier."
+    },
+    {
+      "id": "bloggerName",
+      "label": "blogger name",
+      "domain": "Blogger",
+      "range": "xsd:string",
+      "comment": "Display name of the blogger/channel."
+    },
+    {
+      "id": "bloggerIntroduction",
+      "label": "blogger introduction",
+      "domain": "Blogger",
+      "range": "xsd:string",
+      "comment": "Channel or blogger introduction returned by AI Index."
+    },
+    {
+      "id": "institutionId",
+      "label": "institution ID",
+      "domain": "Institution",
+      "range": "xsd:string",
+      "comment": "Stable institution identifier."
+    },
+    {
+      "id": "institutionName",
+      "label": "institution name",
+      "domain": "Institution",
+      "range": "xsd:string",
+      "comment": "Display name of the institution."
+    },
+    {
+      "id": "tagId",
+      "label": "tag ID",
+      "domain": "StrategicTag",
+      "range": "xsd:string",
+      "comment": "Strategic tag identifier used as both ID and label."
+    },
+    {
+      "id": "domainName",
+      "label": "domain name",
+      "domain": "Domain",
+      "range": "xsd:string",
+      "comment": "Domain or topic area name used as both ID and label."
+    },
+    {
+      "id": "ideologyId",
+      "label": "ideology ID",
+      "domain": "Ideology",
+      "range": "xsd:string",
+      "comment": "Core ideology identifier."
+    },
+    {
+      "id": "ideologyName",
+      "label": "ideology name",
+      "domain": "Ideology",
+      "range": "xsd:string",
+      "comment": "Core ideology display label."
+    },
+    {
+      "id": "ideologyConclusion",
+      "label": "ideology conclusion",
+      "domain": "Ideology",
+      "range": "xsd:string",
+      "comment": "One evidence-grounded conclusion from the AI Index core_ideology object."
+    },
+    {
+      "id": "ideologyTheory",
+      "label": "ideology theory",
+      "domain": "Ideology",
+      "range": "xsd:string",
+      "comment": "Technical concept or theory supplied by AI Index for the core ideology."
+    }
+  ],
+  "scalarMappings": [
+    {
+      "path": "/video_id",
+      "propertyId": "videoId",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/title",
+      "propertyId": "videoTitle",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/url",
+      "propertyId": "videoUrl",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/introduction",
+      "propertyId": "videoIntroduction",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/text",
+      "propertyId": "videoTranscript",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/publisher",
+      "propertyId": "videoPublisher",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/cover_url",
+      "propertyId": "videoCoverUrl",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/view_count",
+      "propertyId": "videoViewCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/like_count",
+      "propertyId": "videoLikeCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/video_info/comment_count",
+      "propertyId": "videoCommentCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/blogger_info/fans_num",
+      "propertyId": "channelFollowerCount",
+      "subject": "observation",
+      "multiple": false
+    }
+  ],
+  "relationMappings": [
+    {
+      "path": "/blogger_info",
+      "propertyId": "hasBlogger",
+      "targetClassId": "Blogger",
+      "targetIdPath": "/blogger_url",
+      "targetLabelPath": "/blogger_name",
+      "targetLabelPropertyId": "bloggerName",
+      "targetScalarMappings": [
+        {
+          "path": "/blogger_introduction",
+          "propertyId": "bloggerIntroduction",
+          "multiple": false
+        }
+      ]
+    },
+    {
+      "path": "/institution_infos/*",
+      "propertyId": "mentionsInstitution",
+      "targetClassId": "Institution",
+      "targetIdPath": "/institution_id",
+      "targetLabelPath": "/name",
+      "targetLabelPropertyId": "institutionName"
+    },
+    {
+      "path": "/strategic_tag_ids/*",
+      "propertyId": "hasStrategicTag",
+      "targetClassId": "StrategicTag",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "tagId"
+    },
+    {
+      "path": "/domains/*",
+      "propertyId": "coversDomain",
+      "targetClassId": "Domain",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "domainName"
+    },
+    {
+      "path": "/core_ideology",
+      "propertyId": "hasCoreIdeology",
+      "targetClassId": "Ideology",
+      "targetIdPath": "/main_theme",
+      "targetLabelPath": "/main_theme",
+      "targetLabelPropertyId": "ideologyName",
+      "targetScalarMappings": [
+        {
+          "path": "/key_conclusions",
+          "propertyId": "ideologyConclusion",
+          "multiple": true
+        },
+        {
+          "path": "/tech_concept_or_theory",
+          "propertyId": "ideologyTheory",
+          "multiple": false
+        }
+      ]
+    }
+  ],
+  "approval": {
+    "decision": "approve",
+    "generatedBy": "",
+    "rationale": "Mappings were checked against a real AI Index YouTube response. The template preserves video introduction, transcript excerpt, publisher, cover URL, engagement counters, blogger introduction, fans_num, core ideology conclusions and theory. Source identity and normalized publication time are supplied by the common base projection, avoiding duplicate publishedAt values."
+  },
+  "execution": {
+    "id": "scope_v2_youtube",
+    "source": "youtube",
+    "nodes": [
+      {
+        "id": "entity",
+        "class_id": "Video",
+        "iri": {
+          "op": "concat",
+          "args": [
+            {
+              "context": "namespace"
+            },
+            {
+              "op": "concat",
+              "args": [
+                "instance/entity/",
+                {
+                  "op": "quote",
+                  "args": [
+                    {
+                      "context": "source_id"
+                    }
+                  ],
+                  "safe": "-._~:"
+                }
+              ]
+            }
+          ]
+        },
+        "graph": "domain"
+      },
+      {
+        "id": "observation",
+        "class_id": "VideoObservation",
+        "iri": {
+          "op": "concat",
+          "args": [
+            {
+              "context": "namespace"
+            },
+            {
+              "op": "concat",
+              "args": [
+                "instance/observation/",
+                {
+                  "op": "hash",
+                  "args": [
+                    {
+                      "op": "object",
+                      "fields": {
+                        "source": {
+                          "context": "source"
+                        },
+                        "id": {
+                          "context": "source_id"
+                        }
+                      }
+                    }
+                  ],
+                  "length": 24
+                }
+              ]
+            }
+          ]
+        },
+        "graph": "observation"
+      },
+      {
+        "id": "document",
+        "class_id": "SourceDocument",
+        "iri": {
+          "op": "concat",
+          "args": [
+            {
+              "context": "namespace"
+            },
+            {
+              "op": "concat",
+              "args": [
+                "instance/source-document/",
+                {
+                  "op": "hash",
+                  "args": [
+                    {
+                      "op": "object",
+                      "fields": {
+                        "source": {
+                          "context": "source"
+                        },
+                        "path": {
+                          "context": "raw_ref"
+                        }
+                      }
+                    }
+                  ],
+                  "length": 24
+                }
+              ]
+            }
+          ]
+        },
+        "graph": "source"
+      },
+      {
+        "id": "record",
+        "class_id": "SourceRecord",
+        "iri": {
+          "op": "concat",
+          "args": [
+            {
+              "context": "namespace"
+            },
+            {
+              "op": "concat",
+              "args": [
+                "instance/source-record/",
+                {
+                  "op": "hash",
+                  "args": [
+                    {
+                      "op": "object",
+                      "fields": {
+                        "raw": {
+                          "context": "raw_ref"
+                        },
+                        "pointer": {
+                          "context": "pointer"
+                        },
+                        "id": {
+                          "context": "source_id"
+                        }
+                      }
+                    }
+                  ],
+                  "length": 24
+                }
+              ]
+            }
+          ]
+        },
+        "graph": "source"
+      }
+    ],
+    "triples": [
+      {
+        "subject": "observation",
+        "predicate": "observesEntity",
+        "value": {
+          "node": "entity"
+        },
+        "graph": "observation",
+        "kind": "iri"
+      },
+      {
+        "subject": "observation",
+        "predicate": "observationFromRecord",
+        "value": {
+          "node": "record"
+        },
+        "graph": "observation",
+        "kind": "iri"
+      },
+      {
+        "subject": "record",
+        "predicate": "recordFromDocument",
+        "value": {
+          "node": "document"
+        },
+        "graph": "source",
+        "kind": "iri"
+      },
+      {
+        "subject": "document",
+        "predicate": "sourceSystem",
+        "value": {
+          "context": "source"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "document",
+        "predicate": "sourcePath",
+        "value": {
+          "context": "raw_ref"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "record",
+        "predicate": "recordHash",
+        "value": {
+          "context": "record_hash"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "record",
+        "predicate": "rawRef",
+        "value": {
+          "context": "raw_ref"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "record",
+        "predicate": "recordJsonPointer",
+        "value": {
+          "context": "pointer"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "observation",
+        "predicate": "resultRank",
+        "value": {
+          "context": "result_rank"
+        },
+        "graph": "observation",
+        "kind": "literal",
+        "datatype": "xsd:positiveInteger"
+      },
+      {
+        "subject": "entity",
+        "predicate": "sourceId",
+        "value": {
+          "context": "source_id"
+        },
+        "graph": "domain",
+        "kind": "literal",
+        "required": true,
+        "datatype": ""
+      },
+      {
+        "subject": "entity",
+        "predicate": "sourceTitle",
+        "value": {
+          "context": "title"
+        },
+        "graph": "domain",
+        "kind": "literal"
+      },
+      {
+        "subject": "entity",
+        "predicate": "sourceUrl",
+        "value": {
+          "context": "url"
+        },
+        "graph": "domain",
+        "kind": "literal"
+      },
+      {
+        "subject": "entity",
+        "predicate": "publishedAt",
+        "value": {
+          "context": "published_at"
+        },
+        "graph": "domain",
+        "kind": "literal"
+      }
+    ],
+    "children": [
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/video_id"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "videoId",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/video_info/title"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "videoTitle",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/video_info/url"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "videoUrl",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/video_info/introduction"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "videoIntroduction",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/video_info/text"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "videoTranscript",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/video_info/publisher"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "videoPublisher",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/video_info/cover_url"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "videoCoverUrl",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/video_info/view_count"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "observation",
+            "predicate": "videoViewCount",
+            "value": {
+              "path": ""
+            },
+            "graph": "observation",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/video_info/like_count"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "observation",
+            "predicate": "videoLikeCount",
+            "value": {
+              "path": ""
+            },
+            "graph": "observation",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/video_info/comment_count"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "observation",
+            "predicate": "videoCommentCount",
+            "value": {
+              "path": ""
+            },
+            "graph": "observation",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/blogger_info/fans_num"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "observation",
+            "predicate": "channelFollowerCount",
+            "value": {
+              "path": ""
+            },
+            "graph": "observation",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/blogger_info"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "Blogger",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "Blogger"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    {
+                                      "path": "/blogger_url"
+                                    },
+                                    {
+                                      "path": "/blogger_name"
+                                    },
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "hasBlogger",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "bloggerName",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                {
+                  "path": "/blogger_name"
+                },
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": [
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/blogger_introduction"
+                }
+              ]
+            },
+            "triples": [
+              {
+                "subject": "target",
+                "predicate": "bloggerIntroduction",
+                "value": {
+                  "path": ""
+                },
+                "graph": "domain",
+                "kind": "literal"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/institution_infos/*"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "Institution",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "Institution"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    {
+                                      "path": "/institution_id"
+                                    },
+                                    {
+                                      "path": "/name"
+                                    },
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "mentionsInstitution",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "institutionName",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                {
+                  "path": "/name"
+                },
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": []
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/strategic_tag_ids/*"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "StrategicTag",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "StrategicTag"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    null,
+                                    null,
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "hasStrategicTag",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "tagId",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                null,
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": []
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/domains/*"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "Domain",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "Domain"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    null,
+                                    null,
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "coversDomain",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "domainName",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                null,
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": []
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/core_ideology"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "Ideology",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "Ideology"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    {
+                                      "path": "/main_theme"
+                                    },
+                                    {
+                                      "path": "/main_theme"
+                                    },
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "hasCoreIdeology",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "ideologyName",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                {
+                  "path": "/main_theme"
+                },
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": [
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/key_conclusions"
+                }
+              ]
+            },
+            "triples": [
+              {
+                "subject": "target",
+                "predicate": "ideologyConclusion",
+                "value": {
+                  "path": ""
+                },
+                "graph": "domain",
+                "kind": "literal"
+              }
+            ]
+          },
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/tech_concept_or_theory"
+                }
+              ]
+            },
+            "triples": [
+              {
+                "subject": "target",
+                "predicate": "ideologyTheory",
+                "value": {
+                  "path": ""
+                },
+                "graph": "domain",
+                "kind": "literal"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "domain": "ai_index"
+}

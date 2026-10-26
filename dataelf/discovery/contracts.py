@@ -8,6 +8,7 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel, Field, model_validator
 
 from dataelf.schemas import now_utc
+from dataelf.ontology.capabilities import WorkflowPolicy, validate_scope
 
 
 class JobSpec(BaseModel):
@@ -20,6 +21,17 @@ class JobSpec(BaseModel):
     modeling_strategy: str | None = None
     explorer: Literal["pi"] = "pi"
     workflow_profile: Literal["research", "server"] = "research"
+    workflow_policy: WorkflowPolicy = 'legacy'
+
+    @model_validator(mode='after')
+    def validate_workflow_scope(self):
+        validate_scope(self.workflow_policy, self.domain, self.workflow_profile)
+        return self
+
+    @classmethod
+    def from_saved(cls, value):
+        """Absent historical selection means legacy, never today's config default."""
+        return cls.model_validate({'workflow_policy': 'legacy', **value})
 
 
 class ArtifactRef(BaseModel):
@@ -41,6 +53,7 @@ class StageResult(BaseModel):
     artifacts: list[ArtifactRef] = Field(default_factory=list)
     context: dict[str, Any] = Field(default_factory=dict)
     env: dict[str, str] = Field(default_factory=dict)
+    graph_ref: dict[str, Any] | None = None
     authorized_outside: list[str] = Field(default_factory=list)
     metrics: dict[str, str | int | float | bool] = Field(default_factory=dict)
     error_code: str | None = None
@@ -62,6 +75,8 @@ class OutputArtifactSpec(BaseModel):
     media_type: str | None = None
     required: bool = True
     json_root: str | None = None
+    json_schema: dict[str, Any] | None = None
+    agent_writable: bool = True
 
 
 class OutputContract(BaseModel):
@@ -115,6 +130,7 @@ class DomainManifest(BaseModel):
     version: str
     display_name: str
     plugin: str
+    legacy_entry: str | None = None
     capabilities: list[str] = Field(default_factory=list)
     workspace_dirs: list[str] = Field(default_factory=list)
 
@@ -128,11 +144,19 @@ class DomainManifest(BaseModel):
 
 
 class DiscoveryJob(BaseModel):
+    @model_validator(mode='before')
+    @classmethod
+    def preserve_saved_selection(cls, value):
+        if isinstance(value, dict) and isinstance(value.get('spec'), dict):
+            value = {**value, 'spec': {'workflow_policy': 'legacy', **value['spec']}}
+        return value
+
     job_id: str
     spec: JobSpec
     status: Literal["created", "running", "completed", "failed"] = "created"
     workspace_path: str
     artifacts: list[ArtifactRef] = Field(default_factory=list)
+    graph_refs: list[dict[str, Any]] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
     error_code: str | None = None
@@ -148,6 +172,8 @@ class DiscoveryContext(BaseModel):
     domain_context: dict[str, Any] = Field(default_factory=dict)
     artifacts: list[ArtifactRef] = Field(default_factory=list)
     agent_resources: AgentResources = Field(default_factory=AgentResources)
+    graph_ref: dict[str, Any] | None = None
+    graph_root: str | None = None
     prompt_path: str | None = None
 
 

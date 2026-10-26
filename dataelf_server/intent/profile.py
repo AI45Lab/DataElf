@@ -53,6 +53,10 @@ class Profile:
 
     def json_schema(self) -> dict:
         schema = Intent.model_json_schema()
+        # Reading old records permits absent new fields; live extraction must
+        # explicitly classify topics and strict title conditions in schema v3.
+        schema['required'] = list(schema['properties'])
+        schema['$defs']['Retrieval']['required'] = list(schema['$defs']['Retrieval']['properties'])
         selections = []
         for domain in self.domains:
             selections.append({

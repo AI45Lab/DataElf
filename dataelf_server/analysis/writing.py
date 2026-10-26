@@ -84,6 +84,13 @@ def render_writing(contract: dict) -> str:
         "Focus points guide analysis, not extra acquisition or source filtering. "
         "Missing comparison evidence must be stated as a limitation; do not fabricate symmetry.",
     ]
+    topics = contract.get('research_topics', [])
+    if topics:
+        sections.append('## Research topics (analysis focus, not literal retrieval filters)\n'
+                        + json.dumps(topics, ensure_ascii=False) + '\n'
+                        'Select relevant evidence and explain supported findings on these topics. '
+                        'Do not assume all collected records are relevant, invent relationships, or expand the date/source scope. '
+                        'State evidence gaps when these topics are not supported by the prepared sources.')
     retrieval = contract.get("retrieval", {})
     if any(retrieval.values()):
         sections.append("## Retrieval subject boundary\n"

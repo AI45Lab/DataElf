@@ -11,6 +11,7 @@ dependencies = [
   "langgraph>=1",
   "pyyaml>=6",
   "rdflib>=7",
+  "jsonschema>=4.23,<5",
   "fastapi>=0.115,<1",
   "uvicorn>=0.30,<1",
 ]
@@ -38,21 +39,25 @@ include = ["dataelf*"]
 
 [tool.setuptools.package-data]
 dataelf = [
+  "discovery/runtime/*.ts",
+  "ontology/config.yaml.example",
+  "ontology/runtime/*.ts",
   "domains/**/*.yaml",
-  "domains/ai_index/modeling/ontology/config.yaml.example",
   "domains/**/templates/**/*.json",
   "domains/*/pi/skills/**/*.md",
+  "domains/*/pi/skills/**/scripts/*.sh",
+  "domains/*/pi/skills/**/agents/*.yaml",
+  "ontology/prompts/**/*.md",
+  "discovery/analysis_review/prompts/**/*.md",
   "domains/**/pi/extensions/*.ts",
   "domains/finance/requirements-finance.txt",
   "domains/trajectory_analysis/requirements-wt.txt",
-  "domains/ai_index/modeling/ontology/stage1/runtime/*.ts",
-  "domains/ai_index/modeling/ontology/stage1/schemas/*.json",
 ]
 
-dataelf_server = ["ontology/templates/**/*.json", "prompts/*.md", "runtime/*.ts", "deployment/*"]
+dataelf_server = [ "prompts/*.md", "runtime/*.ts", "deployment/*", "ontology/templates/**/*.json", "ontology/*.md"]
 
 [tool.setuptools.exclude-package-data]
-dataelf = ["domains/ai_index/modeling/ontology/config.yaml"]
+dataelf = ["ontology/config.yaml", "ontology/*.local.yaml", "domains/*/pi/upstream/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

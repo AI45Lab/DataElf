@@ -98,7 +98,7 @@ MODULE_RULES = {
 
 
 def build_contract(mode: str, modules: Iterable[str], *, output: Output | None = None,
-                   retrieval: dict[str, Any] | None = None) -> dict[str, Any]:
+                   retrieval: dict[str, Any] | None = None, research_topics: list[str] | None = None) -> dict[str, Any]:
     selected = _normalize_modules(mode, modules)
     contract = {
         "version": CONTRACT_VERSION,
@@ -116,6 +116,8 @@ def build_contract(mode: str, modules: Iterable[str], *, output: Output | None =
                         writing_policy_version=2, require_chinese=effective.language.startswith("zh"))
         if retrieval is not None:
             contract["retrieval"] = retrieval
+    if research_topics:
+        contract['research_topics'] = list(research_topics)
     return contract
 
 
@@ -150,10 +152,10 @@ def render_contract(contract: dict[str, Any]) -> str:
 
 
 def write_contract(workspace: Path, *, mode: str, modules: Iterable[str], output: Output | None = None,
-                   retrieval: dict[str, Any] | None = None) -> Path:
+                   retrieval: dict[str, Any] | None = None, research_topics: list[str] | None = None) -> Path:
     prompt_dir = workspace / "prompts"
     prompt_dir.mkdir(parents=True, exist_ok=True)
-    contract = build_contract(mode, modules, output=output, retrieval=retrieval)
+    contract = build_contract(mode, modules, output=output, retrieval=retrieval, research_topics=research_topics)
     json_path = prompt_dir / CONTRACT_JSON_NAME
     markdown_path = prompt_dir / CONTRACT_MARKDOWN_NAME
     json_path.write_text(

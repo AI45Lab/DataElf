@@ -10,12 +10,13 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from threading import Thread
+from threading import Thread, Event
 
 from dataelf.discovery.contracts import ArtifactRef, DiscoveryContext, DiscoveryJob, ExplorerRunResult
 from dataelf.discovery.pi_runtime import PI_REQUIRED_PACKAGES, is_managed_binary, managed_pi_resources, runtime_ready_for_process
 from dataelf.discovery.redaction import redact_text, secret_values
 from dataelf.discovery.run_control import check_cancelled, current_run, terminate_process, RunCancelled
+from dataelf.discovery.execution_policy import ai_index_research, unbounded_analysis
 
 
 DEFAULT_PI_MODE = "json"
@@ -118,7 +119,7 @@ class PiCliInsightsExplorer:
             stdout_path.write_text("", encoding="utf-8")
             stderr_path.write_text(message + "\n", encoding="utf-8")
             return ExplorerRunResult(status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix), warnings=[message], error_code="EXPLORER_RUNTIME_NOT_READY", error_message=message)
-        timeout = self.timeout_seconds or _timeout_seconds(job)
+        timeout = self._execution_timeout(job)
         cwd = self.cwd.resolve()
         _write_json(logs_dir / f"{self.log_prefix}_command.json", {"command": _redact_command(command), "cwd": str(cwd), "workspace_path": str(workspace_path)})
         _write_json(logs_dir / f"{self.log_prefix}_env_redacted.json", _redact_env(env))
@@ -129,7 +130,14 @@ class PiCliInsightsExplorer:
         elif self.log_mode == "summary":
             logger.info("Pi event summaries will be streamed; raw JSON events will also be captured in %s.", events_path)
         try:
-            completed = _run_pi_process(command, cwd=cwd, env=env, timeout=timeout, log_mode=self.log_mode, compact_json_events=self.compact_stream_events)
+            extra={}
+            if ai_index_research(job.spec) and env.get('DATAELF_ANALYSIS_CONTEXT'):
+                base=Path(env['DATAELF_ANALYSIS_CONTEXT']).parent
+                extra['stop_files']=tuple(base/name for name in ('analysis_submission.json','analysis_review.json','analysis_transport.json'))
+                from dataelf.ontology.capabilities import skill_review
+                if skill_review(job.spec):extra['stop_files']+= (base/'handoff.json',)
+            completed = _run_pi_process(command, cwd=cwd, env=env, timeout=timeout, log_mode=self.log_mode,
+                compact_json_events=self.compact_stream_events or ai_index_research(job.spec), **extra)
         except RunCancelled as exc:
             stdout = getattr(exc, "stdout", "")
             stderr = getattr(exc, "stderr", "")
@@ -155,6 +163,18 @@ class PiCliInsightsExplorer:
         event_warnings = _write_json_events(completed.stdout or "", events_path)
 
         if self.detect_model_errors:
+            last_stop = None
+            for line in (completed.stdout or "").splitlines():
+                try:
+                    event = json.loads(line)
+                except ValueError:
+                    continue
+                message = event.get("message", {})
+                if event.get("type") == "message_end" and message.get("role") == "assistant":
+                    last_stop = message.get("stopReason")
+            if last_stop == "length" and ai_index_research(job.spec):
+                return ExplorerRunResult(status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix),
+                    error_code="PI_OUTPUT_TRUNCATED", error_message="Provider output ended at the token limit; saved artifacts and event logs are retained.")
             model_errors = _model_event_errors(completed.stdout or "")
             if model_errors:
                 return ExplorerRunResult(status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix),
@@ -187,6 +207,9 @@ class PiCliInsightsExplorer:
         # only used when the user explicitly configures ``binary: pi``.
         return None
 
+    def _execution_timeout(self, job):
+        return None if unbounded_analysis(job.spec) else self.timeout_seconds or _timeout_seconds(job)
+
     def _build_command(
         self,
         pi_binary: str,
@@ -206,21 +229,40 @@ class PiCliInsightsExplorer:
         common = managed_pi_resources(self.cwd.resolve(), env or {}, required_packages=self.required_packages) if is_managed_binary(Path(pi_binary)) else None
         for extension in [*(common.extensions if common else []), *((context.agent_resources.extensions if context else []))]:
             command.extend(["--extension", str(extension)])
+        if context and ai_index_research(context.spec):
+            command.extend(["--extension", str(Path(__file__).with_name("runtime") / "compat.ts")])
+        if context and ai_index_research(context.spec):
+            command.extend(['--extension',str(Path(__file__).with_name('runtime') / 'outputs.ts')])
+        if context and ai_index_research(context.spec) and (env or {}).get('DATAELF_ANALYSIS_CONTEXT'):
+            command.extend(['--extension',str(Path(__file__).with_name('runtime')/'analysis.ts')])
         command.append("--no-skills")
         for skill in [*(common.skills if common else []), *((context.agent_resources.skills if context else []))]:
             command.extend(["--skill", str(skill)])
+        if context and ai_index_research(context.spec) and context.env.get('DATAELF_ANALYSIS_ROLE')!='reviewer' and getattr(context,"graph_ref",None):
+            command.extend(["--extension",str(Path(__file__).resolve().parents[1]/"ontology/runtime/graph.ts")])
+        from dataelf.ontology.capabilities import skill_review
+        if context and skill_review(context.spec):
+            command.extend(['--extension',str(Path(__file__).resolve().parents[1]/'ontology/runtime/inputs.ts')])
         if self.extra_args:
             command.extend(shlex.split(self.extra_args))
-        command.extend([f"@{prompt_path.resolve()}", "Run this DataElf discovery task and write the required workspace artifacts."])
+        if context and ai_index_research(context.spec) and context.env.get('DATAELF_ANALYSIS_ROLE')=='reviewer':
+            from .analysis_review.tools import schemas
+            command.extend(['--tools',context.env.get('DATAELF_ANALYSIS_TOOLS') or ','.join(schemas('reviewer'))])
+        from dataelf.ontology.capabilities import skill_review
+        suffix=("执行当前独立审核，通过实际工具交接反馈。" if context and context.env.get('DATAELF_ANALYSIS_ROLE')=='reviewer' else "执行当前研究任务，通过实际工具保存并交接产物。") if context and skill_review(context.spec) else "Run this DataElf discovery task and write the required workspace artifacts."
+        command.extend([f"@{prompt_path.resolve()}", suffix])
         return command
 
     def _build_env(self, workspace_path: Path, job: DiscoveryJob, context: DiscoveryContext) -> dict[str, str]:
         env: dict[str, str] = {}
-        for key in _ENV_ALLOWLIST:
+        inherited = _ENV_ALLOWLIST | _LEGACY_NETWORK_ENV
+        for key in inherited:
             value = os.environ.get(key)
             if value is not None:
                 env[key] = value
         env.update({key: str(value) for key, value in context.env.items()})
+        from dataelf.ontology.capabilities import network_environment
+        for key,value in network_environment(context.spec).items():env.setdefault(key,value)
         repo_root = Path(__file__).resolve().parents[2]
         existing_pythonpath = env.get("PYTHONPATH", "")
         env["PYTHONPATH"] = str(repo_root) if not existing_pythonpath else f"{repo_root}{os.pathsep}{existing_pythonpath}"
@@ -230,11 +272,30 @@ class PiCliInsightsExplorer:
         env["DATAELF_PYTHON"] = sys.executable
         env["DATAELF_WORKFLOW_PROFILE"] = job.spec.workflow_profile
         env["DATAELF_DOMAIN"] = context.spec.domain
-        env["DATAELF_PYTHON"] = sys.executable
         if any(artifact.kind == "ontology_rdf" for artifact in context.artifacts):
             env["DATAELF_PI_ONTOLOGY"] = "1"
         else:
             env.pop("DATAELF_PI_ONTOLOGY", None)
+        if ai_index_research(context.spec) and context.env.get('DATAELF_ANALYSIS_ROLE')!='reviewer' and context.graph_ref and context.graph_root:
+            from dataelf.ontology.graph.tools import analysis_context
+            from dataelf.ontology.capabilities import skill_review
+            workflow_context={'workflow_policy':context.spec.workflow_policy,'original_spec':job.spec.model_dump(mode='json'),
+                'analysis_context_path':env.get('DATAELF_ANALYSIS_CONTEXT')} if skill_review(context.spec) else None
+            env["DATAELF_GRAPH_CONTEXT"]=str(analysis_context(workspace_path,context.graph_ref,context.graph_root,job.job_id,workflow_context))
+        else:
+            env.pop("DATAELF_GRAPH_CONTEXT", None)
+            env.pop("DATAELF_ONTOLOGY_CONTEXT", None)
+            if not ai_index_research(context.spec):env.pop("DATAELF_PI_STREAM_USAGE", None)
+        if ai_index_research(context.spec):
+            env.setdefault('DATAELF_ANALYSIS_CONTEXT',str(workspace_path/'prompts/analysis_context.json'))
+        from dataelf.ontology.capabilities import skill_review
+        if skill_review(context.spec):
+            env['DATAELF_WORKFLOW_POLICY']=context.spec.workflow_policy
+            env['DATAELF_AI_INDEX_QUERY_CONTEXT']=env['DATAELF_ANALYSIS_CONTEXT']
+            env.pop('DATAELF_ONTOLOGY_CONTEXT',None)
+        else:
+            env.pop('DATAELF_WORKFLOW_POLICY',None)
+            env.pop('DATAELF_AI_INDEX_QUERY_CONTEXT',None)
         if self.model:
             env["DATAELF_PI_MODEL"] = self.model
         if "NPM_CONFIG_CACHE" not in env and "npm_config_cache" not in env:
@@ -303,8 +364,12 @@ _ENV_ALLOWLIST = {
     "PI_OFFLINE",
     "PI_SKIP_VERSION_CHECK",
     "PI_TELEMETRY",
+    "DATAELF_PI_STREAM_USAGE",
     "NPM_CONFIG_CACHE",
     "npm_config_cache",
+}
+# The reference legacy executor forwards network and certificate settings for every domain.
+_LEGACY_NETWORK_ENV = {
     "NODE_USE_ENV_PROXY",
     "HTTP_PROXY",
     "HTTPS_PROXY",
@@ -322,7 +387,7 @@ _ENV_ALLOWLIST = {
 _SECRET_KEY_MARKERS = ("KEY", "TOKEN", "SECRET", "PASSWORD")
 
 
-def _run_pi_process(command, cwd, env, timeout, log_mode, compact_json_events=False) -> PiCompleted:
+def _run_pi_process(command, cwd, env, timeout, log_mode, compact_json_events=False, stop_files=()) -> PiCompleted:
     check_cancelled()
     process = subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, text=True, bufsize=1, start_new_session=True)
@@ -332,11 +397,23 @@ def _run_pi_process(command, cwd, env, timeout, log_mode, compact_json_events=Fa
         Thread(target=_drain_stream, args=(process.stdout, stdout_chunks, logging.INFO, "[pi] ", log_mode, True, compact_json_events, secret_values(env)), daemon=True),
         Thread(target=_drain_stream, args=(process.stderr, stderr_chunks, logging.WARNING, "[pi stderr] ", log_mode, False, False, secret_values(env)), daemon=True),
     ]
+    stop_watcher=Event()
+    watcher=None
+    if stop_files:
+        # Opt-in process boundary for ontology control signals. Other callers
+        # retain the original wait/timeout behavior with no watcher thread.
+        def watch():
+            while not stop_watcher.wait(0.05):
+                if any(Path(path).is_file() for path in stop_files):
+                    terminate_process(process)
+                    return
+        watcher=Thread(target=watch,daemon=True)
     try:
         if control:
             control.register(process)
         for thread in threads:
             thread.start()
+        if watcher:watcher.start()
         try:
             returncode = process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
@@ -348,7 +425,8 @@ def _run_pi_process(command, cwd, env, timeout, log_mode, compact_json_events=Fa
             thread.join(timeout=5)
         check_cancelled()
         return PiCompleted(returncode=returncode, stdout="".join(stdout_chunks), stderr="".join(stderr_chunks))
-    except RunCancelled as exc:
+    except (RunCancelled, KeyboardInterrupt) as exc:
+        terminate_process(process)
         for thread in threads:
             if thread.is_alive():
                 thread.join(timeout=2)
@@ -356,6 +434,8 @@ def _run_pi_process(command, cwd, env, timeout, log_mode, compact_json_events=Fa
         exc.stderr = "".join(stderr_chunks)
         raise
     finally:
+        stop_watcher.set()
+        if watcher:watcher.join(timeout=3)
         if control:
             control.unregister(process)
         terminate_process(process)

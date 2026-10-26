@@ -30,6 +30,9 @@ def validate_outputs(workspace: Path, contract: OutputContract) -> tuple[list[Ar
                 raise ArtifactContractError(f"Output is not valid JSON: {spec.path}: {exc}") from exc
             if spec.json_root and (not isinstance(payload, dict) or not isinstance(payload.get(spec.json_root), list)):
                 raise ArtifactContractError(f"Output {spec.path} must contain a {spec.json_root!r} list")
+            if spec.json_schema:
+                from .output_submission import validate_data
+                validate_data(spec,payload)
         artifacts.append(ArtifactRef(
             artifact_id=spec.artifact_id, kind=spec.kind, path=spec.path, role="output",
             producer_stage="explorer", media_type=spec.media_type, checksum=_sha256(path),

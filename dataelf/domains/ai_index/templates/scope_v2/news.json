@@ -1,0 +1,1322 @@
+{
+  "schemaVersion": "dataelf-scope-v2-template-fragment.v1",
+  "templateId": "scope_v2_news",
+  "source": "news",
+  "endpoint": "/openapi/news/search",
+  "entity": {
+    "classId": "NewsArticle",
+    "observationClassId": "NewsArticleObservation",
+    "idPaths": [
+      "/news_id"
+    ],
+    "labelPath": "/title",
+    "urlPath": "/url",
+    "publishedAtPath": "/date"
+  },
+  "classes": [
+    {
+      "id": "NewsArticle",
+      "label": "News Article",
+      "kind": "entity",
+      "comment": "A news article record from the news source, identified by news_id."
+    },
+    {
+      "id": "NewsArticleObservation",
+      "label": "News Article Observation",
+      "kind": "observation",
+      "comment": "Mutable observation snapshot of a news article, carrying body text and any counters."
+    },
+    {
+      "id": "Publisher",
+      "label": "Publisher",
+      "kind": "entity",
+      "comment": "Publisher of a news article."
+    },
+    {
+      "id": "Institution",
+      "label": "Institution",
+      "kind": "entity",
+      "comment": "Institution referenced within a news article."
+    },
+    {
+      "id": "Person",
+      "label": "Person",
+      "kind": "concept",
+      "comment": "Person mentioned in a news article."
+    },
+    {
+      "id": "Topic",
+      "label": "Topic",
+      "kind": "concept",
+      "comment": "Topic/domain tag associated with a news article."
+    },
+    {
+      "id": "Product",
+      "label": "Product",
+      "kind": "concept",
+      "comment": "Product mentioned in a news article."
+    },
+    {
+      "id": "FundingInfo",
+      "label": "Funding Info",
+      "kind": "concept",
+      "comment": "Funding information object referenced by a news article."
+    }
+  ],
+  "objectProperties": [
+    {
+      "id": "hasPublisher",
+      "label": "has publisher",
+      "domain": "NewsArticle",
+      "range": "Publisher",
+      "comment": "Links a news article to its publisher."
+    },
+    {
+      "id": "mentionsInstitution",
+      "label": "mentions institution",
+      "domain": "NewsArticle",
+      "range": "Institution",
+      "comment": "Links a news article to an institution it references."
+    },
+    {
+      "id": "mentionsPerson",
+      "label": "mentions person",
+      "domain": "NewsArticle",
+      "range": "Person",
+      "comment": "Links a news article to a person it mentions."
+    },
+    {
+      "id": "aboutTopic",
+      "label": "about topic",
+      "domain": "NewsArticle",
+      "range": "Topic",
+      "comment": "Links a news article to a topic/domain it covers."
+    },
+    {
+      "id": "mentionsProduct",
+      "label": "mentions product",
+      "domain": "NewsArticle",
+      "range": "Product",
+      "comment": "Links a news article to a product it mentions."
+    },
+    {
+      "id": "reportsFunding",
+      "label": "reports funding",
+      "domain": "NewsArticle",
+      "range": "FundingInfo",
+      "comment": "Links a news article to a funding info object it reports."
+    }
+  ],
+  "datatypeProperties": [
+    {
+      "id": "newsArticleId",
+      "label": "news article id",
+      "domain": "NewsArticle",
+      "range": "xsd:string",
+      "comment": "Stable identifier of the news article."
+    },
+    {
+      "id": "title",
+      "label": "title",
+      "domain": "NewsArticle",
+      "range": "xsd:string",
+      "comment": "Headline of the news article."
+    },
+    {
+      "id": "url",
+      "label": "url",
+      "domain": "NewsArticle",
+      "range": "xsd:anyURI",
+      "comment": "Canonical URL of the news article."
+    },
+    {
+      "id": "publishedDate",
+      "label": "published date",
+      "domain": "NewsArticle",
+      "range": "xsd:date",
+      "comment": "Publication date of the news article."
+    },
+    {
+      "id": "bodyText",
+      "label": "body text",
+      "domain": "NewsArticleObservation",
+      "range": "xsd:string",
+      "comment": "Full body text of the news article as observed."
+    }
+  ],
+  "scalarMappings": [
+    {
+      "path": "/news_id",
+      "propertyId": "newsArticleId",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/title",
+      "propertyId": "title",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/url",
+      "propertyId": "url",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/date",
+      "propertyId": "publishedDate",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/text",
+      "propertyId": "bodyText",
+      "subject": "observation",
+      "multiple": false
+    }
+  ],
+  "relationMappings": [
+    {
+      "path": "/publisher",
+      "propertyId": "hasPublisher",
+      "targetClassId": "Publisher",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "name"
+    },
+    {
+      "path": "/institution_infos/*",
+      "propertyId": "mentionsInstitution",
+      "targetClassId": "Institution",
+      "targetIdPath": "/institution_id",
+      "targetLabelPath": "/name",
+      "targetLabelPropertyId": "name"
+    },
+    {
+      "path": "/persons/*",
+      "propertyId": "mentionsPerson",
+      "targetClassId": "Person",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "name"
+    },
+    {
+      "path": "/domains/*",
+      "propertyId": "aboutTopic",
+      "targetClassId": "Topic",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "label"
+    },
+    {
+      "path": "/products/*",
+      "propertyId": "mentionsProduct",
+      "targetClassId": "Product",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "name"
+    },
+    {
+      "path": "/funding_info/*",
+      "propertyId": "reportsFunding",
+      "targetClassId": "FundingInfo",
+      "targetIdPath": "/amount",
+      "targetLabelPath": "/amount",
+      "targetLabelPropertyId": "label"
+    }
+  ],
+  "approval": {
+    "decision": "approve",
+    "generatedBy": "",
+    "rationale": "Conservative raw-grounded mapping: stable identifiers (news_id), title, url, and published date attach to the NewsArticle entity; mutable body text attaches to NewsArticleObservation. Publisher, institution_infos, persons, domains, products, and funding_info are modeled as typed concept relations rather than opaque strings, per the contract. Nested object/array targets use array/* pointer paths with label-bearing target nodes; internal id/label paths are left empty because the source contract does not specify nested structure, preserving unknowns rather than inventing fields."
+  },
+  "execution": {
+    "id": "scope_v2_news",
+    "source": "news",
+    "nodes": [
+      {
+        "id": "entity",
+        "class_id": "NewsArticle",
+        "iri": {
+          "op": "concat",
+          "args": [
+            {
+              "context": "namespace"
+            },
+            {
+              "op": "concat",
+              "args": [
+                "instance/entity/",
+                {
+                  "op": "quote",
+                  "args": [
+                    {
+                      "context": "source_id"
+                    }
+                  ],
+                  "safe": "-._~:"
+                }
+              ]
+            }
+          ]
+        },
+        "graph": "domain"
+      },
+      {
+        "id": "observation",
+        "class_id": "NewsArticleObservation",
+        "iri": {
+          "op": "concat",
+          "args": [
+            {
+              "context": "namespace"
+            },
+            {
+              "op": "concat",
+              "args": [
+                "instance/observation/",
+                {
+                  "op": "hash",
+                  "args": [
+                    {
+                      "op": "object",
+                      "fields": {
+                        "source": {
+                          "context": "source"
+                        },
+                        "id": {
+                          "context": "source_id"
+                        }
+                      }
+                    }
+                  ],
+                  "length": 24
+                }
+              ]
+            }
+          ]
+        },
+        "graph": "observation"
+      },
+      {
+        "id": "document",
+        "class_id": "SourceDocument",
+        "iri": {
+          "op": "concat",
+          "args": [
+            {
+              "context": "namespace"
+            },
+            {
+              "op": "concat",
+              "args": [
+                "instance/source-document/",
+                {
+                  "op": "hash",
+                  "args": [
+                    {
+                      "op": "object",
+                      "fields": {
+                        "source": {
+                          "context": "source"
+                        },
+                        "path": {
+                          "context": "raw_ref"
+                        }
+                      }
+                    }
+                  ],
+                  "length": 24
+                }
+              ]
+            }
+          ]
+        },
+        "graph": "source"
+      },
+      {
+        "id": "record",
+        "class_id": "SourceRecord",
+        "iri": {
+          "op": "concat",
+          "args": [
+            {
+              "context": "namespace"
+            },
+            {
+              "op": "concat",
+              "args": [
+                "instance/source-record/",
+                {
+                  "op": "hash",
+                  "args": [
+                    {
+                      "op": "object",
+                      "fields": {
+                        "raw": {
+                          "context": "raw_ref"
+                        },
+                        "pointer": {
+                          "context": "pointer"
+                        },
+                        "id": {
+                          "context": "source_id"
+                        }
+                      }
+                    }
+                  ],
+                  "length": 24
+                }
+              ]
+            }
+          ]
+        },
+        "graph": "source"
+      }
+    ],
+    "triples": [
+      {
+        "subject": "observation",
+        "predicate": "observesEntity",
+        "value": {
+          "node": "entity"
+        },
+        "graph": "observation",
+        "kind": "iri"
+      },
+      {
+        "subject": "observation",
+        "predicate": "observationFromRecord",
+        "value": {
+          "node": "record"
+        },
+        "graph": "observation",
+        "kind": "iri"
+      },
+      {
+        "subject": "record",
+        "predicate": "recordFromDocument",
+        "value": {
+          "node": "document"
+        },
+        "graph": "source",
+        "kind": "iri"
+      },
+      {
+        "subject": "document",
+        "predicate": "sourceSystem",
+        "value": {
+          "context": "source"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "document",
+        "predicate": "sourcePath",
+        "value": {
+          "context": "raw_ref"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "record",
+        "predicate": "recordHash",
+        "value": {
+          "context": "record_hash"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "record",
+        "predicate": "rawRef",
+        "value": {
+          "context": "raw_ref"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "record",
+        "predicate": "recordJsonPointer",
+        "value": {
+          "context": "pointer"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "observation",
+        "predicate": "resultRank",
+        "value": {
+          "context": "result_rank"
+        },
+        "graph": "observation",
+        "kind": "literal",
+        "datatype": "xsd:positiveInteger"
+      },
+      {
+        "subject": "entity",
+        "predicate": "sourceId",
+        "value": {
+          "context": "source_id"
+        },
+        "graph": "domain",
+        "kind": "literal",
+        "required": true,
+        "datatype": ""
+      },
+      {
+        "subject": "entity",
+        "predicate": "sourceTitle",
+        "value": {
+          "context": "title"
+        },
+        "graph": "domain",
+        "kind": "literal"
+      },
+      {
+        "subject": "entity",
+        "predicate": "sourceUrl",
+        "value": {
+          "context": "url"
+        },
+        "graph": "domain",
+        "kind": "literal"
+      },
+      {
+        "subject": "entity",
+        "predicate": "publishedAt",
+        "value": {
+          "context": "published_at"
+        },
+        "graph": "domain",
+        "kind": "literal"
+      }
+    ],
+    "children": [
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/news_id"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "newsArticleId",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/title"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "title",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/url"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "url",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/date"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "publishedDate",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/text"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "observation",
+            "predicate": "bodyText",
+            "value": {
+              "path": ""
+            },
+            "graph": "observation",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/publisher"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "Publisher",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "Publisher"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    null,
+                                    null,
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "hasPublisher",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "name",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                null,
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": []
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/institution_infos/*"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "Institution",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "Institution"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    {
+                                      "path": "/institution_id"
+                                    },
+                                    {
+                                      "path": "/name"
+                                    },
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "mentionsInstitution",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "name",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                {
+                  "path": "/name"
+                },
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": []
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/persons/*"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "Person",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "Person"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    null,
+                                    null,
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "mentionsPerson",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "name",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                null,
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": []
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/domains/*"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "Topic",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "Topic"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    null,
+                                    null,
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "aboutTopic",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "label",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                null,
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": []
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/products/*"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "Product",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "Product"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    null,
+                                    null,
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "mentionsProduct",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "name",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                null,
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": []
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/funding_info/*"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "FundingInfo",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "FundingInfo"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    {
+                                      "path": "/amount"
+                                    },
+                                    {
+                                      "path": "/amount"
+                                    },
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "reportsFunding",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "label",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                {
+                  "path": "/amount"
+                },
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": []
+      }
+    ]
+  },
+  "domain": "ai_index"
+}

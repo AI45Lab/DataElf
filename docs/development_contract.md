@@ -377,11 +377,20 @@ pi --no-extensions --extension <common> --extension <domain>
 
 普通 domain 只需按约定目录放置资源，不需要新增顶层配置字段。需要动态选择资源时，才在 DomainPlugin 的 agent resource hook 中返回路径。新增资源时应增加命令构造或 fake Pi 测试，验证未选中的 domain resource 不会被加载。
 
+数据源 Skill 及其脚本、参考文档必须由对应 domain 持有，统一放在
+`dataelf/domains/<domain>/pi/skills/<source-name>/`，不放在仓库根目录，
+也不依赖操作者机器的全局 Skill。相关 connector、来源登记和权限检查同样留在
+domain 内。脚本及文档路径相对 Skill 目录解析，安装包须收录实际执行所需资源。
+需要保留原始导入包时，可完整归档在同一 domain 的 `pi/upstream/`，记录 hash；
+该目录不参与运行时 Skill 发现，也不随安装包发布，避免同名 Skill 重复加载。
+
 通过 `run_job(..., plugin=..., explorer=..., control=...)` 注入的执行组件不会被 registry 覆盖，任务只初始化一次。注入的 plugin 仅加载其 hook 显式声明的 domain resources，不自动加载同目录的 research 扩展和 skills；路径仍遵守 domain 目录边界校验。资源必须传入实际使用的 `DiscoveryContext`。
 
 Pi 执行器的 `required_packages` 同时决定依赖检查与公共资源加载。research 默认使用全部受管包（Fusion、`pi-web-access`）；Server 显式传空元组并加载服务扩展，因此不会检查或加载 research 包，也不会向临时 agent 目录安装它们。核心不反向导入服务包。
 
-AI Index 当前不提供正式 Pi custom tools。它通过 prompt 指导 Pi 编写 Python 脚本，脚本调用 `AIIndexClient`；这是 domain 内部 Python 模式，不是 DataElf 的通用 tool 转换机制。
+AI Index 旧入口使用 `AIIndexClient` 的 domain 内部 Python 模式。显式选择
+`ai_index_cli_skill_review_v1` 时，来源 Skill 为该 domain 内的 `ai-index-search`，
+由其工具适配负责查询和来源登记；旧入口及其他 domain 不自动加载这套工具。
 
 ## 9. Recommended package layout
 
