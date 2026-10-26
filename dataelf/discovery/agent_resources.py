@@ -50,6 +50,11 @@ def resolve_domain_resources(
     root = domain_root.resolve()
     extensions = _merge_paths(root, [*discovered.extensions, *declared.extensions], "extension")
     skills = _merge_paths(root, [*discovered.skills, *declared.skills], "skill")
+    # The AI Index CLI package is opt-in through a host-selected policy. Domain
+    # discovery alone must not expose it to server or legacy research callers.
+    from dataelf.ontology.capabilities import skill_review
+    if spec.domain == 'ai_index' and not skill_review(spec):
+        skills = [p for p in skills if 'ai-index-search' not in p.parts]
     return AgentResources(extensions=extensions, skills=skills)
 
 

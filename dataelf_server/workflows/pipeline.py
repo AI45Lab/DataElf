@@ -1,4 +1,4 @@
-"""HTTP task adapter; all research stages are orchestrated by core run_job."""
+"""HTTP task adapter over service-owned stages and completion."""
 from __future__ import annotations
 
 import json
@@ -8,7 +8,9 @@ from threading import Event, RLock
 from dataelf.discovery.artifacts import validate_outputs
 from dataelf.discovery.contracts import ArtifactRef, DiscoveryJob, JobSpec
 from dataelf.discovery.run_control import RunControl
-from dataelf.discovery.workflow import NullStore, _finalize, _write_review, run_job
+from dataelf_server.workflows.workflow import NullStore
+from dataelf_server.workflows.completion import _finalize, _write_review
+from dataelf_server.workflows.entry import run_job
 from dataelf_server.analysis.validation import PipelineError, workspace_insights
 from dataelf_server.workflows.profile import ServerProfile
 from dataelf_server.workflows.explorer import ServerExplorer
@@ -62,7 +64,19 @@ class ServerPipeline:
                 explorer=self.explorer_factory(self.settings), control=control)
             source_trace(_source_trace(workspace))
             if job.status != "completed":
-                raise PipelineError(job.error_code or "internal_error", job.error_message or "Job failed")
+                diagnostics = {}
+                for filename in ('result.json','error.json'):
+                    for path in workspace.glob('scope_v2/*/'+filename):
+                        try:
+                            document=json.loads(path.read_text())
+                            for name, source in document.get('sources',{}).items():
+                                if isinstance(source,dict) and source.get('diagnostics'):diagnostics[name] = source['diagnostics']
+                        except (OSError,ValueError,AttributeError):
+                            # Diagnostic recovery cannot replace the original
+                            # acquisition failure with a secondary parse error.
+                            continue
+                raise PipelineError(job.error_code or "internal_error", job.error_message or "Job failed",
+                                    details={'source_diagnostics':diagnostics} if diagnostics else None)
             return workspace_insights(workspace, scope=spec.parameters["scope"])
         finally:
             with self._lock:
@@ -89,6 +103,8 @@ def _source_trace(workspace):
 def recover_workspace_insights(job_id: str, workspace_path: Path, settings):
     """Validate existing artifacts and synchronize core finalization, without execution."""
     spec = JobSpec.model_validate_json((workspace_path / "job_spec.json").read_text())
+    if spec.workflow_profile != 'server' or spec.workflow_policy != 'legacy':
+        raise PipelineError('invalid_scope', 'Cannot recover a CLI workflow as a server attempt')
     profile = ServerProfile(settings)
     insights = workspace_insights(workspace_path, scope=spec.parameters["scope"])
     outputs, warnings = validate_outputs(workspace_path, profile.output_contract(spec))

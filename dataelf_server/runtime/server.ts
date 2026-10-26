@@ -1,9 +1,14 @@
+import {protocolRepair} from "./protocol_repair.ts";
+import {outputLimit} from './output_limit.ts';
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Type, type Context, type SimpleStreamOptions } from "@earendil-works/pi-ai";
 import { defineTool, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { nonStreamingOpenAI } from "./nonstream_openai.ts";
+import { streamingOpenAI } from "./stream_openai.ts";
+import { installNativeGuard } from "./native_guard.ts";
+import { resolveToolProtocol } from "./protocol.ts";
 import { compatibleThinkingPayload, withoutThinking } from "./thinking.ts";
 
 const ONTOLOGY_FINALIZE_TOOL = "dataelf_finalize_rdf_insights";
@@ -450,7 +455,21 @@ export default function registerServer(pi: ExtensionAPI) {
         pi.registerTool(ontologyAnalysisTool);
         pi.registerTool(ontologyFinalizeTool);
     }
+    installNativeGuard(pi,()=>requiredTool);
     pi.on("session_start", async (_event, ctx) => {
+        const configured = process.env.DATAELF_SERVER_TOOL_PROTOCOL || 'model_compat';
+        const resolved = resolveToolProtocol(configured, ctx.model);
+        process.env.DATAELF_SERVER_TOOL_PROTOCOL = resolved;
+        const workspace = process.env.DATAELF_JOB_WORKSPACE || process.env.DATAELF_WORKSPACE;
+        if (workspace) {
+            mkdirSync(join(workspace, 'logs'), {recursive:true});
+            writeFileSync(join(workspace, 'logs', `${process.env.DATAELF_SERVER_LOG_PREFIX || 'pi'}_protocol.json`), JSON.stringify({
+                configured, resolved, api:ctx.model?.api, provider:ctx.model?.provider, model:ctx.model?.id,
+                grammar:resolved === 'glm_text' ? 'server.glm_text.v2' : 'native',
+                selection_basis:configured === 'model_compat' ? 'registry api + compat.thinkingFormat' : 'server explicit override',
+                thinking_format:ctx.model?.compat?.thinkingFormat ?? null,
+            })+'\n');
+        }
         if (scopeV2) pi.setActiveTools(["bash", ONTOLOGY_ANALYSIS_TOOL, ONTOLOGY_FINALIZE_TOOL]);
         if (process.env.DATAELF_SERVER_TRANSPORT === "nonstream") {
             if (!ctx.model || ctx.model.api !== "openai-completions") {
@@ -460,8 +479,12 @@ export default function registerServer(pi: ExtensionAPI) {
             // registry, model IDs, URL, headers and resolved credentials.
             pi.registerProvider(ctx.model.provider, {
                 api: ctx.model.api,
-                streamSimple: (model, context, options) => nonStreamingOpenAI(model, context, options),
+                streamSimple: protocolRepair(nonStreamingOpenAI, Number(process.env.DATAELF_SERVER_PROTOCOL_REPAIR_ATTEMPTS ?? '2'), workspace, process.env.DATAELF_SERVER_LOG_PREFIX || 'pi'),
             });
+        } else if (process.env.DATAELF_SERVER_TOOL_PROTOCOL === "glm_text") {
+            if (!ctx.model || ctx.model.api !== "openai-completions") throw new Error("server.pi.tool_protocol=glm_text requires openai-completions");
+            pi.registerProvider(ctx.model.provider, {api:ctx.model.api,
+                streamSimple:protocolRepair(streamingOpenAI, Number(process.env.DATAELF_SERVER_PROTOCOL_REPAIR_ATTEMPTS ?? '2'), workspace, process.env.DATAELF_SERVER_LOG_PREFIX || 'pi')});
         }
     });
     pi.on("message_end", (event) => ({ message: withoutThinking(event.message) }));
@@ -525,7 +548,8 @@ ${scopeV2SourceEvidence(candidateSignalSourceIds())}`;
     });
     pi.on("before_provider_request", (event, ctx) => {
         if (!event.payload || typeof event.payload !== "object") return;
-        const payload = compatibleThinkingPayload({ ...(event.payload as Record<string, any>) }, ctx.model);
+        const configuredOutput=process.env.DATAELF_SERVER_MAX_OUTPUT_TOKENS;
+        const payload = outputLimit(compatibleThinkingPayload({ ...(event.payload as Record<string, any>) }, ctx.model), configuredOutput ? Number(configuredOutput):undefined, ctx.model);
         if (!scopeV2 || !requiredTool) return payload;
         // Keep the phase gate at system priority, as in the original service.
         // A user-only gate can lose to the coding agent's default bash guidance

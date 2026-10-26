@@ -15,7 +15,9 @@ class IntentModelConfig(BaseModel):
     base_url: str | None = None
     api_key: str | None = Field(default=None, repr=False)
     timeout_seconds: float = Field(default=90, gt=0)
-    max_tokens: int = Field(default=2048, ge=128)
+    max_tokens: int | None = Field(default=None, gt=0, strict=True)
+    max_attempts: int = Field(default=3, ge=1, le=3)
+    retry_backoff_seconds: float = Field(default=0.5, gt=0, le=10)
 
     @field_validator("model_name", "base_url", "api_key")
     @classmethod

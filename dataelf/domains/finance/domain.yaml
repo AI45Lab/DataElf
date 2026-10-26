@@ -2,6 +2,7 @@ domain: finance
 version: "1"
 display_name: Finance Analysis
 plugin: dataelf.domains.finance.plugin:create_plugin
+legacy_entry: dataelf.domains.finance.entry:run_job
 capabilities:
   - structured_data_access
   - financial_analysis

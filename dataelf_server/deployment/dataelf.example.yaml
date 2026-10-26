@@ -1,11 +1,12 @@
+# Copy to a private file and fill empty fields; see the repository README.md.
 runtime:
-  workspace_dir: .dataelf
+  enable_sqlite: false
 explorer:
   type: pi
   pi:
     binary: null
     cwd: .
-    model: null             # provider/model registered in Pi; null inherits Pi settings
+    model: ""
     mode: json
     timeout_seconds: 3600
     log_mode: summary
@@ -13,26 +14,30 @@ domains:
   ai_index:
     source:
       mode: api
-      base_url: https://index.shlab.org.cn/api/v2
-      api_key: ""           # supply AI_INDEX_API_KEY in the service environment
-    modeling:
-      enabled: false        # research default; server selects its own modeler
-      ontology_config: dataelf/domains/ai_index/modeling/ontology/config.yaml
+      base_url: ""
+      api_key: ""
+ontology:
+  enabled: false
+  ontology_config: dataelf/ontology/config.yaml
 env:
   PI_CODING_AGENT_DIR: .pi/agent
-  # OPENAI_API_KEY: "<your-provider-key>"   # prefer an environment variable
 server:
   host: 127.0.0.1
   port: 8000
-  max_concurrent_jobs: 5     # default and maximum 5; 1..5 allowed
-  state_dir: null            # <runtime.workspace_dir>/server
+  max_pending_jobs: 50
+  max_concurrent_jobs: 5
+  state_dir: null
   intent:
-    model_name: GLM-5.2-w4a8c8  # required; no implicit model selection
-    base_url: null             # defaults to OPENAI_BASE_URL; /v1 or full completion URL
-    api_key: null              # defaults to OPENAI_API_KEY
+    model_name: ""
+    base_url: ""
+    api_key: ""
     timeout_seconds: 90
+    max_attempts: 3
+    retry_backoff_seconds: 0.5
   source:
-    max_pages: 50             # increase for older dates; bounded to 1..1000
+    max_pages: 50
   pi:
-    transport: inherit      # nonstream is optional, for openai-completions providers
-    synthesis_retry_timeout_seconds: 1800
+    execution_policy: bounded
+    tool_protocol: model_compat
+    transport: inherit
+    protocol_repair_attempts: 2

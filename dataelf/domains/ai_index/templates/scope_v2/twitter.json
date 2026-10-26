@@ -1,0 +1,1138 @@
+{
+  "schemaVersion": "dataelf-scope-v2-template-fragment.v1",
+  "templateId": "scope_v2_twitter",
+  "source": "twitter",
+  "endpoint": "/openapi/ecosystem/xx/search",
+  "entity": {
+    "classId": "SocialPost",
+    "observationClassId": "SocialPostObservation",
+    "idPaths": [
+      "/tweet_post_id"
+    ],
+    "labelPath": "/text",
+    "urlPath": "/url",
+    "publishedAtPath": "/published_at"
+  },
+  "classes": [
+    {
+      "id": "SocialPost",
+      "label": "Social Post",
+      "kind": "entity",
+      "comment": "A post published on the Twitter/X platform."
+    },
+    {
+      "id": "SocialPostObservation",
+      "label": "Social Post Observation",
+      "kind": "observation",
+      "comment": "Mutable engagement-metric snapshot for a social post at crawl time."
+    },
+    {
+      "id": "TwitterAccount",
+      "label": "Twitter Account",
+      "kind": "entity",
+      "comment": "A Twitter/X user account that authored a post."
+    },
+    {
+      "id": "Institution",
+      "label": "Institution",
+      "kind": "entity",
+      "comment": "An institution referenced within a social post."
+    },
+    {
+      "id": "StrategicTag",
+      "label": "Strategic Tag",
+      "kind": "concept",
+      "comment": "A strategic classification tag applied to social content."
+    }
+  ],
+  "objectProperties": [
+    {
+      "id": "hasAuthor",
+      "label": "has author",
+      "domain": "SocialPost",
+      "range": "TwitterAccount",
+      "comment": "Links a social post to the account that authored it."
+    },
+    {
+      "id": "mentionsInstitution",
+      "label": "mentions institution",
+      "domain": "SocialPost",
+      "range": "Institution",
+      "comment": "Links a social post to a referenced institution."
+    },
+    {
+      "id": "hasStrategicTag",
+      "label": "has strategic tag",
+      "domain": "SocialPost",
+      "range": "StrategicTag",
+      "comment": "Links a social post to a strategic classification tag."
+    }
+  ],
+  "datatypeProperties": [
+    {
+      "id": "postUrl",
+      "label": "post URL",
+      "domain": "SocialPost",
+      "range": "xsd:anyURI",
+      "comment": "Canonical URL of the social post."
+    },
+    {
+      "id": "text",
+      "label": "text",
+      "domain": "SocialPost",
+      "range": "xsd:string",
+      "comment": "Full text content of the social post."
+    },
+    {
+      "id": "publishedAt",
+      "label": "published at",
+      "domain": "SocialPost",
+      "range": "xsd:dateTime",
+      "comment": "Publication timestamp of the social post."
+    },
+    {
+      "id": "imageUrl",
+      "label": "image URL",
+      "domain": "SocialPost",
+      "range": "xsd:anyURI",
+      "comment": "URL of an image attached to the social post."
+    },
+    {
+      "id": "videoUrl",
+      "label": "video URL",
+      "domain": "SocialPost",
+      "range": "xsd:anyURI",
+      "comment": "URL of a video attached to the social post."
+    },
+    {
+      "id": "authorAvatarUrl",
+      "label": "author avatar URL",
+      "domain": "SocialPost",
+      "range": "xsd:anyURI",
+      "comment": "Denormalized avatar URL of the post author."
+    },
+    {
+      "id": "displayName",
+      "label": "display name",
+      "domain": "TwitterAccount",
+      "range": "xsd:string",
+      "comment": "Display name of the Twitter account."
+    },
+    {
+      "id": "institutionName",
+      "label": "institution name",
+      "domain": "Institution",
+      "range": "xsd:string",
+      "comment": "Name of the referenced institution."
+    },
+    {
+      "id": "tagLabel",
+      "label": "tag label",
+      "domain": "StrategicTag",
+      "range": "xsd:string",
+      "comment": "Label of the strategic tag."
+    },
+    {
+      "id": "viewCount",
+      "label": "view count",
+      "domain": "SocialPostObservation",
+      "range": "xsd:integer",
+      "comment": "Number of post views at observation time."
+    },
+    {
+      "id": "starCount",
+      "label": "star count",
+      "domain": "SocialPostObservation",
+      "range": "xsd:integer",
+      "comment": "Number of stars/bookmarks at observation time."
+    },
+    {
+      "id": "shareCount",
+      "label": "share count",
+      "domain": "SocialPostObservation",
+      "range": "xsd:integer",
+      "comment": "Number of shares/retweets at observation time."
+    },
+    {
+      "id": "likeCount",
+      "label": "like count",
+      "domain": "SocialPostObservation",
+      "range": "xsd:integer",
+      "comment": "Number of likes at observation time."
+    },
+    {
+      "id": "commentCount",
+      "label": "comment count",
+      "domain": "SocialPostObservation",
+      "range": "xsd:integer",
+      "comment": "Number of comments/replies at observation time."
+    }
+  ],
+  "scalarMappings": [
+    {
+      "path": "/url",
+      "propertyId": "postUrl",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/text",
+      "propertyId": "text",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/published_at",
+      "propertyId": "publishedAt",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/image_urls",
+      "propertyId": "imageUrl",
+      "subject": "entity",
+      "multiple": true
+    },
+    {
+      "path": "/video_urls",
+      "propertyId": "videoUrl",
+      "subject": "entity",
+      "multiple": true
+    },
+    {
+      "path": "/avatar_url",
+      "propertyId": "authorAvatarUrl",
+      "subject": "entity",
+      "multiple": false
+    },
+    {
+      "path": "/view_count",
+      "propertyId": "viewCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/star_count",
+      "propertyId": "starCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/share_count",
+      "propertyId": "shareCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/like_count",
+      "propertyId": "likeCount",
+      "subject": "observation",
+      "multiple": false
+    },
+    {
+      "path": "/comment_count",
+      "propertyId": "commentCount",
+      "subject": "observation",
+      "multiple": false
+    }
+  ],
+  "relationMappings": [
+    {
+      "path": "/blogger_name",
+      "propertyId": "hasAuthor",
+      "targetClassId": "TwitterAccount",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "displayName"
+    },
+    {
+      "path": "/institution_infos/*",
+      "propertyId": "mentionsInstitution",
+      "targetClassId": "Institution",
+      "targetIdPath": "/institution_id",
+      "targetLabelPath": "/name",
+      "targetLabelPropertyId": "institutionName"
+    },
+    {
+      "path": "/strategic_tag_ids/*",
+      "propertyId": "hasStrategicTag",
+      "targetClassId": "StrategicTag",
+      "targetIdPath": "",
+      "targetLabelPath": "",
+      "targetLabelPropertyId": "tagLabel"
+    }
+  ],
+  "approval": {
+    "decision": "approve",
+    "generatedBy": "",
+    "rationale": "Conservative raw-grounded mapping: stable identifiers and text content on SocialPost entity; mutable engagement counters (view/star/share/like/comment) on SocialPostObservation. blogger_name promoted to hasAuthor relation targeting TwitterAccount entity with displayName label property; avatar_url retained as denormalized authorAvatarUrl on entity since scalar subject is limited to entity|observation. institution_infos object array mapped as mentionsInstitution relation to Institution entity (assumed nested fields /institution_id and /institution_name). strategic_tag_ids string array mapped as hasStrategicTag relation to StrategicTag concept using the tag id itself as both identifier and label. image_urls and video_urls kept as multi-valued datatype properties per contract since media URLs are not among the listed semantic array types requiring typed-node relations."
+  },
+  "execution": {
+    "id": "scope_v2_twitter",
+    "source": "twitter",
+    "nodes": [
+      {
+        "id": "entity",
+        "class_id": "SocialPost",
+        "iri": {
+          "op": "concat",
+          "args": [
+            {
+              "context": "namespace"
+            },
+            {
+              "op": "concat",
+              "args": [
+                "instance/entity/",
+                {
+                  "op": "quote",
+                  "args": [
+                    {
+                      "context": "source_id"
+                    }
+                  ],
+                  "safe": "-._~:"
+                }
+              ]
+            }
+          ]
+        },
+        "graph": "domain"
+      },
+      {
+        "id": "observation",
+        "class_id": "SocialPostObservation",
+        "iri": {
+          "op": "concat",
+          "args": [
+            {
+              "context": "namespace"
+            },
+            {
+              "op": "concat",
+              "args": [
+                "instance/observation/",
+                {
+                  "op": "hash",
+                  "args": [
+                    {
+                      "op": "object",
+                      "fields": {
+                        "source": {
+                          "context": "source"
+                        },
+                        "id": {
+                          "context": "source_id"
+                        }
+                      }
+                    }
+                  ],
+                  "length": 24
+                }
+              ]
+            }
+          ]
+        },
+        "graph": "observation"
+      },
+      {
+        "id": "document",
+        "class_id": "SourceDocument",
+        "iri": {
+          "op": "concat",
+          "args": [
+            {
+              "context": "namespace"
+            },
+            {
+              "op": "concat",
+              "args": [
+                "instance/source-document/",
+                {
+                  "op": "hash",
+                  "args": [
+                    {
+                      "op": "object",
+                      "fields": {
+                        "source": {
+                          "context": "source"
+                        },
+                        "path": {
+                          "context": "raw_ref"
+                        }
+                      }
+                    }
+                  ],
+                  "length": 24
+                }
+              ]
+            }
+          ]
+        },
+        "graph": "source"
+      },
+      {
+        "id": "record",
+        "class_id": "SourceRecord",
+        "iri": {
+          "op": "concat",
+          "args": [
+            {
+              "context": "namespace"
+            },
+            {
+              "op": "concat",
+              "args": [
+                "instance/source-record/",
+                {
+                  "op": "hash",
+                  "args": [
+                    {
+                      "op": "object",
+                      "fields": {
+                        "raw": {
+                          "context": "raw_ref"
+                        },
+                        "pointer": {
+                          "context": "pointer"
+                        },
+                        "id": {
+                          "context": "source_id"
+                        }
+                      }
+                    }
+                  ],
+                  "length": 24
+                }
+              ]
+            }
+          ]
+        },
+        "graph": "source"
+      }
+    ],
+    "triples": [
+      {
+        "subject": "observation",
+        "predicate": "observesEntity",
+        "value": {
+          "node": "entity"
+        },
+        "graph": "observation",
+        "kind": "iri"
+      },
+      {
+        "subject": "observation",
+        "predicate": "observationFromRecord",
+        "value": {
+          "node": "record"
+        },
+        "graph": "observation",
+        "kind": "iri"
+      },
+      {
+        "subject": "record",
+        "predicate": "recordFromDocument",
+        "value": {
+          "node": "document"
+        },
+        "graph": "source",
+        "kind": "iri"
+      },
+      {
+        "subject": "document",
+        "predicate": "sourceSystem",
+        "value": {
+          "context": "source"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "document",
+        "predicate": "sourcePath",
+        "value": {
+          "context": "raw_ref"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "record",
+        "predicate": "recordHash",
+        "value": {
+          "context": "record_hash"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "record",
+        "predicate": "rawRef",
+        "value": {
+          "context": "raw_ref"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "record",
+        "predicate": "recordJsonPointer",
+        "value": {
+          "context": "pointer"
+        },
+        "graph": "source",
+        "kind": "literal",
+        "datatype": ""
+      },
+      {
+        "subject": "observation",
+        "predicate": "resultRank",
+        "value": {
+          "context": "result_rank"
+        },
+        "graph": "observation",
+        "kind": "literal",
+        "datatype": "xsd:positiveInteger"
+      },
+      {
+        "subject": "entity",
+        "predicate": "sourceId",
+        "value": {
+          "context": "source_id"
+        },
+        "graph": "domain",
+        "kind": "literal",
+        "required": true,
+        "datatype": ""
+      },
+      {
+        "subject": "entity",
+        "predicate": "sourceTitle",
+        "value": {
+          "context": "title"
+        },
+        "graph": "domain",
+        "kind": "literal"
+      },
+      {
+        "subject": "entity",
+        "predicate": "sourceUrl",
+        "value": {
+          "context": "url"
+        },
+        "graph": "domain",
+        "kind": "literal"
+      },
+      {
+        "subject": "entity",
+        "predicate": "publishedAt",
+        "value": {
+          "context": "published_at"
+        },
+        "graph": "domain",
+        "kind": "literal"
+      }
+    ],
+    "children": [
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/url"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "postUrl",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/text"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "text",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/published_at"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "publishedAt",
+            "value": {
+              "op": "coalesce",
+              "args": [
+                {
+                  "context": "published_at"
+                },
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/image_urls"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "imageUrl",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/video_urls"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "videoUrl",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/avatar_url"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "authorAvatarUrl",
+            "value": {
+              "path": ""
+            },
+            "graph": "domain",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/view_count"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "observation",
+            "predicate": "viewCount",
+            "value": {
+              "path": ""
+            },
+            "graph": "observation",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/star_count"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "observation",
+            "predicate": "starCount",
+            "value": {
+              "path": ""
+            },
+            "graph": "observation",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/share_count"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "observation",
+            "predicate": "shareCount",
+            "value": {
+              "path": ""
+            },
+            "graph": "observation",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/like_count"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "observation",
+            "predicate": "likeCount",
+            "value": {
+              "path": ""
+            },
+            "graph": "observation",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/comment_count"
+            }
+          ]
+        },
+        "triples": [
+          {
+            "subject": "observation",
+            "predicate": "commentCount",
+            "value": {
+              "path": ""
+            },
+            "graph": "observation",
+            "kind": "literal"
+          }
+        ]
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/blogger_name"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "TwitterAccount",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "TwitterAccount"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    null,
+                                    null,
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "hasAuthor",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "displayName",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                null,
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": []
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/institution_infos/*"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "Institution",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "Institution"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    {
+                                      "path": "/institution_id"
+                                    },
+                                    {
+                                      "path": "/name"
+                                    },
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "mentionsInstitution",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "institutionName",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                {
+                  "path": "/name"
+                },
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": []
+      },
+      {
+        "for_each": {
+          "op": "flatten",
+          "args": [
+            {
+              "all": "/strategic_tag_ids/*"
+            }
+          ]
+        },
+        "nodes": [
+          {
+            "id": "target",
+            "class_id": "StrategicTag",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/concept/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        "StrategicTag"
+                      ]
+                    },
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "op": "if",
+                              "args": [
+                                {
+                                  "op": "is_object",
+                                  "args": [
+                                    {
+                                      "path": ""
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "coalesce",
+                                  "args": [
+                                    null,
+                                    null,
+                                    {
+                                      "op": "hash",
+                                      "args": [
+                                        {
+                                          "path": ""
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ],
+                      "length": 24
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "hasStrategicTag",
+            "value": {
+              "node": "target"
+            },
+            "graph": "domain",
+            "kind": "iri"
+          },
+          {
+            "subject": "target",
+            "predicate": "tagLabel",
+            "value": {
+              "op": "if",
+              "args": [
+                {
+                  "op": "is_object",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                null,
+                {
+                  "path": ""
+                }
+              ]
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": ""
+          }
+        ],
+        "children": []
+      }
+    ]
+  },
+  "domain": "ai_index"
+}

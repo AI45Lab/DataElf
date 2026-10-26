@@ -41,5 +41,21 @@ class DomainRegistry:
             raise ValueError(f"Domain plugin declares {plugin.manifest.domain!r}, expected {manifest.domain!r}")
         return plugin
 
+    def legacy_entry(self, domain: str, manifest: DomainManifest | None = None):
+        """Resolve a declared domain entry, without selecting any new policy."""
+        if manifest is None:
+            if not (self.domain_path(domain) / 'domain.yaml').is_file():
+                return None  # Normal legacy initialization records missing plugins.
+            manifest = self.load_manifest(domain)
+        if not manifest.legacy_entry:
+            return None
+        module, separator, name = manifest.legacy_entry.partition(':')
+        if not separator or not module or not name:
+            raise ValueError('Domain legacy_entry must use module:function syntax')
+        entry = getattr(importlib.import_module(module), name)
+        if not callable(entry):
+            raise ValueError('Domain legacy_entry must be callable')
+        return entry
+
 
 __all__ = ["DomainRegistry"]

@@ -8,6 +8,7 @@ from typing import Any
 from dataelf_server.scope_v2.client import ScopeV2AIIndexClient
 from dataelf_server.scope_v2.contracts import ScopePlan
 from dataelf_server.scope_v2.runner import ScopeV2Executor
+from .diagnostics import empty_result_reason, EMPTY_MESSAGES
 
 
 class ScopeV2IntegrationError(RuntimeError):
@@ -61,9 +62,9 @@ def prefetch_scope_v2(
             if value not in (None, "")
         )
     if item_count <= 0:
+        code = empty_result_reason(execution.get('sources', {}))
         raise ScopeV2IntegrationError(
-            "no_source_data",
-            "Scope V2 completed successfully but no records remained in the requested time window.",
+            code, EMPTY_MESSAGES[code],
         )
     return ScopeV2PrefetchResult(
         execution=execution,

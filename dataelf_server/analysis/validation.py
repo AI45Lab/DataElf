@@ -9,9 +9,10 @@ from dataelf_server.analysis.rdf_analysis import validate_analysis_manifest, loa
 from dataelf.discovery.artifacts import resolve_workspace_path
 
 class PipelineError(RuntimeError):
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: str, *, details: dict | None = None):
         super().__init__(message)
         self.code, self.message = code, message
+        self.details = details
 
 def _load_and_validate_insights(workspace_path: Path) -> list[dict[str, Any]]:
     path = workspace_path / "insights" / "insight_candidates.json"

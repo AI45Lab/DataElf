@@ -218,7 +218,8 @@ class JobManager:
         except PipelineError as exc:
             if not self._closed:
                 self.store.fail_job(
-                    job_id, code=exc.code, message=redact_message(exc.message)
+                    job_id, code=exc.code, message=redact_message(exc.message),
+                    **({'details':exc.details} if exc.details else {}),
                 )
         except AIIndexError as exc:
             if not self._closed:

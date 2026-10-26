@@ -16,4 +16,13 @@ dataelf_agents.md
 .pi/agent/sessions/
 .pi/agent/trust.json
 .pi/npm/
-/dataelf/domains/ai_index/modeling/ontology/config.yaml
+dataelf/ontology/config.yaml
+dataelf/ontology/*.local.yaml
+
+# Local configuration copies; examples remain versioned.
+/dataelf.local copy.yaml
+/dataelf.local copy.yml
+/.env
+/.env.local
+/.pi/agent/models.json
+/.pi/settings.json

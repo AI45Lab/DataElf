@@ -1,0 +1,3676 @@
+{
+  "schema_version": "dataelf.ontology.template.v1",
+  "domain": "ai_index",
+  "contract": {
+    "schema_version": "dataelf.ontology.v1",
+    "namespace": "urn:dataelf:ontology:ai-index:",
+    "classes": {
+      "DomainEntity": {
+        "label": "DomainEntity",
+        "comment": "AI Index DomainEntity semantic class."
+      },
+      "Paper": {
+        "label": "Paper",
+        "comment": "A paper merged by its stable AI Index business identifier; response-specific values remain on PaperObservation.",
+        "subClassOf": "DomainEntity"
+      },
+      "Scholar": {
+        "label": "Scholar",
+        "comment": "A scholar merged by its stable AI Index business identifier; response-specific values remain on ScholarObservation.",
+        "subClassOf": "DomainEntity"
+      },
+      "Institution": {
+        "label": "Institution",
+        "comment": "An institution merged by its stable AI Index business identifier; mutable metrics remain on InstitutionObservation.",
+        "subClassOf": "DomainEntity"
+      },
+      "Topic": {
+        "label": "Topic",
+        "comment": "AI Index Topic semantic class."
+      },
+      "Venue": {
+        "label": "Venue",
+        "comment": "AI Index Venue semantic class."
+      },
+      "Award": {
+        "label": "Award",
+        "comment": "AI Index Award semantic class."
+      },
+      "NewsItem": {
+        "label": "NewsItem",
+        "comment": "AI Index NewsItem semantic class."
+      },
+      "Authorship": {
+        "label": "Authorship",
+        "comment": "An ordered, observation-scoped authorship membership reified from paper author_ids; authorOrder is array_index + 1 and isFirstAuthor is array_index == 0."
+      },
+      "EntityObservation": {
+        "label": "EntityObservation",
+        "comment": "AI Index EntityObservation semantic class."
+      },
+      "PaperObservation": {
+        "label": "PaperObservation",
+        "comment": "AI Index PaperObservation semantic class.",
+        "subClassOf": "EntityObservation"
+      },
+      "ScholarObservation": {
+        "label": "ScholarObservation",
+        "comment": "AI Index ScholarObservation semantic class.",
+        "subClassOf": "EntityObservation"
+      },
+      "InstitutionObservation": {
+        "label": "InstitutionObservation",
+        "comment": "AI Index InstitutionObservation semantic class.",
+        "subClassOf": "EntityObservation"
+      },
+      "SourceDocument": {
+        "label": "SourceDocument",
+        "comment": "A complete replayable AI Index response document identified by workspace-relative source path and SHA-256."
+      },
+      "SearchResponse": {
+        "label": "SearchResponse",
+        "comment": "AI Index SearchResponse semantic class."
+      },
+      "SourceRecord": {
+        "label": "SourceRecord",
+        "comment": "AI Index SourceRecord semantic class."
+      },
+      "SourceFragment": {
+        "label": "SourceFragment",
+        "comment": "AI Index SourceFragment semantic class."
+      }
+    },
+    "properties": {
+      "authoredBy": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "Paper",
+        "range": "Scholar"
+      },
+      "hasAuthorship": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "Paper",
+        "range": "Authorship"
+      },
+      "authorshipOfPaper": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "Authorship",
+        "range": "Paper"
+      },
+      "authoredByScholar": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "Authorship",
+        "range": "Scholar"
+      },
+      "affiliatedWithInstitution": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "Paper",
+        "range": "Institution"
+      },
+      "scholarAffiliatedWithInstitution": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "Scholar",
+        "range": "Institution"
+      },
+      "hasTopic": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "DomainEntity",
+        "range": "Topic"
+      },
+      "hasVenue": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "DomainEntity",
+        "range": "Venue"
+      },
+      "hasAward": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "DomainEntity",
+        "range": "Award"
+      },
+      "hasNewsItem": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "Institution",
+        "range": "NewsItem"
+      },
+      "hasRelatedPaper": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "Institution",
+        "range": "Paper"
+      },
+      "hasRelatedScholar": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "Institution",
+        "range": "Scholar"
+      },
+      "observesEntity": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "EntityObservation",
+        "range": "DomainEntity"
+      },
+      "observationFromRecord": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "EntityObservation",
+        "range": "SourceRecord"
+      },
+      "observationInResponse": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "EntityObservation",
+        "range": "SearchResponse"
+      },
+      "responseFromDocument": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "SearchResponse",
+        "range": "SourceDocument"
+      },
+      "responseHasRecord": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "SearchResponse",
+        "range": "SourceRecord"
+      },
+      "responseHasFragment": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "SearchResponse",
+        "range": "SourceFragment"
+      },
+      "recordFromDocument": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "SourceRecord",
+        "range": "SourceDocument"
+      },
+      "recordHasFragment": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "SourceRecord",
+        "range": "SourceFragment"
+      },
+      "fragmentFromRecord": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "SourceFragment",
+        "range": "SourceRecord"
+      },
+      "fragmentFromDocument": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "SourceFragment",
+        "range": "SourceDocument"
+      },
+      "newsItemFromFragment": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "NewsItem",
+        "range": "SourceFragment"
+      },
+      "documentHasFragment": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "SourceDocument",
+        "range": "SourceFragment"
+      },
+      "observationHasAuthorship": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "PaperObservation",
+        "range": "Authorship"
+      },
+      "authorshipFromObservation": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "Authorship",
+        "range": "PaperObservation"
+      },
+      "observationHasTopic": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "EntityObservation",
+        "range": "Topic"
+      },
+      "observationHasVenue": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "EntityObservation",
+        "range": "Venue"
+      },
+      "observationHasAward": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "EntityObservation",
+        "range": "Award"
+      },
+      "paperObservationHasInstitution": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "PaperObservation",
+        "range": "Institution"
+      },
+      "scholarObservationHasInstitution": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "ScholarObservation",
+        "range": "Institution"
+      },
+      "scholarObservationHasPaper": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "ScholarObservation",
+        "range": "Paper"
+      },
+      "institutionObservationHasNewsItem": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "NewsItem"
+      },
+      "institutionObservationHasRelatedPaper": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "Paper"
+      },
+      "institutionObservationHasRelatedScholar": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "Scholar"
+      },
+      "paperId": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Paper",
+        "range": "xsd:string"
+      },
+      "title": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Paper",
+        "range": "xsd:string"
+      },
+      "abstract": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Paper",
+        "range": "xsd:string"
+      },
+      "publishedAt": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Paper",
+        "range": "xsd:date"
+      },
+      "venueName": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Venue",
+        "range": "xsd:string"
+      },
+      "scholarId": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Scholar",
+        "range": "xsd:string"
+      },
+      "scholarName": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Scholar",
+        "range": "xsd:string"
+      },
+      "homepage": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Scholar",
+        "range": "xsd:anyURI"
+      },
+      "email": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Scholar",
+        "range": "xsd:string"
+      },
+      "institutionId": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Institution",
+        "range": "xsd:string"
+      },
+      "institutionName": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Institution",
+        "range": "xsd:string"
+      },
+      "country": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Institution",
+        "range": "xsd:string"
+      },
+      "region": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Institution",
+        "range": "xsd:string"
+      },
+      "topicName": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Topic",
+        "range": "xsd:string"
+      },
+      "awardName": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Award",
+        "range": "xsd:string"
+      },
+      "newsTitle": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "NewsItem",
+        "range": "xsd:string"
+      },
+      "newsSource": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "NewsItem",
+        "range": "xsd:string"
+      },
+      "newsDate": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "NewsItem",
+        "range": "xsd:date"
+      },
+      "authorOrder": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Authorship",
+        "range": "xsd:positiveInteger"
+      },
+      "isFirstAuthor": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "Authorship",
+        "range": "xsd:boolean"
+      },
+      "citationCount": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "PaperObservation",
+        "range": "xsd:integer"
+      },
+      "resultRank": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "EntityObservation",
+        "range": "xsd:positiveInteger"
+      },
+      "recordHash": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SourceRecord",
+        "range": "xsd:string"
+      },
+      "sourceSha256": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SourceDocument",
+        "range": "xsd:string"
+      },
+      "endpoint": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SourceDocument",
+        "range": "xsd:string"
+      },
+      "method": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SourceDocument",
+        "range": "xsd:string"
+      },
+      "mode": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SourceDocument",
+        "range": "xsd:string"
+      },
+      "traceId": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SourceDocument",
+        "range": "xsd:string"
+      },
+      "sortType": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SearchResponse",
+        "range": "xsd:string"
+      },
+      "requestPage": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SearchResponse",
+        "range": "xsd:integer"
+      },
+      "requestSize": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SearchResponse",
+        "range": "xsd:integer"
+      },
+      "resultCount": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SearchResponse",
+        "range": "xsd:integer"
+      },
+      "sourcePath": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SourceDocument",
+        "range": "xsd:string"
+      },
+      "jsonPointer": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SourceFragment",
+        "range": "xsd:string"
+      },
+      "paperCount": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "xsd:integer"
+      },
+      "scholarCount": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "xsd:integer"
+      },
+      "fundingTotalUsd": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "xsd:integer"
+      },
+      "impactFunding": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "xsd:decimal"
+      },
+      "impactIndustry": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "xsd:decimal"
+      },
+      "impactNews": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "xsd:decimal"
+      },
+      "impactPaper": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "xsd:decimal"
+      },
+      "impactTalent": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "xsd:decimal"
+      },
+      "hotnessDay": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "EntityObservation",
+        "range": "xsd:integer"
+      },
+      "hotnessWeek": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "EntityObservation",
+        "range": "xsd:integer"
+      },
+      "hotnessMonth": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "EntityObservation",
+        "range": "xsd:integer"
+      },
+      "hotnessHalfYear": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "EntityObservation",
+        "range": "xsd:integer"
+      },
+      "hotnessPreviousHalfYear": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "EntityObservation",
+        "range": "xsd:integer"
+      },
+      "sourceSystem": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SourceDocument",
+        "range": "xsd:string"
+      },
+      "recordJsonPointer": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SourceRecord",
+        "range": "xsd:string"
+      },
+      "requestDomain": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SearchResponse",
+        "range": "xsd:string"
+      },
+      "requestSubDomain": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SearchResponse",
+        "range": "xsd:string"
+      },
+      "fragmentValueKind": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SourceFragment",
+        "range": "xsd:string"
+      },
+      "fragmentValueHash": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "SourceFragment",
+        "range": "xsd:string"
+      },
+      "observedPaperTitle": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "PaperObservation",
+        "range": "xsd:string"
+      },
+      "observedPaperAbstract": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "PaperObservation",
+        "range": "xsd:string"
+      },
+      "observedPaperPublishedAt": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "PaperObservation",
+        "range": "xsd:date"
+      },
+      "observedScholarName": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "ScholarObservation",
+        "range": "xsd:string"
+      },
+      "observedScholarHomepage": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "ScholarObservation",
+        "range": "xsd:anyURI"
+      },
+      "observedScholarEmail": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "ScholarObservation",
+        "range": "xsd:string"
+      },
+      "observedInstitutionName": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "xsd:string"
+      },
+      "observedInstitutionCountry": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "xsd:string"
+      },
+      "observedInstitutionRegion": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "xsd:string"
+      },
+      "observesPaper": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "PaperObservation",
+        "range": "Paper"
+      },
+      "observesScholar": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "ScholarObservation",
+        "range": "Scholar"
+      },
+      "scholarPaperCount": {
+        "kind": "literal",
+        "emit_schema": true,
+        "domain": "ScholarObservation",
+        "range": "xsd:integer"
+      },
+      "observesInstitution": {
+        "kind": "iri",
+        "emit_schema": true,
+        "domain": "InstitutionObservation",
+        "range": "Institution"
+      }
+    },
+    "graphs": {
+      "schema": "graph/schema",
+      "domain": "graph/domain",
+      "observation": "graph/observation",
+      "source": "graph/source"
+    },
+    "mappings": [
+      {
+        "for_each": null,
+        "nodes": [
+          {
+            "id": "entity",
+            "class_id": "Paper",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/",
+                    "paper",
+                    "/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "path": "/id"
+                            }
+                          ]
+                        }
+                      ],
+                      "safe": "-._~"
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          },
+          {
+            "id": "observation",
+            "class_id": "PaperObservation",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/observation/",
+                    "paper",
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "concat",
+                          "args": [
+                            {
+                              "context": "file"
+                            },
+                            {
+                              "context": "file_hash"
+                            },
+                            {
+                              "context": "pointer"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "observation"
+          },
+          {
+            "id": "document",
+            "class_id": "SourceDocument",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/source-document/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "context": "file"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "source"
+          },
+          {
+            "id": "record",
+            "class_id": "SourceRecord",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/source-record/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "concat",
+                          "args": [
+                            {
+                              "context": "file"
+                            },
+                            {
+                              "context": "file_hash"
+                            },
+                            {
+                              "context": "pointer"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "source"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "paperId",
+            "value": {
+              "path": "/id"
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": null,
+            "required": true,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observesEntity",
+            "value": {
+              "node": "entity"
+            },
+            "graph": "observation",
+            "kind": "iri",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observesPaper",
+            "value": {
+              "node": "entity"
+            },
+            "graph": "observation",
+            "kind": "iri",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observationFromRecord",
+            "value": {
+              "node": "record"
+            },
+            "graph": "observation",
+            "kind": "iri",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "record",
+            "predicate": "recordFromDocument",
+            "value": {
+              "node": "document"
+            },
+            "graph": "source",
+            "kind": "iri",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "record",
+            "predicate": "recordHash",
+            "value": {
+              "context": "record_hash"
+            },
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "record",
+            "predicate": "recordJsonPointer",
+            "value": {
+              "context": "pointer"
+            },
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "document",
+            "predicate": "sourcePath",
+            "value": {
+              "context": "file"
+            },
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "document",
+            "predicate": "sourceSha256",
+            "value": {
+              "context": "file_hash"
+            },
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "document",
+            "predicate": "sourceSystem",
+            "value": "ai_index",
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "document",
+            "predicate": "endpoint",
+            "value": "/openapi/paper/search",
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "resultRank",
+            "value": {
+              "context": "rank"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observedPaperTitle",
+            "value": {
+              "path": "/title"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "entity",
+            "predicate": "title",
+            "value": {
+              "path": "/title"
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "consensus"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observedPaperAbstract",
+            "value": {
+              "path": "/abstract"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "entity",
+            "predicate": "abstract",
+            "value": {
+              "path": "/abstract"
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "consensus"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observedPaperPublishedAt",
+            "value": {
+              "path": "/published_at"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "entity",
+            "predicate": "publishedAt",
+            "value": {
+              "path": "/published_at"
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "consensus"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessDay",
+            "value": {
+              "path": "/hotness/day"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessWeek",
+            "value": {
+              "path": "/hotness/week"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessMonth",
+            "value": {
+              "path": "/hotness/month"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessHalfYear",
+            "value": {
+              "path": "/hotness/half_year"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessPreviousHalfYear",
+            "value": {
+              "path": "/hotness/previous_half_year"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "citationCount",
+            "value": {
+              "path": "/citation_count"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          }
+        ],
+        "children": [
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/fields/*"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Topic",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "topic",
+                        "/",
+                        {
+                          "op": "hash",
+                          "args": [
+                            {
+                              "op": "normalize",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "observationHasTopic",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "hasTopic",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "topicName",
+                "value": {
+                  "op": "normalize",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          },
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/venue"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Venue",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "venue",
+                        "/",
+                        {
+                          "op": "hash",
+                          "args": [
+                            {
+                              "op": "normalize",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "observationHasVenue",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "hasVenue",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "venueName",
+                "value": {
+                  "op": "normalize",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          },
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/awards/*"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Award",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "award",
+                        "/",
+                        {
+                          "op": "hash",
+                          "args": [
+                            {
+                              "op": "normalize",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "observationHasAward",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "hasAward",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "awardName",
+                "value": {
+                  "op": "normalize",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          },
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/institution_ids/*"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Institution",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "institution",
+                        "/",
+                        {
+                          "op": "quote",
+                          "args": [
+                            {
+                              "op": "string",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ],
+                          "safe": "-._~"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "paperObservationHasInstitution",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "affiliatedWithInstitution",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "institutionId",
+                "value": {
+                  "path": ""
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          },
+          {
+            "for_each": {
+              "path": "/author_ids"
+            },
+            "nodes": [
+              {
+                "id": "author",
+                "class_id": "Scholar",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "scholar",
+                        "/",
+                        {
+                          "op": "quote",
+                          "args": [
+                            {
+                              "op": "string",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ],
+                          "safe": "-._~"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              },
+              {
+                "id": "membership",
+                "class_id": "Authorship",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/authorship/",
+                        {
+                          "op": "hash",
+                          "args": [
+                            {
+                              "op": "concat",
+                              "args": [
+                                {
+                                  "context": "file"
+                                },
+                                {
+                                  "context": "file_hash"
+                                },
+                                {
+                                  "context": "pointer"
+                                },
+                                {
+                                  "op": "string",
+                                  "args": [
+                                    {
+                                      "context": "index"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "author",
+                "predicate": "scholarId",
+                "value": {
+                  "path": ""
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "membership",
+                "predicate": "authorshipOfPaper",
+                "value": {
+                  "node": "entity"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "membership",
+                "predicate": "authoredByScholar",
+                "value": {
+                  "node": "author"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "membership",
+                "predicate": "authorOrder",
+                "value": {
+                  "op": "add",
+                  "args": [
+                    {
+                      "context": "index"
+                    },
+                    1
+                  ]
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "membership",
+                "predicate": "isFirstAuthor",
+                "value": {
+                  "op": "eq",
+                  "args": [
+                    {
+                      "context": "index"
+                    },
+                    0
+                  ]
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "authoredBy",
+                "value": {
+                  "node": "author"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "hasAuthorship",
+                "value": {
+                  "node": "membership"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "observation",
+                "predicate": "observationHasAuthorship",
+                "value": {
+                  "node": "membership"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "membership",
+                "predicate": "authorshipFromObservation",
+                "value": {
+                  "node": "observation"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          }
+        ],
+        "id": "paper",
+        "source": "/openapi/paper/search",
+        "selector": "",
+        "min_records": 0,
+        "evidence": []
+      },
+      {
+        "for_each": null,
+        "nodes": [
+          {
+            "id": "entity",
+            "class_id": "Scholar",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/",
+                    "scholar",
+                    "/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "path": "/id"
+                            }
+                          ]
+                        }
+                      ],
+                      "safe": "-._~"
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          },
+          {
+            "id": "observation",
+            "class_id": "ScholarObservation",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/observation/",
+                    "scholar",
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "concat",
+                          "args": [
+                            {
+                              "context": "file"
+                            },
+                            {
+                              "context": "file_hash"
+                            },
+                            {
+                              "context": "pointer"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "observation"
+          },
+          {
+            "id": "document",
+            "class_id": "SourceDocument",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/source-document/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "context": "file"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "source"
+          },
+          {
+            "id": "record",
+            "class_id": "SourceRecord",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/source-record/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "concat",
+                          "args": [
+                            {
+                              "context": "file"
+                            },
+                            {
+                              "context": "file_hash"
+                            },
+                            {
+                              "context": "pointer"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "source"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "scholarId",
+            "value": {
+              "path": "/id"
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": null,
+            "required": true,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observesEntity",
+            "value": {
+              "node": "entity"
+            },
+            "graph": "observation",
+            "kind": "iri",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observesScholar",
+            "value": {
+              "node": "entity"
+            },
+            "graph": "observation",
+            "kind": "iri",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observationFromRecord",
+            "value": {
+              "node": "record"
+            },
+            "graph": "observation",
+            "kind": "iri",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "record",
+            "predicate": "recordFromDocument",
+            "value": {
+              "node": "document"
+            },
+            "graph": "source",
+            "kind": "iri",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "record",
+            "predicate": "recordHash",
+            "value": {
+              "context": "record_hash"
+            },
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "record",
+            "predicate": "recordJsonPointer",
+            "value": {
+              "context": "pointer"
+            },
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "document",
+            "predicate": "sourcePath",
+            "value": {
+              "context": "file"
+            },
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "document",
+            "predicate": "sourceSha256",
+            "value": {
+              "context": "file_hash"
+            },
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "document",
+            "predicate": "sourceSystem",
+            "value": "ai_index",
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "document",
+            "predicate": "endpoint",
+            "value": "/openapi/scholar/search",
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "resultRank",
+            "value": {
+              "context": "rank"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observedScholarName",
+            "value": {
+              "path": "/name"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "entity",
+            "predicate": "scholarName",
+            "value": {
+              "path": "/name"
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "consensus"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observedScholarHomepage",
+            "value": {
+              "path": "/homepage"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "entity",
+            "predicate": "homepage",
+            "value": {
+              "path": "/homepage"
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "consensus"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observedScholarEmail",
+            "value": {
+              "path": "/email"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "entity",
+            "predicate": "email",
+            "value": {
+              "path": "/email"
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "consensus"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessDay",
+            "value": {
+              "path": "/hotness/day"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessWeek",
+            "value": {
+              "path": "/hotness/week"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessMonth",
+            "value": {
+              "path": "/hotness/month"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessHalfYear",
+            "value": {
+              "path": "/hotness/half_year"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessPreviousHalfYear",
+            "value": {
+              "path": "/hotness/previous_half_year"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "scholarPaperCount",
+            "value": {
+              "path": "/paper_count"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          }
+        ],
+        "children": [
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/fields/*"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Topic",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "topic",
+                        "/",
+                        {
+                          "op": "hash",
+                          "args": [
+                            {
+                              "op": "normalize",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "observationHasTopic",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "hasTopic",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "topicName",
+                "value": {
+                  "op": "normalize",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          },
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/venues/*"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Venue",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "venue",
+                        "/",
+                        {
+                          "op": "hash",
+                          "args": [
+                            {
+                              "op": "normalize",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "observationHasVenue",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "hasVenue",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "venueName",
+                "value": {
+                  "op": "normalize",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          },
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/awards/*"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Award",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "award",
+                        "/",
+                        {
+                          "op": "hash",
+                          "args": [
+                            {
+                              "op": "normalize",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "observationHasAward",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "hasAward",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "awardName",
+                "value": {
+                  "op": "normalize",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          },
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/institution_ids/*"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Institution",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "institution",
+                        "/",
+                        {
+                          "op": "quote",
+                          "args": [
+                            {
+                              "op": "string",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ],
+                          "safe": "-._~"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "scholarObservationHasInstitution",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "scholarAffiliatedWithInstitution",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "institutionId",
+                "value": {
+                  "path": ""
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          },
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/paper_ids/*"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Paper",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "paper",
+                        "/",
+                        {
+                          "op": "quote",
+                          "args": [
+                            {
+                              "op": "string",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ],
+                          "safe": "-._~"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "scholarObservationHasPaper",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "paperId",
+                "value": {
+                  "path": ""
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          }
+        ],
+        "id": "scholar",
+        "source": "/openapi/scholar/search",
+        "selector": "",
+        "min_records": 0,
+        "evidence": []
+      },
+      {
+        "for_each": null,
+        "nodes": [
+          {
+            "id": "entity",
+            "class_id": "Institution",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/",
+                    "institution",
+                    "/",
+                    {
+                      "op": "quote",
+                      "args": [
+                        {
+                          "op": "string",
+                          "args": [
+                            {
+                              "path": "/id"
+                            }
+                          ]
+                        }
+                      ],
+                      "safe": "-._~"
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "domain"
+          },
+          {
+            "id": "observation",
+            "class_id": "InstitutionObservation",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/observation/",
+                    "institution",
+                    "/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "concat",
+                          "args": [
+                            {
+                              "context": "file"
+                            },
+                            {
+                              "context": "file_hash"
+                            },
+                            {
+                              "context": "pointer"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "observation"
+          },
+          {
+            "id": "document",
+            "class_id": "SourceDocument",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/source-document/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "context": "file"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "source"
+          },
+          {
+            "id": "record",
+            "class_id": "SourceRecord",
+            "iri": {
+              "op": "concat",
+              "args": [
+                {
+                  "context": "namespace"
+                },
+                {
+                  "op": "concat",
+                  "args": [
+                    "instance/source-record/",
+                    {
+                      "op": "hash",
+                      "args": [
+                        {
+                          "op": "concat",
+                          "args": [
+                            {
+                              "context": "file"
+                            },
+                            {
+                              "context": "file_hash"
+                            },
+                            {
+                              "context": "pointer"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            "graph": "source"
+          }
+        ],
+        "triples": [
+          {
+            "subject": "entity",
+            "predicate": "institutionId",
+            "value": {
+              "path": "/id"
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": null,
+            "required": true,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observesEntity",
+            "value": {
+              "node": "entity"
+            },
+            "graph": "observation",
+            "kind": "iri",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observesInstitution",
+            "value": {
+              "node": "entity"
+            },
+            "graph": "observation",
+            "kind": "iri",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observationFromRecord",
+            "value": {
+              "node": "record"
+            },
+            "graph": "observation",
+            "kind": "iri",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "record",
+            "predicate": "recordFromDocument",
+            "value": {
+              "node": "document"
+            },
+            "graph": "source",
+            "kind": "iri",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "record",
+            "predicate": "recordHash",
+            "value": {
+              "context": "record_hash"
+            },
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "record",
+            "predicate": "recordJsonPointer",
+            "value": {
+              "context": "pointer"
+            },
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "document",
+            "predicate": "sourcePath",
+            "value": {
+              "context": "file"
+            },
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "document",
+            "predicate": "sourceSha256",
+            "value": {
+              "context": "file_hash"
+            },
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "document",
+            "predicate": "sourceSystem",
+            "value": "ai_index",
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "document",
+            "predicate": "endpoint",
+            "value": "/openapi/institutions/search",
+            "graph": "source",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "resultRank",
+            "value": {
+              "context": "rank"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observedInstitutionName",
+            "value": {
+              "path": "/name"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "entity",
+            "predicate": "institutionName",
+            "value": {
+              "path": "/name"
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "consensus"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observedInstitutionCountry",
+            "value": {
+              "path": "/country"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "entity",
+            "predicate": "country",
+            "value": {
+              "path": "/country"
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "consensus"
+          },
+          {
+            "subject": "observation",
+            "predicate": "observedInstitutionRegion",
+            "value": {
+              "path": "/region"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "entity",
+            "predicate": "region",
+            "value": {
+              "path": "/region"
+            },
+            "graph": "domain",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "consensus"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessDay",
+            "value": {
+              "path": "/hotness/day"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessWeek",
+            "value": {
+              "path": "/hotness/week"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessMonth",
+            "value": {
+              "path": "/hotness/month"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessHalfYear",
+            "value": {
+              "path": "/hotness/half_year"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "hotnessPreviousHalfYear",
+            "value": {
+              "path": "/hotness/previous_half_year"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "paperCount",
+            "value": {
+              "path": "/paper_count"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "scholarCount",
+            "value": {
+              "path": "/scholar_count"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "fundingTotalUsd",
+            "value": {
+              "path": "/funding_total_usd"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "impactPaper",
+            "value": {
+              "path": "/impact/paper"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "impactTalent",
+            "value": {
+              "path": "/impact/talent"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "impactNews",
+            "value": {
+              "path": "/impact/news"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "impactFunding",
+            "value": {
+              "path": "/impact/funding"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          },
+          {
+            "subject": "observation",
+            "predicate": "impactIndustry",
+            "value": {
+              "path": "/impact/industry"
+            },
+            "graph": "observation",
+            "kind": "literal",
+            "datatype": null,
+            "required": false,
+            "conflict": "union"
+          }
+        ],
+        "children": [
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/fields/*"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Topic",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "topic",
+                        "/",
+                        {
+                          "op": "hash",
+                          "args": [
+                            {
+                              "op": "normalize",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "observationHasTopic",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "hasTopic",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "topicName",
+                "value": {
+                  "op": "normalize",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          },
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/venue"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Venue",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "venue",
+                        "/",
+                        {
+                          "op": "hash",
+                          "args": [
+                            {
+                              "op": "normalize",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "observationHasVenue",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "hasVenue",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "venueName",
+                "value": {
+                  "op": "normalize",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          },
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/awards/*"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Award",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "award",
+                        "/",
+                        {
+                          "op": "hash",
+                          "args": [
+                            {
+                              "op": "normalize",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "observationHasAward",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "hasAward",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "awardName",
+                "value": {
+                  "op": "normalize",
+                  "args": [
+                    {
+                      "path": ""
+                    }
+                  ]
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          },
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/news/*"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "NewsItem",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/news/",
+                        {
+                          "op": "hash",
+                          "args": [
+                            {
+                              "op": "concat",
+                              "args": [
+                                {
+                                  "context": "file"
+                                },
+                                {
+                                  "context": "file_hash"
+                                },
+                                {
+                                  "context": "pointer"
+                                },
+                                {
+                                  "op": "string",
+                                  "args": [
+                                    {
+                                      "context": "index"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "institutionObservationHasNewsItem",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "hasNewsItem",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "newsTitle",
+                "value": {
+                  "path": "/title"
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "newsSource",
+                "value": {
+                  "path": "/source"
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "newsDate",
+                "value": {
+                  "path": "/date"
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          },
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/related_paper_ids/*"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Paper",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "paper",
+                        "/",
+                        {
+                          "op": "quote",
+                          "args": [
+                            {
+                              "op": "string",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ],
+                          "safe": "-._~"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "institutionObservationHasRelatedPaper",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "hasRelatedPaper",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "paperId",
+                "value": {
+                  "path": ""
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          },
+          {
+            "for_each": {
+              "op": "flatten",
+              "args": [
+                {
+                  "all": "/related_scholar_ids/*"
+                }
+              ]
+            },
+            "nodes": [
+              {
+                "id": "target",
+                "class_id": "Scholar",
+                "iri": {
+                  "op": "concat",
+                  "args": [
+                    {
+                      "context": "namespace"
+                    },
+                    {
+                      "op": "concat",
+                      "args": [
+                        "instance/",
+                        "scholar",
+                        "/",
+                        {
+                          "op": "quote",
+                          "args": [
+                            {
+                              "op": "string",
+                              "args": [
+                                {
+                                  "path": ""
+                                }
+                              ]
+                            }
+                          ],
+                          "safe": "-._~"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "graph": "domain"
+              }
+            ],
+            "triples": [
+              {
+                "subject": "observation",
+                "predicate": "institutionObservationHasRelatedScholar",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "observation",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "entity",
+                "predicate": "hasRelatedScholar",
+                "value": {
+                  "node": "target"
+                },
+                "graph": "domain",
+                "kind": "iri",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              },
+              {
+                "subject": "target",
+                "predicate": "scholarId",
+                "value": {
+                  "path": ""
+                },
+                "graph": "domain",
+                "kind": "literal",
+                "datatype": null,
+                "required": false,
+                "conflict": "union"
+              }
+            ],
+            "children": []
+          }
+        ],
+        "id": "institution",
+        "source": "/openapi/institutions/search",
+        "selector": "",
+        "min_records": 0,
+        "evidence": []
+      }
+    ],
+    "constraints": [],
+    "queries": [],
+    "description": "Fixed three-layer ontology template for AI Index paper, scholar, and institution search responses.",
+    "domain": "ai_index"
+  },
+  "source_bindings": {
+    "/openapi/paper/search": {
+      "format": "json",
+      "records_path": "/data/list/*"
+    },
+    "/openapi/scholar/search": {
+      "format": "json",
+      "records_path": "/data/list/*"
+    },
+    "/openapi/institutions/search": {
+      "format": "json",
+      "records_path": "/data/list/*"
+    }
+  }
+}
