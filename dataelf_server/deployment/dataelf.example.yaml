@@ -1,4 +1,4 @@
-# Copy to a private file and fill empty fields; see docs/configuration_examples.md.
+# Copy to a private file and fill empty fields; see the repository README.md.
 runtime:
   enable_sqlite: false
 explorer:

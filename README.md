@@ -65,13 +65,18 @@ On Windows PowerShell, activate the virtual environment with `.venv\\Scripts\\Ac
 
 ## Configuration
 
-Copy the credential-free [main example](dataelf.local.yaml.example) and
-[Pi provider example](.pi/agent/models.json.example) into your local configuration.
-Fill the empty fields using [configuration guidance](docs/configuration_examples.md).
-The examples parse as YAML/JSON but require your model and source settings before use.
+Use [dataelf.local.yaml.example](dataelf.local.yaml.example) as the main configuration
+reference, preserving any existing local file. Fill the empty model, source URL,
+credential and data-path fields for the domain you use before running. Configure
+your own provider/model in your existing local Pi registry; personal Pi files are
+not part of this change. Prefer process environment credentials. Empty service
+intent URL/key values read `OPENAI_BASE_URL` and `OPENAI_API_KEY`; its model ID must
+be filled explicitly. Ontology role models inherit `explorer.pi.model` when empty.
+The examples parse as YAML/JSON but require these deployment values before use.
 
-See [workflow policies](docs/workflow_policies.md) for the explicit reviewed AI Index
-CLI, legacy domain compatibility, and the independent HTTP service path.
+Select `--workflow-policy ai_index_cli_skill_review_v1` explicitly for the reviewed
+AI Index research workflow. Other domains retain `legacy`; HTTP serve uses its
+own fixed Scope V2 templates and service budgets regardless of root ontology.
 
 DataElf has one nested configuration schema. There is no flat legacy schema and no alternate explorer configuration path.
 

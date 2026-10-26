@@ -1,5 +1,5 @@
 # Copy to dataelf.local.yaml; fill empty model/source fields before running.
-# See docs/configuration_examples.md. Credentials should come from your shell.
+# See README.md. Credentials should come from your shell.
 runtime:
   workspace_dir: .dataelf
   workspaces_dir: .dataelf/workspaces
