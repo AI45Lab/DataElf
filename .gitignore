@@ -17,3 +17,4 @@ dataelf_agents.md
 .pi/agent/trust.json
 .pi/npm/
 /dataelf/domains/ai_index/modeling/ontology/config.yaml
+.claude/
