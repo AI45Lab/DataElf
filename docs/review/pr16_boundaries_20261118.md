@@ -44,7 +44,7 @@ Finance、Trajectory 的 legacy 三元组入口按用户决定保留；serve 保
 - `final-cli.log`：包含旧别名的 CLI 入口和边界，19 passed，与前项有重叠。
 - `isolation-final.log`：478 passed / 4 failed；4 项是 serve 过期断言。`baseline-native.log` 在原基线复现完全相同的 4 项失败，3 passed。
 - `last-native.log`：修正断言后的 serve 原生协议、边界测试、建图和分析实际 Pi 闭环，29 passed。
-- `final-matrix.log`：最终统一兼容矩阵，运行中。
+- `final-matrix.log`：最终统一兼容矩阵，567 passed / 0 failed / 0 skipped；耗时 425 秒。与 `last-native.log` 有重叠，不累加。
 - `dist-final/`、`installed-final/`、`wheel-final.log`：最终 wheel 构建安装；仓库外核对四份中文 prompt、来源 skill、TS 扩展、两种策略名称及删除旧模块。
 - 最终 wheel 及真实三个 AI Index 任务另记，不累计重复测试数量。
 
