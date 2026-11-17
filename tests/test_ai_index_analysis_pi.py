@@ -14,8 +14,9 @@ from test_ai_index_analysis_review import setup,approve
 ROOT=Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.parametrize('with_graph',[False,True])
 @pytest.mark.parametrize('workflow_policy',['ai_index_cli_skill_review_v1'])
-def test_actual_pi_repairs_format_then_semantics_and_reviews_exact_snapshot(tmp_path,workflow_policy,monkeypatch):
+def test_actual_pi_repairs_format_then_semantics_and_reviews_exact_snapshot(tmp_path,workflow_policy,monkeypatch,with_graph):
     for key in list(os.environ):
         if key.lower().endswith('_proxy'):monkeypatch.delenv(key,raising=False)
     workspace=tmp_path/'workspace';base,spec,contract=setup(workspace)
@@ -24,6 +25,19 @@ def test_actual_pi_repairs_format_then_semantics_and_reviews_exact_snapshot(tmp_
     original=json.loads((workspace/'insights/candidate_signals.json').read_text())
     item=json.loads((workspace/'insights/insight_candidates.json').read_text())['insight_candidates'][0]
     (workspace/'insights/insight_candidates.json').write_text(json.dumps({'insight_candidates':[{**item,'thesis':'100 to 120 means an increase of 25%.'}]}))
+    graph_context={}
+    if with_graph:
+        from dataelf.ontology.graph import GraphService
+        from tests.test_ai_index_dynamic_sources import register,query_contract
+        from dataelf.domains.ai_index.evidence import EvidenceCatalog
+        service=GraphService(workspace/'ontology/graphs',workspace)
+        candidate=service.workspace('create',graph_id='native-analysis',review_policy='required')
+        row=register(workspace)
+        service.materialize(candidate,query_contract(row),EvidenceCatalog(workspace).sources())
+        service.review(candidate,service.binding(service.state(candidate)),{'verdict':'approve','summary':'Checked source value','issues':[]})
+        graph=service.commit(candidate,expected_base=None,idempotency_key='published')
+        assert graph.status=='completed'
+        graph_context={'graph_ref':graph.graph_ref.model_dump(mode='json',exclude_none=True),'graph_root':str(workspace/'ontology/graphs')}
     requests=[];role_steps={};actors=[]
     class Handler(BaseHTTPRequestHandler):
         def log_message(self,*_):pass
@@ -33,7 +47,10 @@ def test_actual_pi_repairs_format_then_semantics_and_reviews_exact_snapshot(tmp_
             directory=dirs[-1];task=json.loads((directory/'context.json').read_text());role=task['role'];sid=directory.name
             role_steps[sid]=role_steps.get(sid,0)+1;step=role_steps[sid];actors.append(role)
             assert request.get('tool_choice')=='auto'
-            if role=='analyst' and not task.get('previous_review'):
+            initial_inspection=with_graph and role=='analyst' and not task.get('previous_review') and step==1
+            if with_graph and role=='analyst' and not task.get('previous_review') and step>1:step-=1
+            if initial_inspection:tool='analysis_inspect';args={'resource':'contract'}
+            elif role=='analyst' and not task.get('previous_review'):
                 if step==1:tool='write';args={'path':str(workspace/'insights/candidate_signals.json'),'content':'{"signals":[]}'}
                 elif step==2:tool='analysis_submit';args={'idempotency_key':'wrong-root'}
                 elif step==3:tool='write';args={'path':str(workspace/'insights/candidate_signals.json'),'content':json.dumps(original)}
@@ -44,7 +61,7 @@ def test_actual_pi_repairs_format_then_semantics_and_reviews_exact_snapshot(tmp_
             elif step==1:
                 if workflow_policy=='legacy':assert all(t['function']['name'].startswith('analysis_') for t in request['tools'])
                 else:
-                    assert all(t['function']['name'].startswith(('analysis_','ai_index_','review_')) for t in request['tools'])
+                    assert all(t['function']['name'].startswith(('analysis_','ai_index_','review_')) or (with_graph and t['function']['name'] in {'graph_query','graph_explore'}) for t in request['tools'])
                     assert '数据源 Skill' in request['messages'][0]['content']
                     assert 'ai-index-search' in request['messages'][0]['content']
                 tool='analysis_verify';args={'code':"import json\nx=json.loads((SNAPSHOT/'raw/values.json').read_text());print((x['after']-x['before'])/x['before'])"}
@@ -65,7 +82,13 @@ def test_actual_pi_repairs_format_then_semantics_and_reviews_exact_snapshot(tmp_
                     args['issue_updates']=[{'issue_id':'denominator','status':'resolved','evidence':['analysis_verify stdout=0.2','insights/insight_candidates.json'],'explanation':'Thesis now agrees with independent computation'},
                         {'issue_id':'optional-wording','status':'withdrawn','evidence':['insights/final_brief.md'],'explanation':'Existing sample wording already makes the scope explicit'}]
             call={'index':0,'id':f'c{len(requests)}','type':'function','function':{'name':tool,'arguments':json.dumps(args)}}
-            chunks=[{'choices':[{'index':0,'delta':{'role':'assistant','tool_calls':[call]},'finish_reason':None}]},
+            calls=[call]
+            if initial_inspection:
+                calls += [{'index':1,'id':call['id']+'status','type':'function','function':{'name':'analysis_inspect','arguments':'{"resource":"status"}'}},
+                          {'index':2,'id':call['id']+'sources','type':'function','function':{'name':'ai_index_sources','arguments':'{"limit":100}'}}]
+            chunks=[{'choices':[{'index':0,'delta':{'role':'assistant','reasoning_content':'Check evidence before acting.'},'finish_reason':None}]},
+                    {'choices':[{'index':0,'delta':{'content':'Proceed with the recorded operation.'},'finish_reason':None}]},
+                    {'choices':[{'index':0,'delta':{'tool_calls':calls},'finish_reason':None}]},
                     {'choices':[{'index':0,'delta':{},'finish_reason':'stop'}],'usage':{'prompt_tokens':1,'completion_tokens':1,'total_tokens':2}}]
             body=(''.join('data: '+json.dumps(c)+'\n\n' for c in chunks)+'data: [DONE]\n\n').encode()
             self.send_response(200);self.send_header('Content-Type','text/event-stream');self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body)
@@ -76,7 +99,7 @@ def test_actual_pi_repairs_format_then_semantics_and_reviews_exact_snapshot(tmp_
         'models':[{'id':'fixture','name':'Fixture','reasoning':False,'input':['text'],'cost':{'input':0,'output':0,'cacheRead':0,'cacheWrite':0},'contextWindow':128000,'maxTokens':16384}]}}}))
     cfg=DataElfConfig(explorer={'pi':{'binary':str(ROOT/'node_modules/.bin/pi'),'cwd':str(ROOT),'model':'controlled/fixture','extra_args':'--offline --thinking off','log_mode':'quiet'}})
     ctx=DiscoveryContext(workspace_path=str(workspace),spec=spec,manifest=DomainManifest(domain='ai_index',version='1',display_name='AI',plugin='test'),
-        prompt_path=str(workspace/'prompts/start.md'),env={'PI_CODING_AGENT_DIR':str(agent)})
+        domain_context=graph_context,prompt_path=str(workspace/'prompts/start.md'),env={'PI_CODING_AGENT_DIR':str(agent)})
     # Single-file submission tool uses the exact declared contract too.
     (workspace/'prompts/output_contract.json').write_text(json.dumps({'contract':contract.model_dump(mode='json'),'protected_paths':[]}))
     from dataelf.discovery.output_submission import submission_schema
@@ -88,8 +111,9 @@ def test_actual_pi_repairs_format_then_semantics_and_reviews_exact_snapshot(tmp_
         assert review.status=='pass'
         assert len(json.loads((workspace/'reviews/analysis/history.json').read_text()))==2
         assert json.loads((workspace/'insights/insight_candidates.json').read_text())['insight_candidates'][0]==item
-        assert actors==['analyst']*4+['reviewer']*2+['analyst']*2+['reviewer']*2
-        assert not any(t['function']['name'].startswith(('graph_','ontology_')) for r in requests for t in r['tools'])
+        assert actors==['analyst']*(5 if with_graph else 4)+['reviewer']*2+['analyst']*2+['reviewer']*2
+        assert any(t['function']['name']=='graph_query' for r in requests for t in r['tools'])==with_graph
+        assert not list((workspace/'reviews/analysis/sessions').glob('*/analysis_transport.json'))
         scratch=workspace/'reviews/analysis/collaboration/scratch' if workflow_policy!='legacy' else workspace/'reviews/analysis/sessions'
         paths=list(scratch.glob('*/*/execution.json')) if workflow_policy!='legacy' else list(scratch.glob('*/scratch/*/execution.json'))
         assert len(paths)==2
