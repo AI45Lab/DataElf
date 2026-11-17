@@ -57,7 +57,13 @@ def test_actual_pi_repairs_format_then_semantics_and_reviews_exact_snapshot(tmp_
                         'evidence':['raw/values.json','analysis_verify stdout=0.2'],'impact':'The principal numerical claim is wrong',
                         'required_change':'Recompute the increase with the stated baseline and correct the thesis',
                         'acceptance_criteria':'(120-100)/100=0.2, and the report consistently states 20%'}])
-                else:args['issue_updates']=[{'issue_id':'denominator','status':'resolved','evidence':['analysis_verify stdout=0.2','insights/insight_candidates.json'],'explanation':'Thesis now agrees with independent computation'}]
+                    args['issues'].append({'issue_id':'optional-wording','blocking':False,'severity':'low','category':'clarity',
+                        'nature':'suggestion','location':'insights/final_brief.md','message':'Optional clarification of sample scope',
+                        'evidence':['insights/final_brief.md'],'impact':'Readability only',
+                        'required_change':'Clarify the sample if useful','acceptance_criteria':'Sample scope remains explicit'})
+                else:
+                    args['issue_updates']=[{'issue_id':'denominator','status':'resolved','evidence':['analysis_verify stdout=0.2','insights/insight_candidates.json'],'explanation':'Thesis now agrees with independent computation'},
+                        {'issue_id':'optional-wording','status':'withdrawn','evidence':['insights/final_brief.md'],'explanation':'Existing sample wording already makes the scope explicit'}]
             call={'index':0,'id':f'c{len(requests)}','type':'function','function':{'name':tool,'arguments':json.dumps(args)}}
             chunks=[{'choices':[{'index':0,'delta':{'role':'assistant','tool_calls':[call]},'finish_reason':None}]},
                     {'choices':[{'index':0,'delta':{},'finish_reason':'stop'}],'usage':{'prompt_tokens':1,'completion_tokens':1,'total_tokens':2}}]

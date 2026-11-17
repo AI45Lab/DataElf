@@ -81,13 +81,24 @@ def check_decision(decision, submission, previous=None):
             raise ValueError('Incomplete work requires actionable revise or an evidenced external blocker')
     if decision.submission_id != submission['submission_id'] or decision.submission_hash != submission['submission_hash']:
         raise ValueError('Review is not bound to the exact submission')
-    prior={i['issue_id'] for i in (previous or {}).get('issues',[]) if i['blocking']}
-    updates={u.issue_id:u for u in decision.issue_updates}
-    if len(updates)!=len(decision.issue_updates) or set(updates)!=prior:
+    known = {issue['issue_id']: issue for issue in (previous or {}).get('issues', [])}
+    required = {ident for ident, issue in known.items() if issue['blocking']}
+    updates = {update.issue_id: update for update in decision.issue_updates}
+    if len(updates) != len(decision.issue_updates):
+        raise ValueError('Issue updates must not duplicate an issue ID')
+    if required - updates.keys():
         raise ValueError('Each previous blocker needs exactly one evidenced issue update')
-    current={i.issue_id for i in decision.issues if i.blocking}
-    for ident,update in updates.items():
-        unresolved=update.status in {'unresolved','regressed'}
-        if unresolved != (ident in current):
-            raise ValueError('Unresolved/regressed issues must remain blocking; resolved/withdrawn issues must not')
+    if updates.keys() - known.keys():
+        raise ValueError('Issue updates must reference a known previous issue')
+    current = {issue.issue_id for issue in decision.issues if issue.blocking}
+    current_all = {issue.issue_id for issue in decision.issues}
+    for ident, update in updates.items():
+        unresolved = update.status in {'unresolved', 'regressed'}
+        if ident in required:
+            if unresolved != (ident in current):
+                raise ValueError('Unresolved/regressed issues must remain blocking; resolved/withdrawn issues must not')
+        elif unresolved and ident not in current_all:
+            raise ValueError('An unresolved optional issue must remain in current issues')
+        elif not unresolved and ident in current:
+            raise ValueError('A resolved or withdrawn issue must not remain blocking')
     return decision

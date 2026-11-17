@@ -11,6 +11,8 @@ from dataelf.ontology.review_loop import check_review
 
 
 def context(tmp_path,role='modeler',**values):
+    from dataelf.discovery.domain_services import bind
+    bind(tmp_path, 'ai_index')
     path=tmp_path/role/'context.json'
     request=OntologyRequest(domain='ai_index',workspace=tmp_path,workflow_policy=CLI_SKILL_REVIEW)
     obj={'request':request.model_dump(mode='json'),'role':role,'workflow_policy':CLI_SKILL_REVIEW,
@@ -101,7 +103,9 @@ def test_check_binds_source_query_conditions_as_well_as_response_bytes(tmp_path)
     result=dispatch(reviewer,'review_checks_save',{'method':'Read sourced value','result':0,'conclusion':'Zero is present',
         'coverage':'One source record','dependencies':[row['response_file']]})
     metadata=EvidenceCatalog(tmp_path).root/row['query_id']/'record.json'
-    assert str(metadata.relative_to(tmp_path)) in result['dependencies']
+    saved = dispatch(reviewer, 'review_inspect', {'resource':'record','collection':'checks','record_id':result['check_id']})
+    assert not saved['truncated']
+    assert str(metadata.relative_to(tmp_path)) in json.loads(saved['text'])['dependencies']
     changed=json.loads(metadata.read_text());changed['params']={'different':'scope'};write_json(metadata,changed)
     with pytest.raises(ValueError,match='dependency changed'):
         ReviewLedger(tmp_path,'graph').validate_checks(ctx,[result['check_id']])

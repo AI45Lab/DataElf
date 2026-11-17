@@ -111,9 +111,11 @@ def resume_published_graph(workspace, manifest_path, *, workflow_policy='legacy'
             snapshot=verify(origin,submission,live=False)
             for relative,expected in approved.get('reviewer_evidence',{}).items():
                 if file_hash(origin/relative)!=expected:raise ValueError('Previous analysis reviewer evidence changed')
+            from dataelf.discovery.domain_services import services
+            directories = services(submission['spec']).writable_dirs
             copied={}
             for relative,expected in submission['files'].items():
-                if relative.split('/')[0] not in {'insights','tables','notes','deep_dives','scripts'}:continue
+                if not any(Path(relative).is_relative_to(folder) for folder in directories):continue
                 target=workspace/'notes/previous_delivery'/relative;target.parent.mkdir(parents=True,exist_ok=True)
                 if target.exists() and file_hash(target)!=expected:raise ValueError('Previous delivery copy conflict')
                 shutil.copyfile(snapshot/relative,target)

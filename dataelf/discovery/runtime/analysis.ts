@@ -56,21 +56,5 @@ export default function(pi:any) {
    return modern ? outputLimit(result,task.max_output_tokens,ctx.model) : result;
   }
  });
- pi.on('before_agent_start',(event:any)=>modern ? {systemPrompt:readFileSync(join(dirname(path),'system.md'),'utf8')} : task.role==='reviewer' ? {systemPrompt:
-  'You are the independent AI Index research reviewer. Read the exact immutable submission and original goal. '+
-  'Check substantive Insight thesis, key figures, denominators, time scope, inference strength, sources and counterevidence. '+
-  'Use analysis_read and isolated analysis_verify for evidence and independent checks; when a graph is supplied its tools are read-only. '+
-  'Do not edit reports, sources or graphs. Do not invent additional task requirements or block on style preferences. '+
-  'Account for every previous blocker, including analyst counterevidence. Return actionable evidenced issues with stable IDs. '+
-  'A negative finding may fulfill the objective; missing requested scope may be limited or unfulfilled. '+
-  'Only analysis_review_submit is a verdict. No budget or iteration count justifies approval. '+
-  'Use analysis_inspect(contract/files/submission/previous_review) for details. '+
-  JSON.stringify({submission_id:task.submission.submission_id,submission_hash:task.submission.submission_hash,policy:task.submission.policy_version})}
-  : {systemPrompt:event.systemPrompt+'\nAI Index research has no cumulative task time, request, token or revision limit. '+
-   'Choose your own research and tool order. Save useful work as files; submit the complete saved delivery with analysis_submit. '+
-   'dataelf_submit_output writes one JSON file; analysis_submit freezes all outputs for independent review. '+
-   'Invalid format is repairable; ordinary prose is not submission. Keep full Insight thesis, evidence, counterarguments and all 11 contract fields. '+
-   'Independent reviewer feedback can be addressed by revision, additional evidence, narrower justified claims or counterevidence. '+
-   'Do not alter previously frozen raw sources or published revisions; add new evidence in new files. '+
-   'A saved file, local test or graph approval alone does not complete this analysis task.'});
+ pi.on('before_agent_start',()=>({systemPrompt:readFileSync(join(dirname(path),'system.md'),'utf8')}));
 }

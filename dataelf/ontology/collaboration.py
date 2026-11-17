@@ -1,4 +1,4 @@
-"""AI Index handoffs and review memory in existing task review storage.
+"""Task handoffs and review memory in existing task review storage.
 
 Local snapshots never validate or publish a complete delivery. Only reviewers
 update issue status; authors' responses remain separate, immutable evidence.
@@ -64,9 +64,11 @@ class ReviewLedger:
             files.update(state.get('source_hashes', {}))
         elif object_kind == 'report':
             if self.family != 'analysis' or not paths: raise ValueError('Report feedback requires explicit files')
+            from dataelf.discovery.domain_services import services
+            directories = services(context).writable_dirs
             for relative in paths:
                 path = resolve_workspace_path(self.workspace, relative)
-                if Path(relative).parts[0] not in {'insights', 'tables', 'notes', 'scripts', 'deep_dives'}:
+                if not any(Path(relative).is_relative_to(folder) for folder in directories):
                     raise ValueError('Review object must be a report or supporting analysis file')
                 files[relative] = file_hash(path)
         else: raise ValueError('Unsupported local review object')

@@ -1,4 +1,4 @@
-/** Ontology/AI Index opt-in observer. No headers; never changes a request. */
+/** Reviewed-role opt-in observer. No headers; never changes a request. */
 import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';
 import {dirname,join} from 'node:path';
 import {createHash} from 'node:crypto';
