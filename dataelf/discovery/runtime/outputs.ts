@@ -6,14 +6,14 @@ import {objectArguments,containerArgument,checkArgumentTypes} from "./arguments.
 export default function(pi:any) {
     if (process.env.DATAELF_WORKFLOW_PROFILE !== "research") return;
     if (process.env.DATAELF_ANALYSIS_ROLE === 'reviewer') return;
-    if (!process.env.DATAELF_GRAPH_CONTEXT && process.env.DATAELF_DOMAIN !== 'ai_index') return;
+    if (!process.env.DATAELF_GRAPH_CONTEXT && process.env.DATAELF_REVIEWED_WORKFLOW !== '1') return;
     const workspace = process.env.DATAELF_JOB_WORKSPACE!;
     const contractPath = join(workspace,"prompts/output_contract.json");
     const schemaPath = join(workspace,"prompts/output_tool_schema.json");
     if (!existsSync(contractPath) || !existsSync(schemaPath)) return;
     const envelope = JSON.parse(readFileSync(contractPath,"utf8"));
     const schema = JSON.parse(readFileSync(schemaPath,"utf8"));
-    const modern=process.env.DATAELF_WORKFLOW_POLICY==='ai_index_cli_skill_review_v1';
+    const modern=process.env.DATAELF_REVIEWED_WORKFLOW==='1';
     const originalInputs=new Map<string,any>();
     pi.on('message_end',(event:any)=>{for(const call of event.message?.content || [])if(call.type==='toolCall')originalInputs.set(call.id,structuredClone(call.arguments));});
     pi.on("before_agent_start",(event:any) => modern ? {systemPrompt:event.systemPrompt} : ({systemPrompt:event.systemPrompt +

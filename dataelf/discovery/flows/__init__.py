@@ -1,5 +1,5 @@
 """Thin execution dispatch; plugins and registered policies own their behavior."""
-from dataelf.ontology.capabilities import CLI_SKILL_REVIEW, validate_scope, register_policy
+from dataelf.discovery.policies import validate_scope, register_policy, workflow_executor
 
 
 def resolve_spec(spec, config, saved_spec=None):
@@ -23,19 +23,10 @@ def legacy(*args):
     return execute(*args)
 
 
-def ai_index(*args):
-    from .ai_index import execute
-    return execute(*args)
-
-
-_FLOWS = {'legacy': legacy, CLI_SKILL_REVIEW: ai_index}
-
-
 def register_workflow(name, execute, *, domains, profiles, capabilities):
     if not callable(execute):
         raise TypeError('Workflow executor must be callable')
-    register_policy(name, domains=domains, profiles=profiles, capabilities=capabilities)
-    _FLOWS[name] = execute
+    register_policy(name, domains=domains, profiles=profiles, capabilities=capabilities, entry=execute)
 
 
 def execution_flow(spec):
@@ -43,4 +34,4 @@ def execution_flow(spec):
     if spec.workflow_profile == 'server':
         from dataelf_server.workflows.entry import execute
         return execute
-    return _FLOWS[spec.workflow_policy]
+    return legacy if spec.workflow_policy == "legacy" else workflow_executor(spec)

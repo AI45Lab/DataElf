@@ -115,7 +115,7 @@ class NoWT(importlib.abc.MetaPathFinder):
 sys.meta_path.insert(0, NoWT())
 from dataelf.config import DataElfConfig
 from dataelf.discovery.domain_registry import DomainRegistry
-p = DomainRegistry().load_plugin('ai_index', DataElfConfig())
+p = DomainRegistry().load_plugin('ai_index', DataElfConfig(domains={'ai_index': {'source': {'api_key': 'fixture-only-no-network'}}}))
 assert p.manifest.domain == 'ai_index'
 '''
     result = subprocess.run([sys.executable, '-B', '-c', code],

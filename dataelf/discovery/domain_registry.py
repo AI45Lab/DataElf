@@ -20,6 +20,8 @@ class DomainRegistry:
         manifest = DomainManifest.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")) or {})
         if manifest.domain != domain:
             raise ValueError(f"Domain manifest {path} declares {manifest.domain!r}, expected {domain!r}")
+        from .policies import load_domain_policies
+        load_domain_policies(domain, self.root)
         return manifest
 
     def domain_path(self, domain: str) -> Path:

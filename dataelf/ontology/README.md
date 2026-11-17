@@ -285,10 +285,10 @@ publishes; it adds no human approval step. An explicit `deterministic` maintenan
 policy can be selected by a caller. Reviewer approval cannot bypass invalid data.
 
 `OntologyRunResult` now includes `graph_id`, `revision_id`, `graph_ref`,
-`bundle_path` and `contract_path`. Deprecated `stage1_bundle/stage2_bundle` both
-alias the same revision; `stage2_run_id` is unset because there is no second model
-stage. Existing artifact IDs remain available for callers. `validate_result`
-reads both manifest versions. `service.import_rdf` accepts N-Quads, N-Triples,
+`bundle_path` and `contract_path`. The new result has one published revision;
+there are no stage1/stage2 run or bundle aliases. `validate_result` verifies
+the graph manifest v2. The separately owned serve runtime retains its original
+contracts and fixed-template flow. `service.import_rdf` accepts N-Quads, N-Triples,
 RDF/XML, Turtle and TriG; a supplied manifest must verify and bind the imported
 RDF, and contributes its contract/source metadata.
 

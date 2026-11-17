@@ -1,1 +1,1 @@
-"""AI Index's explicitly opted-in research acceptance loop."""
+"""Domain-selected explicitly opted-in research acceptance loop."""

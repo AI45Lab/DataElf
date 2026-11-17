@@ -47,8 +47,7 @@ dataelf = [
   "domains/*/pi/skills/**/*.md",
   "domains/*/pi/skills/**/scripts/*.sh",
   "domains/*/pi/skills/**/agents/*.yaml",
-  "ontology/prompts/**/*.md",
-  "discovery/analysis_review/prompts/**/*.md",
+  "domains/*/prompts/**/*.md",
   "domains/**/pi/extensions/*.ts",
   "domains/finance/requirements-finance.txt",
   "domains/trajectory_analysis/requirements-wt.txt",
@@ -57,7 +56,7 @@ dataelf = [
 dataelf_server = [ "prompts/*.md", "runtime/*.ts", "deployment/*", "ontology/templates/**/*.json", "ontology/*.md"]
 
 [tool.setuptools.exclude-package-data]
-dataelf = ["ontology/config.yaml", "ontology/*.local.yaml", "domains/*/pi/upstream/**"]
+dataelf = ["ontology/config.yaml", "ontology/*.local.yaml", "domains/**/*.local.yaml", "domains/*/pi/upstream/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

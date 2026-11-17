@@ -4,7 +4,7 @@ import { compactToolError } from "./arguments.ts";
 /** Provider compatibility only; discovery tools and workflow remain unchanged. */
 export default function (pi: any) {
     const graphTask = !!(process.env.DATAELF_GRAPH_CONTEXT || process.env.DATAELF_ONTOLOGY_CONTEXT);
-    const analysisTask = process.env.DATAELF_WORKFLOW_PROFILE === 'research' && process.env.DATAELF_DOMAIN === 'ai_index';
+    const analysisTask = process.env.DATAELF_REVIEWED_WORKFLOW === '1';
     if (graphTask) {
         pi.on("message_end", (event: any) => ({ message: withoutThinking(event.message) }));
         pi.on("context", (event: any) => ({ messages: event.messages.map((message:any) => {

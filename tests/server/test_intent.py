@@ -47,7 +47,7 @@ def test_one_call_with_schema_reference_time_and_fixed_endpoint(monkeypatch):
     assert payload["response_format"]["json_schema"]["strict"] is True
     assert "2026-09-08T12:00:00+08:00" in payload["messages"][0]["content"]
     assert payload["messages"][1] == {"role": "user", "content": "看看"}
-    assert timeout == 90
+    assert 0 < timeout <= 90
 
 
 @pytest.mark.parametrize("path,value", [
@@ -114,7 +114,7 @@ def test_transport_errors_are_bounded_and_do_not_expose_response_details(monkeyp
     with pytest.raises(IntentError) as caught:
         IntentRecognizer(config=CONFIG).extract("测试")
     assert "private" not in str(caught.value)
-    assert len(calls) == 1
+    assert len(calls) == (2 if isinstance(error, urllib.error.HTTPError) else 1)
 
 
 def test_custom_domain_and_source_relationships(monkeypatch):

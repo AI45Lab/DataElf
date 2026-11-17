@@ -1,4 +1,5 @@
 """Role-limited tools; native calls only, never dispatch from assistant prose."""
+from dataelf.discovery.domain_services import source_schemas
 import json
 import os
 from pathlib import Path
@@ -30,11 +31,11 @@ def schemas(role, context=None):
         result['analysis_review_submit']=ReviewDecision.model_json_schema()
         result['analysis_graph_query']=obj({'query':text,'graph_ref':obj({'graph_id':text,'revision_id':text},['graph_id','revision_id'])},['query'])
         result['analysis_graph_explore']=obj({'seeds':{'type':'array','items':text},'depth':{'type':'integer','minimum':1,'maximum':5},'direction':{'type':'string','enum':['in','out','both']}},['seeds'])
-    from dataelf.ontology.capabilities import skill_review
+    from dataelf.discovery.policies import skill_review
     if context and skill_review(context):
-        from dataelf.domains.ai_index.skill_tools import schemas as source_schemas
+        from dataelf.discovery.domain_services import source_schemas
         from dataelf.ontology.collaboration_tools import schemas as review_schemas
-        result.update(source_schemas(role));result.update(review_schemas(context))
+        result.update(source_schemas(role, context));result.update(review_schemas(context))
         if role=='reviewer':
             result.pop('analysis_graph_query',None);result.pop('analysis_graph_explore',None)
             if context.get('graph_refs') or (context.get('submission') or {}).get('graph_refs'):
@@ -100,7 +101,7 @@ def compute(snapshot,scratch,code):
 
 def dispatch(context_path,name,args):
     context_path=Path(context_path);context=json.loads(context_path.read_text());role=context['role']
-    from dataelf.ontology.capabilities import skill_review
+    from dataelf.discovery.policies import skill_review
     modern=skill_review(context)
     if modern and name in {'analysis_graph_query','analysis_graph_explore'}:
         # Explicit historical-name adapter; hidden from new model requests.
@@ -111,8 +112,8 @@ def dispatch(context_path,name,args):
             args['graph_ref']=refs[0]
         if name=='analysis_graph_query':args['sparql']=args.pop('query')
         return dispatch(context_path,'graph_query' if name=='analysis_graph_query' else 'graph_explore',args)
-    if modern and name.startswith('ai_index_'):
-        from dataelf.domains.ai_index.skill_tools import dispatch as source_dispatch
+    if modern and name in source_schemas(context['role'], context):
+        from dataelf.discovery.domain_services import source_dispatch
         return source_dispatch(context_path,name,args)
     if modern and name.startswith('review_'):
         from dataelf.ontology.collaboration_tools import dispatch as review_dispatch
@@ -162,7 +163,7 @@ def dispatch(context_path,name,args):
         relative=args['path'][len('scratch/'):] if is_scratch else args['path']
         path=resolve_workspace_path(read_root,relative)
         if modern and role=='reviewer' and not path.is_file() and not is_scratch:
-            from dataelf.domains.ai_index.evidence import EvidenceCatalog
+            from dataelf.discovery.domain_services import evidence as EvidenceCatalog
             from dataelf.ontology.collaboration import ReviewLedger
             path=ReviewLedger(workspace,'analysis').dependency(context,relative)
         text=path.read_text();offset=args.get('offset',0);limit=args.get('limit',12000)
@@ -186,7 +187,7 @@ def dispatch(context_path,name,args):
             ledger=ReviewLedger(workspace,'analysis')
             previous=ledger.prior()
             check_decision(args,submission,previous)
-            from dataelf.domains.ai_index.evidence import EvidenceCatalog
+            from dataelf.discovery.domain_services import evidence as EvidenceCatalog
             write_json(context_path.parent/'analysis_review_evidence.json',EvidenceCatalog(workspace).reviewer_dependencies('analysis'))
         review_path=context_path.parent/'analysis_review.json'
         if review_path.exists() and json.loads(review_path.read_text())!=decision.model_dump(mode='json'):
@@ -199,7 +200,7 @@ def dispatch(context_path,name,args):
         if modern:
             # Frozen author files stay unchanged. Supplemental registered sources
             # and this reviewer's previous scratch are a separate read-only view.
-            from dataelf.domains.ai_index.evidence import EvidenceCatalog
+            from dataelf.discovery.domain_services import evidence as EvidenceCatalog
             with tempfile.TemporaryDirectory(prefix='compute-view-',dir=context_path.parent) as folder:
                 view=Path(folder)/'input';shutil.copytree(root,view)
                 catalog=EvidenceCatalog(workspace)

@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 import jsonschema
 
-from dataelf.ontology.capabilities import skill_review
+from dataelf.discovery.policies import skill_review
 from dataelf.ontology.resources import json_page
 from .evidence import COMMANDS, EvidenceCatalog, SKILL_ROOT
 

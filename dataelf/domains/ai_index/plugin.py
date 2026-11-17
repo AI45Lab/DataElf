@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 
 from dataelf.config import DataElfConfig
-from dataelf.ontology.capabilities import skill_review
+from dataelf.discovery.policies import skill_review
 from dataelf.discovery.contracts import (
     DiscoveryContext,
     DiscoveryJob,
@@ -31,10 +31,20 @@ class AIIndexDomainPlugin:
         self.runtime_env = dict(config.env)
         self.runtime_config = config
 
+    owns_agent_resources = True
+
+    def agent_resources(self, spec, config):
+        from dataelf.discovery.contracts import AgentResources
+        from dataelf.discovery.agent_resources import discover_domain_resources
+        from dataelf.discovery.policies import skill_review
+        if not skill_review(spec):
+            return AgentResources()
+        return discover_domain_resources(Path(__file__).parent)
+
     def normalize_spec(self, spec: JobSpec) -> JobSpec:
         query = spec.objective
         parameters = dict(spec.parameters)
-        from dataelf.ontology.capabilities import skill_review
+        from dataelf.discovery.policies import skill_review
         if skill_review(spec):
             self.config.modeling = self.config.modeling.model_copy(update=self.runtime_config.ontology_for_domain(self.manifest.domain).model_dump())
             self.config.validate_for_run()
@@ -52,7 +62,7 @@ class AIIndexDomainPlugin:
         workspace = Path(workspace_path)
         for relative in self.manifest.workspace_dirs:
             (workspace / relative).mkdir(parents=True, exist_ok=True)
-        from dataelf.ontology.capabilities import skill_review
+        from dataelf.discovery.policies import skill_review
         if skill_review(spec):
             if self.config.source.mode!='api':raise ValueError('AI Index Skill workflow requires API mode; fixtures are not a live fallback')
         else:ensure_table_schemas(workspace)
@@ -69,7 +79,7 @@ class AIIndexDomainPlugin:
         )
 
     def create_modeler(self, spec: JobSpec, config: DataElfConfig) -> AIIndexModeler | None:
-        from dataelf.ontology.capabilities import skill_review
+        from dataelf.discovery.policies import skill_review
         if not skill_review(spec) and (spec.modeling_strategy is not None or self.config.modeling.enabled):
             raise ValueError("Legacy CLI modeling configuration requires explicit migration: select --workflow-policy ai_index_cli_skill_review_v1 for shared ontology v2")
         if spec.modeling_strategy is None:
@@ -81,14 +91,9 @@ class AIIndexDomainPlugin:
         return AIIndexModeler(self.config, self.runtime_env, self.runtime_config)
 
     def build_prompt(self, job: DiscoveryJob, context: DiscoveryContext) -> str:
-        from dataelf.ontology.capabilities import skill_review
+        from dataelf.discovery.policies import skill_review
         if skill_review(job.spec):
-            from .role_prompts import compose
-            _,task=compose('analysis_author',{'spec':job.spec.model_dump(mode='json'),'role':'analyst',
-                'workspace':context.workspace_path,'graph_ref':context.graph_ref,
-                'graph_refs':[context.graph_ref] if context.graph_ref else [],
-                'contract':self.output_contract(job.spec).model_dump(mode='json'),'review_mode':'formal'},[])
-            return task
+            return "围绕用户的 AI 科技研究任务，使用本 domain 的数据源 Skill 调研。区分来源事实、分析推断与未验证问题；最终报告回答用户问题，审核记录另存。"
         from .legacy_prompt import build_ai_index_prompt as legacy_prompt
         return legacy_prompt(job, context)
 
@@ -114,7 +119,7 @@ class AIIndexDomainPlugin:
         )
 
     def review(self, job: DiscoveryJob, workspace_path: str) -> ReviewResult:
-        from dataelf.ontology.capabilities import skill_review
+        from dataelf.discovery.policies import skill_review
         if not skill_review(job.spec):
             from .legacy_review import review_ai_index as legacy_review
             return legacy_review(job, Path(workspace_path))
@@ -142,13 +147,14 @@ def _extract_topic(query: str) -> str:
 
 
 def _extract_expected_outputs(query: str) -> int | None:
-    match = re.search(r"(\d+)\s*[个条项]", query)
-    if match:
-        return max(1, int(match.group(1)))
-    for token, value in {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5}.items():
-        if any(f"{token}{unit}" in query for unit in ['个','条','项']):
-            return value
-    return None
+    """Recognize output counts, never counts embedded in entity descriptions."""
+    match = re.search(r"(?<![同第])(\d+|[一二两三四五六七八九十])\s*[个条项]\s*(?:发现|洞察|结论|insights?)", query, re.I)
+    if not match or '至少' in query[max(0, match.start() - 6):match.start()]:
+        return None
+    token = match.group(1)
+    if token.isdigit():
+        return max(1, int(token))
+    return {'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10}[token]
 
 
 __all__ = ["AIIndexDomainPlugin", "create_plugin"]

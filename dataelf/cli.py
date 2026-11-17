@@ -101,16 +101,16 @@ def run(
     try:
         config = _config()
         selected_policy = workflow_policy or config.workflow_policy
-        from dataelf.ontology.capabilities import validate_scope, CLI_SKILL_REVIEW
+        from dataelf.discovery.policies import validate_scope, skill_review
         validate_scope(selected_policy, domain)
-        if (resume_graph_manifest is not None or ontology_config is not None) and selected_policy != CLI_SKILL_REVIEW:
-            raise typer.BadParameter("--ontology-config and --resume-graph-manifest require --workflow-policy ai_index_cli_skill_review_v1")
+        if (resume_graph_manifest is not None or ontology_config is not None) and not skill_review({'workflow_policy': selected_policy}):
+            raise typer.BadParameter("--ontology-config and --resume-graph-manifest require a registered reviewed workflow")
         if resume_graph_manifest is not None:
-            if domain != 'ai_index' or modeling_enabled is False:
-                raise typer.BadParameter('--resume-graph-manifest requires AI Index with modeling enabled')
+            if modeling_enabled is False:
+                raise typer.BadParameter('--resume-graph-manifest requires modeling enabled')
             modeling_enabled = True
         if modeling_enabled is not None:
-            if selected_policy == CLI_SKILL_REVIEW:
+            if skill_review({'workflow_policy': selected_policy}):
                 config = _override_domain_modeling(config, domain, modeling_enabled)
             else:
                 domains = {key: dict(value) for key, value in config.domains.items()}

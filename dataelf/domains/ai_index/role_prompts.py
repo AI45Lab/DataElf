@@ -8,12 +8,12 @@ from dataelf.ontology.sources import digest
 from .evidence import SKILL_ROOT
 
 VERSION = 'ai-index-cli-skill-review.zh.v2'
-PACKAGE = Path(__file__).resolve().parents[2]
+PACKAGE = Path(__file__).resolve().parent
 BODIES = {
-    'ontology_author': PACKAGE / 'ontology/prompts/zh/ontology_author.md',
-    'ontology_reviewer': PACKAGE / 'ontology/prompts/zh/ontology_reviewer.md',
-    'analysis_author': PACKAGE / 'discovery/analysis_review/prompts/zh/analysis_author.md',
-    'analysis_reviewer': PACKAGE / 'discovery/analysis_review/prompts/zh/analysis_reviewer.md',
+    'ontology_author': PACKAGE / 'prompts/zh/ontology_author.md',
+    'ontology_reviewer': PACKAGE / 'prompts/zh/ontology_reviewer.md',
+    'analysis_author': PACKAGE / 'prompts/zh/analysis_author.md',
+    'analysis_reviewer': PACKAGE / 'prompts/zh/analysis_reviewer.md',
 }
 
 ONTOLOGY_DESCRIPTIONS = {

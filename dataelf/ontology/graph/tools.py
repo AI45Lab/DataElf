@@ -81,8 +81,8 @@ def write_context(path,context):
     write_json(Path(path).with_name('graph_tool_schemas.json'),{n:provider_schema(a.json_schema()) for n,a in ADAPTERS.items()})
     from ..capabilities import skill_review
     if skill_review(context):
-        from dataelf.domains.ai_index.role_prompts import descriptions
-        write_json(Path(path).with_name('tool_descriptions.json'),descriptions())
+        from dataelf.discovery.domain_services import descriptions
+        write_json(Path(path).with_name('tool_descriptions.json'),descriptions(context))
 
 
 def dispatch(context_path,name,payload):
@@ -160,7 +160,7 @@ def _dispatch_mutation(context_path,context,name,args,service):
         args['changes'].update(agent_id=role,run_id=context.get('run_id'))
         extra={}
         if skill_review(context):
-            from dataelf.domains.ai_index.evidence import EvidenceCatalog
+            from dataelf.discovery.domain_services import evidence as EvidenceCatalog
             from ..sources import file_hash
             catalog=EvidenceCatalog(service.evidence_root);records=catalog.records();catalog.verify(records)
             registered={r['response_file']:r for r in records}

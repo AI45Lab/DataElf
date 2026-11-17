@@ -7,7 +7,9 @@ from .sources import SourceCatalog
 def effective_request(context, contract=None):
     request = context if isinstance(context, OntologyRequest) else OntologyRequest.model_validate(context['request'])
     if not skill_review(request): return request
-    from dataelf.domains.ai_index.evidence import EvidenceCatalog
+    from dataelf.discovery.domain_services import evidence as EvidenceCatalog
+    from dataelf.discovery.domain_services import bind
+    bind(request.workspace, request.domain)
     catalog = EvidenceCatalog(request.workspace)
     sources = {s.source_id: s for s in request.sources}
     sources.update({s.source_id: s for s in catalog.sources()})

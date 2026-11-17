@@ -1,5 +1,6 @@
 """Bounded, role-scoped tools and checkpointed authoring."""
 from __future__ import annotations
+from dataelf.discovery.domain_services import source_schemas
 import json
 import sys
 from pathlib import Path
@@ -30,8 +31,8 @@ def available_tools(context,directory,state=None,*,all_tools=False):
         from .graph.tools import tool_names
         names += tool_names(read_only=role in ('reviewer','stage1_reviewer','stage2_reviewer'))
     if skill_review(context):
-        from dataelf.domains.ai_index.skill_tools import schemas
-        names += list(schemas(role))
+        from dataelf.discovery.domain_services import source_schemas
+        names += list(source_schemas(role, context))
         from .collaboration_tools import schemas as collaboration_schemas
         names += list(collaboration_schemas(context))
         if context.get('review_mode')=='local':names.remove('ontology_submit')
@@ -45,7 +46,7 @@ def available_tools(context,directory,state=None,*,all_tools=False):
             defaults += list(OPERATIONS)
         else:defaults.append('ontology_author')
     defaults += [n for n in names if n in ('graph_inspect','graph_query','graph_explore','graph_validate','graph_diff')]
-    if skill_review(context):defaults += [n for n in names if n.startswith(('ai_index_','review_'))]
+    if skill_review(context):defaults += [n for n in names if n in source_schemas(role, context) or n.startswith('review_')]
     if skill_review(context):defaults=[n for n in defaults if n!='ontology_submit']
     path=Path(directory)/'enabled_tools.json'
     enabled=json.loads(path.read_text()) if path.exists() else []
@@ -89,8 +90,8 @@ def profile_continuation(tool,payload,value,page):
 def dispatch(context_path:Path,name:str,payload:dict):
     context=json.loads(context_path.read_text());role=context['role']
     from .capabilities import skill_review
-    if skill_review(context) and name.startswith('ai_index_'):
-        from dataelf.domains.ai_index.skill_tools import dispatch as source_dispatch
+    if skill_review(context) and name in source_schemas(role, context):
+        from dataelf.discovery.domain_services import source_dispatch
         return source_dispatch(context_path,name,payload)
     if skill_review(context) and name.startswith('review_'):
         from .collaboration_tools import dispatch as review_dispatch
@@ -160,7 +161,7 @@ def dispatch(context_path:Path,name:str,payload:dict):
                 if name_to_load=='ontology_submit':value=json.loads(context_path.with_name('schema.json').read_text())
                 elif name_to_load in ADAPTERS:value=ADAPTERS[name_to_load].json_schema()
                 elif name_to_load in COMPONENT_ADAPTERS:value=COMPONENT_ADAPTERS[name_to_load].json_schema()
-                elif name_to_load.startswith(('ai_index_','review_')):value=json.loads(context_path.with_name('tool_schemas.json').read_text())[name_to_load]
+                elif name_to_load in source_schemas(role, context) or name_to_load.startswith('review_'):value=json.loads(context_path.with_name('tool_schemas.json').read_text())[name_to_load]
                 else:value=json.loads(context_path.with_name('graph_tool_schemas.json').read_text())[name_to_load]
                 loaded=context_path.with_name('enabled_tools.json')
                 enabled=json.loads(loaded.read_text()) if loaded.exists() else []

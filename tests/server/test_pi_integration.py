@@ -108,8 +108,7 @@ def test_actual_pi_extension_converges_with_configured_provider(tmp_path, transp
         controlled=[r for r in requests if r['tool_choice']['function']['name']!='bash']
         assert controlled
         assert all(r['chat_template_kwargs']['enable_thinking'] is False for r in requests)
-        if transport=='nonstream':
-            assert all(r['max_tokens']==16000 for r in requests)
+        assert all(not ({'max_tokens', 'max_completion_tokens', 'max_output_tokens'} & r.keys()) for r in requests)
         assert all('MANDATORY SERVER PHASE' in next(m['content'] for m in r['messages'] if m['role'] in ('system','developer')) for r in controlled)
         assert 'RAW_REQUEST_AUDIT_ONLY' not in json.dumps(requests)
         if language != 'zh-CN':
@@ -123,12 +122,14 @@ def test_actual_pi_extension_converges_with_configured_provider(tmp_path, transp
             assert job.status=='failed'
             assert not (workspace/'insights/insight_candidates.json').exists()
             assert not (workspace/'prompts/synthesis_retry.md').exists()
-            # The optional transport rejects forced-name mismatches itself;
-            # native streaming needs a guard even when schema validation fails.
+            # The native protocol guard rejects the invalid batch immediately;
+            # it no longer burns the legacy request-count budget.
             if transport=='inherit':
-                assert json.loads((workspace/'logs/pi_control.json').read_text())['reason']=='model_request_limit'
-                assert len(requests)<=21
-                assert any('previous bash call was rejected' in m['content'] for r in controlled for m in r['messages'] if isinstance(m.get('content'),str))
+                error = json.loads((workspace/'logs/pi_tool_channel_error.json').read_text())
+                assert error['code'] == 'PI_MODEL_ERROR'
+                assert error['protocol'] == 'native'
+                assert 'no call was executed' in error['message']
+                assert len(requests) <= 5
             return
         assert job.status=='completed', (job.error_message,(workspace/'logs/pi_stderr.log').read_text()[-2500:])
         final_request = requests[-1]

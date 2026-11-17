@@ -118,7 +118,10 @@ def test_workflow_keeps_selected_plugin_and_resources(tmp_path, monkeypatch, inj
     from tests.test_discovery_mvp import _fake_registry, _write_fake_pi, _config
     from dataelf.discovery.workflow import run_job
     from dataelf.discovery.run_control import RunControl, current_run
-    import dataelf.discovery.workflow as workflow
+    if injected:
+        import dataelf_server.workflows.workflow as workflow
+    else:
+        import dataelf.discovery.legacy.workflow as workflow
 
     registry = _fake_registry(tmp_path)
     root = registry.domain_path("fake")

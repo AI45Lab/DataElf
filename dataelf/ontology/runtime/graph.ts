@@ -7,7 +7,7 @@ export default function(pi:any){
  const context=process.env.DATAELF_GRAPH_CONTEXT || process.env.DATAELF_ONTOLOGY_CONTEXT;
  if(!context || !existsSync(context))return;
  const task=JSON.parse(readFileSync(context,'utf8'));
- const modern=(task.workflow_policy || task.request?.workflow_policy)==='ai_index_cli_skill_review_v1';
+ const modern=process.env.DATAELF_REVIEWED_WORKFLOW==='1';
  const customDescriptions=modern ? JSON.parse(readFileSync(join(dirname(context),'tool_descriptions.json'),'utf8')):{};
  const path=join(dirname(context),'graph_tool_schemas.json');
  if(!existsSync(path))return;

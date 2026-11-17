@@ -76,7 +76,7 @@ class ReviewLedger:
             if not sep or (pointer and not select(json.loads(path.read_text()), pointer)):
                 raise ValueError('Evidence must resolve to file#pointer')
             files[relative] = file_hash(path)
-        from dataelf.domains.ai_index.evidence import EvidenceCatalog
+        from dataelf.discovery.domain_services import evidence as EvidenceCatalog
         catalog=EvidenceCatalog(self.workspace)
         for row in catalog.records():
             if row['response_file'] in files:
@@ -170,7 +170,7 @@ class ReviewLedger:
             write_json(self.root / 'issues.json', state)
             if request_id:
                 value = self.load(request_id); value.update(status='feedback_saved', feedback=result)
-                from dataelf.domains.ai_index.evidence import EvidenceCatalog
+                from dataelf.discovery.domain_services import evidence as EvidenceCatalog
                 value['reviewer_evidence']=EvidenceCatalog(self.workspace).reviewer_dependencies(self.family)
                 write_json(self.root / 'requests' / request_id / 'feedback.json', result)
                 write_json(self.root / 'requests' / request_id / 'request.json', value)
@@ -196,7 +196,7 @@ class ReviewLedger:
         root=Path(context.get('review_scratch') or self.root/'scratch') if scratch else Path(context.get('review_snapshot') or self.workspace)
         path=resolve_workspace_path(root,relative[len('scratch/'):] if scratch else relative)
         if not path.is_file() and not scratch:
-            from dataelf.domains.ai_index.evidence import EvidenceCatalog
+            from dataelf.discovery.domain_services import evidence as EvidenceCatalog
             catalog=EvidenceCatalog(self.workspace);rows=catalog.records()
             allowed={r['response_file'] for r in rows}|{str((catalog.root/r['query_id']/'record.json').relative_to(self.workspace)) for r in rows}
             if relative not in allowed:raise ValueError('Check dependency is outside review visibility')
@@ -223,7 +223,7 @@ class ReviewLedger:
         if not context['role'].endswith('reviewer'): raise ValueError('Only reviewers save independent checks')
         if not dependencies: raise ValueError('Checks require exact dependencies')
         bound = {}
-        from dataelf.domains.ai_index.evidence import EvidenceCatalog
+        from dataelf.discovery.domain_services import evidence as EvidenceCatalog
         catalog=EvidenceCatalog(self.workspace)
         records={r['response_file']:r for r in catalog.records()}
         for relative in dependencies:

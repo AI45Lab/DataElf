@@ -1,4 +1,5 @@
-"""Unbounded AI Index analyst/reviewer loop over existing workspace artifacts."""
+"""Unbounded reviewed analyst/reviewer loop over existing workspace artifacts."""
+from .launch import prepare_actor
 import hashlib
 import json
 from pathlib import Path
@@ -60,30 +61,32 @@ def evidence_excerpt(path):
             'semantics':'Tool result excerpts, possibly truncated. Full originals remain in log. No assistant design is a verified fact.'}
 
 
-def _actor(config,role,index,explorer):
+def _actor(config,role,index,explorer,domain):
     if explorer is not None and not isinstance(explorer,PiCliInsightsExplorer):return explorer
-    pi=config.explorer.pi;section=config.domain_config('ai_index').get('analysis',{})
+    pi=config.explorer.pi;section=config.domain_config(domain).get('analysis',{})
     return PiCliInsightsExplorer(pi_binary=pi.binary,model=section.get(role+'_model') or pi.model,
         mode=pi.mode,cwd=pi.cwd,timeout_seconds=None,extra_args=pi.extra_args,log_mode=pi.log_mode,
         log_prefix='pi' if role=='analyst' and index==1 else f'analysis_{role}_{index:04d}',compact_stream_events=True,detect_model_errors=True)
 
 
 def run_analysis(job,context,contract,config,*,analyst=None,reviewer=None):
-    from dataelf.discovery.execution_policy import ai_index_research
-    if not ai_index_research(job.spec):
-        raise ValueError('Independent research review requires an explicit registered AI Index workflow policy')
+    from dataelf.discovery.execution_policy import reviewed_analysis
+    if not reviewed_analysis(job.spec):
+        raise ValueError('Independent research review requires an explicit registered reviewed workflow policy')
+    from dataelf.discovery.domain_services import bind
+    bind(context.workspace_path, job.spec.domain)
     check_cancelled()
     workspace=Path(context.workspace_path).resolve();root=workspace/'reviews/analysis';root.mkdir(parents=True,exist_ok=True)
     original=Path(context.prompt_path).read_text();previous=None;submission=None;feedback=None;history=[];index=0
     started=time.monotonic();role='analyst';recovery={};artifacts=[]
     # Original evidence and published graphs are protected across revisions.
     protected={str(p.relative_to(workspace)):file_hash(p) for p in (workspace/'raw').rglob('*') if p.is_file()}
-    from dataelf.ontology.capabilities import skill_review
+    from dataelf.discovery.policies import skill_review
     modern=skill_review(job.spec)
     if modern:
-        from dataelf.domains.ai_index.evidence import SKILL_ROOT
+        from dataelf.discovery.domain_services import skills
         context=context.model_copy(update={'agent_resources':context.agent_resources.model_copy(update={
-            'skills':list(dict.fromkeys([*context.agent_resources.skills,SKILL_ROOT/'SKILL.md']))})})
+            'skills':list(dict.fromkeys([*context.agent_resources.skills,*skills(job.spec.model_dump())]))})})
     journal=root/'state.json'
     if journal.exists():
         saved=json.loads(journal.read_text());index=saved.get('session',0);previous=saved.get('previous_review');history=saved.get('history',[])
@@ -151,9 +154,9 @@ def run_analysis(job,context,contract,config,*,analyst=None,reviewer=None):
             prior=ledger.prior()
             if prior['issues'] or previous:previous={**(previous or {}),'issues':prior['issues']}
             versions=workspace/'artifacts/analysis_graph_ref.json'
-            if context.graph_ref and versions.exists():
+            if context.domain_context.get('graph_ref') and versions.exists():
                 new=json.loads(versions.read_text())
-                context=context.model_copy(update={'graph_ref':new['graph_ref']})
+                context=context.model_copy(update={'domain_context':{**context.domain_context,'graph_ref':new['graph_ref']}})
         check_cancelled();index+=1;directory=root/'sessions'/f'{index:04d}_{role}';directory.mkdir(parents=True,exist_ok=False)
         state={'phase':'reviewing' if role=='reviewer' else 'revising' if previous or feedback else 'analyzing',
                'workflow_policy':job.spec.workflow_policy,
@@ -161,12 +164,12 @@ def run_analysis(job,context,contract,config,*,analyst=None,reviewer=None):
                'protected_hashes':protected,'feedback':feedback,'elapsed_seconds':time.monotonic()-started}
         write_json(journal,state)
         if current_run():current_run().emit('analysis_'+state['phase'])
-        section=config.domain_config('ai_index').get('analysis',{})
+        section=config.domain_config(job.spec.domain).get('analysis',{})
         task={'role':role,'workspace':str(workspace),'spec':job.spec.model_dump(mode='json'),
               'contract':contract.model_dump(mode='json'),'graph_refs':[
                   GraphRef.model_validate(ref).model_dump(mode='json',exclude_none=True)
-                  for ref in (submission['graph_refs'] if role=='reviewer' and submission is not None else ([context.graph_ref] if context.graph_ref else []))],
-              'graph_root':context.graph_root,'protected_hashes':protected,'previous_review':previous,
+                  for ref in (submission['graph_refs'] if role=='reviewer' and submission is not None else ([context.domain_context.get('graph_ref')] if context.domain_context.get('graph_ref') else []))],
+              'graph_root':context.domain_context.get('graph_root'),'protected_hashes':protected,'previous_review':previous,
               'parent_submission':submission['submission_id'] if submission else None,
               'submission':submission,'max_output_tokens':section.get(role+'_max_output_tokens')}
         if modern:
@@ -202,12 +205,12 @@ def run_analysis(job,context,contract,config,*,analyst=None,reviewer=None):
         if modern:
             actor_context=actor_context.model_copy(update={'agent_resources':resource if role=='reviewer' else context.agent_resources,
                 'env':{**actor_context.env,'DATAELF_WORKFLOW_POLICY':job.spec.workflow_policy}})
-        actor=_actor(config,role,index,reviewer if role=='reviewer' else analyst)
+        actor=_actor(config,role,index,reviewer if role=='reviewer' else analyst,job.spec.domain)
         write_json(directory/'effective_input.json',{'model':getattr(actor,'model',context.model),'policy_version':POLICY_VERSION,
             'prompt_sha256':hashlib.sha256(prompt.read_bytes()).hexdigest(),'tools_sha256':hashlib.sha256((directory/'tools.json').read_bytes()).hexdigest(),
             'max_output_tokens':task['max_output_tokens'],'task_timeout':None,'tool_choice':'auto'})
         try:
-            result=actor.run(job,actor_context);check_cancelled()
+            result=actor.run(job,prepare_actor(job,actor_context));check_cancelled()
         except BaseException as exc:
             state['phase']='cancelled' if isinstance(exc,(RunCancelled,KeyboardInterrupt)) else 'interrupted'
             write_json(journal,state)
@@ -276,7 +279,7 @@ def run_analysis(job,context,contract,config,*,analyst=None,reviewer=None):
                     error_message=json.dumps({'task_assessment':decision.task_assessment,'summary':decision.summary,'blocker':decision.blocker},ensure_ascii=False)),None
             role='analyst';feedback={'review':previous};continue
         if result.error_code=='RUN_CANCELLED':
-            raise RunCancelled('AI Index analysis cancelled')
+            raise RunCancelled('reviewed analysis cancelled')
         if recovery.get('last_response_only_tool_markup'):
             return ExplorerRunResult(status='failed',artifacts=artifacts,error_code='PI_NATIVE_TOOL_CHANNEL_INCOMPATIBLE',
                 error_message='Pi received only tool-call markup in ordinary text, with no native toolCall. Nothing was executed; inspect the captured raw response and adapter events.'),None

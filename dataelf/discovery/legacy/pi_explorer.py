@@ -1,5 +1,11 @@
 """Stable legacy behavior migrated from DataElf 78f2ef4.
 
+This temporary copy intentionally preserves the process protocol used by
+Finance, Trajectory and legacy callers while reviewed execution evolves.
+Do not route new capabilities here or synchronize behavior implicitly. Removal
+requires those domains' separate migration and real-task compatibility review.
+
+
 Owned by legacy entries; new AI research must not add behavior here.
 Repository license applies. Only package-root paths and boundary types adapt.
 """

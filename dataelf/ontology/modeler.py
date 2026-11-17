@@ -37,7 +37,7 @@ class OntologyModeler:
         if result.status != "completed":
             return ModelingStageResult(status=result.status, error_code=result.error_code, error_message=result.error_message)
         artifacts = []
-        for label, path, kind in (("rdf", result.nquads_path, "ontology_rdf"), ("contract", result.contract_path or str(Path(result.stage1_bundle) / "contract.json"), "modeling_contract"),
+        for label, path, kind in (("rdf", result.nquads_path, "ontology_rdf"), ("contract", result.contract_path, "modeling_contract"),
                                   ("manifest", result.manifest_path, "modeling_manifest"), ("validation", result.validation_path, "modeling_validation")):
             artifacts.append(ArtifactRef(artifact_id="ontology_" + label, kind=kind, path=Path(path).relative_to(workspace.resolve()).as_posix(),
                                          role="evidence", producer_stage="domain_modeling"))
@@ -46,4 +46,4 @@ class OntologyModeler:
                 path=Path(result.template_path).relative_to(workspace.resolve()).as_posix(), role="output",
                 producer_stage="domain_modeling", media_type="application/json"))
         counters, details = stage_accounting(result.details.get("metrics", {}))
-        return ModelingStageResult(status="completed", artifacts=artifacts, metrics=counters, graph_ref=result.graph_ref, context={"rdf_path": artifacts[0].path,"graph_ref":result.graph_ref,"graph_root":str(Path(result.bundle_path).parents[2]), **details})
+        return ModelingStageResult(status="completed", artifacts=artifacts, metrics=counters, context={"rdf_path": artifacts[0].path,"graph_ref":result.graph_ref,"graph_root":str(Path(result.bundle_path).parents[2]), **details})

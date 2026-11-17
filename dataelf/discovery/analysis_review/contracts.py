@@ -1,7 +1,7 @@
 from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-POLICY_VERSION = 'ai-index-analysis.v1'
+POLICY_VERSION = 'analysis-review.v1'
 
 
 class Strict(BaseModel):
@@ -41,7 +41,7 @@ class ReviewDecision(Strict):
     schema_version: Literal['dataelf.analysis.review.v1'] = 'dataelf.analysis.review.v1'
     submission_id: str
     submission_hash: str
-    review_policy_version: Literal['ai-index-analysis.v1'] = POLICY_VERSION
+    review_policy_version: str = POLICY_VERSION
     verdict: Literal['approve', 'revise', 'blocked']
     task_assessment: Literal['fulfilled', 'limited', 'unfulfilled']
     summary: str = Field(min_length=1)
@@ -68,8 +68,12 @@ class ReviewDecision(Strict):
 
 
 def check_decision(decision, submission, previous=None):
+    if isinstance(decision, dict):
+        decision = {"review_policy_version": submission.get("policy_version", POLICY_VERSION), **decision}
     decision=ReviewDecision.model_validate(decision)
-    from dataelf.ontology.capabilities import skill_review
+    if decision.review_policy_version != submission.get("policy_version", POLICY_VERSION):
+        raise ValueError('Review policy differs from the submitted version')
+    from dataelf.discovery.policies import skill_review
     if skill_review(submission.get('spec',{})):
         from dataelf.ontology.review_policy import validate_issues
         validate_issues(decision)

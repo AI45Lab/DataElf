@@ -4,7 +4,7 @@ from dataelf.discovery.contracts import DiscoveryContext, DiscoveryJob
 
 
 def build_ai_index_prompt(job: DiscoveryJob, context: DiscoveryContext) -> str:
-    modeled = bool(context.graph_ref)
+    modeled = bool(context.domain_context.get('graph_ref'))
     evidence = (
         "An approved ontology revision is supplied. Query it as useful and independently check source records. "
         "Use named graphs deliberately and report exact revisions. Raw data and derived tables may be used for verification; "

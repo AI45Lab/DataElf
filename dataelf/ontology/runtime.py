@@ -1,5 +1,6 @@
 """Fresh Pi CLI sessions using the same process/model infrastructure as Explorer."""
 from __future__ import annotations
+from dataelf.discovery.domain_services import source_schemas
 
 import json
 import os
@@ -93,8 +94,8 @@ class PiOntologyAgent:
         tool_schemas.update(component_schemas())
         from .capabilities import skill_review
         if skill_review(context):
-            from dataelf.domains.ai_index.skill_tools import schemas as source_schemas
-            tool_schemas.update(source_schemas(role))
+            from dataelf.discovery.domain_services import source_schemas
+            tool_schemas.update(source_schemas(role, context))
             from .collaboration_tools import schemas as collaboration_schemas
             tool_schemas.update(collaboration_schemas(context))
         tool_schemas['ontology_author_basic']=provider_schema(TypeAdapter(ComponentAction).json_schema())
@@ -110,12 +111,15 @@ class PiOntologyAgent:
             elif isinstance(value,list):
                 for child in value:remove_profile_alias(child)
         remove_profile_alias(tool_schemas['ontology_evidence'])
+        if skill_review(context):
+            context['source_tool_names'] = list(source_schemas(role, context))
+            write_json(context_path, context)
         write_json(directory / "tool_schemas.json",tool_schemas)
         (directory / "authoring.md").write_text(authoring_guidance(role, schema.model_json_schema(), role_config.max_submission_failures,author_interface=role_config.author_interface,execution_policy=context.get('execution_policy','bounded')), encoding="utf-8")
         prompt_path = directory / "prompt.md"
         prompt_path.write_text(task_message(role), encoding="utf-8")
         if skill_review(context):
-            from dataelf.domains.ai_index.role_prompts import compose,input_manifest,descriptions
+            from dataelf.discovery.domain_services import compose,input_manifest,descriptions
             from .tools import available_tools,dispatch
             summary=dispatch(context_path,'ontology_inspect',{})
             from .recovery import compact_artifacts
@@ -129,7 +133,7 @@ class PiOntologyAgent:
             (directory/'authoring.md').write_text(system)
             prompt_path.write_text(task)
             write_json(directory/'composed_input.json',input_manifest(role_name,system,task,{n:tool_schemas.get(n) for n in active},context))
-            write_json(directory/'tool_descriptions.json',descriptions())
+            write_json(directory/'tool_descriptions.json',descriptions(context))
         from .guidance import PROMPT_VERSION
         from .sources import digest
         write_json(directory/'input_manifest.json',{'prompt_version':PROMPT_VERSION,
@@ -149,8 +153,10 @@ class PiOntologyAgent:
         for key,value in network_environment(context).items():env.setdefault(key,value)
         from .capabilities import skill_review
         if skill_review(context):
-            env['DATAELF_AI_INDEX_QUERY_CONTEXT']=str(context_path)
+            from dataelf.discovery.domain_services import environment
+            env.update(environment(context, context_path))
             env['DATAELF_WORKFLOW_POLICY']=context['request']['workflow_policy']
+            env['DATAELF_REVIEWED_WORKFLOW']='1'
         env["PYTHONDONTWRITEBYTECODE"]="1"
         env.setdefault("PI_CODING_AGENT_DIR", str(pi_agent_dir(self.config)))
         env.setdefault("NPM_CONFIG_CACHE", str(pi_cache_dir(self.config)))
@@ -164,8 +170,8 @@ class PiOntologyAgent:
         env["PYTHONPATH"] = root + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
         command = [str(binary), "--thinking", "off", "--mode", "json", "--no-session", "--approve", "--no-extensions", "--no-skills"]
         if skill_review(context):
-            from dataelf.domains.ai_index.evidence import SKILL_ROOT
-            skills=list(dict.fromkeys([*(self.agent_resources.skills if self.agent_resources else []),SKILL_ROOT/'SKILL.md']))
+            from dataelf.discovery.domain_services import skills as role_skills
+            skills=list(dict.fromkeys([*(self.agent_resources.skills if self.agent_resources else []),*role_skills(context)]))
             for skill in skills:command.extend(['--skill',str(skill)])
         from .tools import available_tools
         # CLI --tools is a hard execution allowlist, not merely prompt exposure.

@@ -33,8 +33,8 @@ def resume_published_graph(workspace, manifest_path, *, workflow_policy='legacy'
     workspace = Path(workspace).resolve()
     manifest_path = Path(manifest_path).expanduser().resolve()
     manifest = json.loads(manifest_path.read_text())
-    if manifest.get('domain') != 'ai_index' or manifest.get('status') != 'completed':
-        raise ValueError('Resume requires a completed AI Index graph manifest')
+    if manifest.get('status') != 'completed':
+        raise ValueError('Resume requires a completed graph manifest')
     bundle = manifest_path.parent
     origin = next((p for p in bundle.parents if (p/'job_spec.json').is_file()), None)
     if origin is None or origin == workspace:
@@ -126,7 +126,7 @@ def resume_published_graph(workspace, manifest_path, *, workflow_policy='legacy'
             previous_delivery={'meaning':'Published graph is available; no approved prior analysis is available.',
                 'original_objective':json.loads((origin/'job_spec.json').read_text()).get('objective')}
         write_json(workspace/'notes/previous_delivery/context.json',previous_delivery)
-    return ModelingStageResult(status='completed', artifacts=artifacts, graph_ref=ref,
+    return ModelingStageResult(status='completed', artifacts=artifacts,
         metrics={'modelCalls': 0, 'resumed': True}, context={
             'graph_ref': ref, 'graph_root': str(root), 'resumed_from_job': parent_job,
             **({'previous_delivery':previous_delivery} if previous_delivery is not None else {}),

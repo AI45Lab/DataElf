@@ -24,6 +24,8 @@ SUCCESS = {'success_empty', 'success_data'}
 
 class EvidenceCatalog:
     def __init__(self, workspace):
+        from dataelf.discovery.domain_services import bind
+        bind(workspace, "ai_index")
         self.workspace = Path(workspace).resolve()
         self.root = self.workspace / 'raw/ai_index/queries'
         self.root.mkdir(parents=True, exist_ok=True)

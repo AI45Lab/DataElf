@@ -54,26 +54,20 @@ class DataElfConfig(BaseModel):
     workflow_policy: str = "legacy"
 
     def ontology_for_domain(self, domain: str) -> OntologySettings:
-        """Resolve legacy AI settings only after the AI workflow is selected."""
-        if domain != "ai_index":
+        """Resolve optional domain migration through its manifest declaration."""
+        from dataelf.discovery.domain_registry import DomainRegistry
+        from importlib import import_module
+        try:
+            manifest = DomainRegistry().load_manifest(domain)
+        except FileNotFoundError:
             return self.ontology
-        legacy = dict(self.domains.get("ai_index", {}).get("modeling", {}) or {})
-        for field, env in (("enabled", "DATAELF_AI_INDEX_MODELING_ENABLED"), ("ontology_config", "DATAELF_AI_INDEX_MODELING_ONTOLOGY_CONFIG")):
-            if os.getenv(env) not in (None, ""):
-                legacy[field] = os.environ[env]
-        if not legacy:
+        entry = manifest.config_adapters.get('ontology')
+        if not entry:
             return self.ontology
-        old = OntologySettings.model_validate(legacy)
-        if "ontology" in self.model_fields_set:
-            for key in legacy:
-                left, right = getattr(old, key), getattr(self.ontology, key)
-                if key == "ontology_config":
-                    left, right = Path(left).resolve(), Path(right).resolve()
-                if left != right:
-                    raise ValueError(f"conflicting ontology and domains.ai_index.modeling settings: {key}")
-            return self.ontology
-        warnings.warn("domains.ai_index.modeling is deprecated; use root ontology for the explicit research workflow", DeprecationWarning, stacklevel=2)
-        return old
+        module, separator, name = entry.partition(":")
+        if not separator:
+            raise ValueError("ontology_settings must use module:function syntax")
+        return getattr(import_module(module), name)(self)
 
     @classmethod
     def from_env(cls) -> "DataElfConfig":

@@ -12,79 +12,14 @@ from dataelf.ontology.graph.store import write_json
 from .contracts import POLICY_VERSION
 
 
-def source_references(workspace):
-    refs=set()
-    def visit(value):
-        if isinstance(value,dict):
-            for key,item in value.items():
-                if (key=='id' or key.endswith('_id') or key in {'url','source_url','homepage','landing_page_url','link','html_url'}) and isinstance(item,(str,int)):
-                    refs.add(str(item))
-                visit(item)
-        elif isinstance(value,list):
-            for item in value:visit(item)
-    for path in (workspace/'raw').rglob('*.json'):
-        refs.add(path.relative_to(workspace).as_posix())
-        try:visit(json.loads(path.read_text()))
-        except (ValueError,UnicodeError):pass
-    return refs
-
-
-def locator_exists(workspace,locator,refs):
-    if locator in refs:return True
-    relative,_,pointer=locator.partition('#')
-    try:path=resolve_workspace_path(workspace,relative)
-    except ArtifactContractError:return False
-    if not path.is_file():return False
-    if pointer:
-        try:
-            value=json.loads(path.read_text())
-            if not pointer.startswith('/'):return False
-            for token in pointer[1:].split('/'):
-                token=token.replace('~1','/').replace('~0','~')
-                value=value[int(token)] if isinstance(value,list) else value[token]
-        except (ValueError,KeyError,IndexError,TypeError):return False
-    return True
-
-
 def validate_submission(workspace, contract, spec):
-    workspace=Path(workspace).resolve()
-    outputs,warnings=validate_outputs(workspace,contract)
-    signals=json.loads((workspace/'insights/candidate_signals.json').read_text())['candidate_signals']
-    ids=[]
-    for index,signal in enumerate(signals):
-        if not isinstance(signal,dict) or not isinstance(signal.get('signal_id'),str) or not signal['signal_id'].strip():
-            raise ArtifactContractError(f'candidate_signals[{index}].signal_id must be nonempty')
-        if not isinstance(signal.get('summary'),str) or not signal['summary'].strip():
-            raise ArtifactContractError(f'candidate_signals[{index}].summary must contain the actual signal')
-        ids.append(signal['signal_id'])
-    if len(set(ids))!=len(ids):raise ArtifactContractError('candidate_signals signal_id values must be unique')
-    insights=json.loads((workspace/'insights/insight_candidates.json').read_text())['insight_candidates']
-    refs=source_references(workspace)
-    maximum=spec['parameters'].get('expected_outputs')
-    if maximum is not None and len(insights)>int(maximum):
-        raise ArtifactContractError('insight_candidates exceeds the user requested maximum')
-    insight_ids=[]
-    for index,item in enumerate(insights):
-        insight_ids.append(item['insight_id'])
-        for ident in item['supporting_signals']:
-            if ident not in ids:raise ArtifactContractError(f'insight_candidates[{index}].supporting_signals references unknown signal {ident}')
-        for artifact in item['analysis_artifacts']:
-            relative=artifact if isinstance(artifact,str) else artifact['path']
-            path=resolve_workspace_path(workspace,relative)
-            if not path.is_file() or not path.stat().st_size:
-                raise ArtifactContractError(f'insight_candidates[{index}].analysis_artifacts missing file: {relative}')
-        for support in item['external_support']:
-            locators=[support] if isinstance(support,str) else [str(value) for key,value in support.items()
-                if value and (key in {'path','id','url','source_url','link','html_url'} or key.endswith('_id'))]
-            if not locators or not any(locator_exists(workspace,loc,refs) for loc in locators):
-                raise ArtifactContractError(f'insight_candidates[{index}].external_support needs a resolvable original ID, saved URL or source file pointer')
-    if len(set(insight_ids))!=len(insight_ids):raise ArtifactContractError('insight_id values must be unique')
-    return outputs,warnings
+    from dataelf.discovery.domain_services import services
+    return services(spec).validate_submission(workspace, contract, spec)
 
 
-def selected_files(workspace, graph_root=None, graph_refs=()):
+def selected_files(workspace, graph_root=None, graph_refs=(), *, folders):
     workspace=Path(workspace).resolve();files={}
-    for folder in ['raw','tables','scripts','notes','deep_dives','insights']:
+    for folder in folders:
         for path in (workspace/folder).rglob('*'):
             if path.is_file():
                 if path.is_symlink() or not path.resolve().is_relative_to(workspace):
@@ -99,7 +34,7 @@ def selected_files(workspace, graph_root=None, graph_refs=()):
             if service.validate(ref).status!='valid':raise ValueError('Bound graph revision failed validation')
             review=state.get('review') or {}
             if review.get('candidate_hash')!=service.binding(state) or review.get('result',{}).get('verdict')!='approve':
-                raise ValueError('AI Index analysis requires the approved graph candidate')
+                raise ValueError('Analysis requires the approved graph candidate')
             bundle=service.store.path(service.ref(ref))
             for path in bundle.rglob('*'):
                 if path.is_file():files[path.relative_to(workspace).as_posix()]=file_hash(path)
@@ -121,7 +56,8 @@ def _freeze(context, idempotency_key, response_path=None, graph_refs=None):
     refs=[GraphRef.model_validate(ref).model_dump(mode='json',exclude_none=True)
           for ref in (graph_refs if graph_refs is not None else context.get('graph_refs',[]))]
     if refs and not context.get('graph_root'):raise ValueError('No graph service supplied')
-    files=selected_files(workspace,context.get('graph_root'),refs)
+    from dataelf.discovery.domain_services import services
+    files=selected_files(workspace,context.get('graph_root'),refs,folders=services(context['spec']).submission_dirs)
     for relative,expected in context.get('protected_hashes',{}).items():
         if files.get(relative)!=expected:raise ValueError('Previously frozen evidence changed: '+relative)
     response=None
@@ -169,7 +105,7 @@ def install(workspace, submission, decision, *, reviewer_evidence=None):
     if decision.verdict!='approve' or decision.task_assessment!='fulfilled':raise ValueError('Only fulfilled approval may complete')
     snapshot=verify(workspace,submission,live=True)
     if reviewer_evidence is not None:
-        from dataelf.ontology.capabilities import skill_review
+        from dataelf.discovery.policies import skill_review
         if not skill_review(submission['spec']):raise ValueError('Supplemental review evidence requires the host policy')
         for relative,expected in reviewer_evidence.items():
             if file_hash(resolve_workspace_path(workspace,relative))!=expected:raise ValueError('Reviewer evidence changed')
@@ -178,7 +114,8 @@ def install(workspace, submission, decision, *, reviewer_evidence=None):
     # All roles have stopped. Replace from approved bytes; a crash cannot mark
     # the job completed until every installed file hash is rechecked.
     for relative in submission['files']:
-        if relative.split('/')[0] not in {'insights','notes','deep_dives','tables','scripts'}:continue
+        from dataelf.discovery.domain_services import services
+        if not any(relative.startswith(folder.rstrip('/') + '/') for folder in services(submission['spec']).writable_dirs):continue
         target=workspace/relative;temporary=target.with_name('.'+target.name+'.approved')
         shutil.copyfile(snapshot/relative,temporary);temporary.replace(target)
     verify(workspace,submission,live=True)

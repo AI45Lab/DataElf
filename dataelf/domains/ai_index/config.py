@@ -68,7 +68,7 @@ class AIIndexDomainConfig(BaseModel):
             return
 
         try:
-            from dataelf.ontology.legacy_ai_index import load_modeling_config
+            from dataelf.domains.ai_index.legacy_modeling import load_modeling_config
             ontology = load_modeling_config(self.modeling.ontology_config)
             if ontology.mode == "template":
                 raise ValueError('AI_INDEX_TEMPLATE_RETIRED: use dynamic ontology or --resume-graph-manifest for an approved revision; serve fixed rules and other domains are unchanged')

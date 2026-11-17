@@ -16,7 +16,7 @@ from dataelf.discovery.contracts import ArtifactRef, DiscoveryContext, Discovery
 from dataelf.discovery.pi_runtime import PI_REQUIRED_PACKAGES, is_managed_binary, managed_pi_resources, runtime_ready_for_process
 from dataelf.discovery.redaction import redact_text, secret_values
 from dataelf.discovery.run_control import check_cancelled, current_run, terminate_process, RunCancelled
-from dataelf.discovery.execution_policy import ai_index_research, unbounded_analysis
+from dataelf.discovery.execution_policy import reviewed_analysis, unbounded_analysis
 
 
 DEFAULT_PI_MODE = "json"
@@ -130,14 +130,11 @@ class PiCliInsightsExplorer:
         elif self.log_mode == "summary":
             logger.info("Pi event summaries will be streamed; raw JSON events will also be captured in %s.", events_path)
         try:
-            extra={}
-            if ai_index_research(job.spec) and env.get('DATAELF_ANALYSIS_CONTEXT'):
-                base=Path(env['DATAELF_ANALYSIS_CONTEXT']).parent
-                extra['stop_files']=tuple(base/name for name in ('analysis_submission.json','analysis_review.json','analysis_transport.json'))
-                from dataelf.ontology.capabilities import skill_review
-                if skill_review(job.spec):extra['stop_files']+= (base/'handoff.json',)
-            completed = _run_pi_process(command, cwd=cwd, env=env, timeout=timeout, log_mode=self.log_mode,
-                compact_json_events=self.compact_stream_events or ai_index_research(job.spec), **extra)
+            completed = _run_pi_process(
+                command, cwd=cwd, env=env, timeout=timeout, log_mode=self.log_mode,
+                compact_json_events=self.compact_stream_events or context.execution.get("compact_json_events", False),
+                stop_files=tuple(context.execution.get("stop_files", ())),
+            )
         except RunCancelled as exc:
             stdout = getattr(exc, "stdout", "")
             stderr = getattr(exc, "stderr", "")
@@ -172,7 +169,7 @@ class PiCliInsightsExplorer:
                 message = event.get("message", {})
                 if event.get("type") == "message_end" and message.get("role") == "assistant":
                     last_stop = message.get("stopReason")
-            if last_stop == "length" and ai_index_research(job.spec):
+            if last_stop == "length" and reviewed_analysis(job.spec):
                 return ExplorerRunResult(status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix),
                     error_code="PI_OUTPUT_TRUNCATED", error_message="Provider output ended at the token limit; saved artifacts and event logs are retained.")
             model_errors = _model_event_errors(completed.stdout or "")
@@ -229,27 +226,15 @@ class PiCliInsightsExplorer:
         common = managed_pi_resources(self.cwd.resolve(), env or {}, required_packages=self.required_packages) if is_managed_binary(Path(pi_binary)) else None
         for extension in [*(common.extensions if common else []), *((context.agent_resources.extensions if context else []))]:
             command.extend(["--extension", str(extension)])
-        if context and ai_index_research(context.spec):
-            command.extend(["--extension", str(Path(__file__).with_name("runtime") / "compat.ts")])
-        if context and ai_index_research(context.spec):
-            command.extend(['--extension',str(Path(__file__).with_name('runtime') / 'outputs.ts')])
-        if context and ai_index_research(context.spec) and (env or {}).get('DATAELF_ANALYSIS_CONTEXT'):
-            command.extend(['--extension',str(Path(__file__).with_name('runtime')/'analysis.ts')])
         command.append("--no-skills")
         for skill in [*(common.skills if common else []), *((context.agent_resources.skills if context else []))]:
             command.extend(["--skill", str(skill)])
-        if context and ai_index_research(context.spec) and context.env.get('DATAELF_ANALYSIS_ROLE')!='reviewer' and getattr(context,"graph_ref",None):
-            command.extend(["--extension",str(Path(__file__).resolve().parents[1]/"ontology/runtime/graph.ts")])
-        from dataelf.ontology.capabilities import skill_review
-        if context and skill_review(context.spec):
-            command.extend(['--extension',str(Path(__file__).resolve().parents[1]/'ontology/runtime/inputs.ts')])
         if self.extra_args:
             command.extend(shlex.split(self.extra_args))
-        if context and ai_index_research(context.spec) and context.env.get('DATAELF_ANALYSIS_ROLE')=='reviewer':
-            from .analysis_review.tools import schemas
-            command.extend(['--tools',context.env.get('DATAELF_ANALYSIS_TOOLS') or ','.join(schemas('reviewer'))])
-        from dataelf.ontology.capabilities import skill_review
-        suffix=("执行当前独立审核，通过实际工具交接反馈。" if context and context.env.get('DATAELF_ANALYSIS_ROLE')=='reviewer' else "执行当前研究任务，通过实际工具保存并交接产物。") if context and skill_review(context.spec) else "Run this DataElf discovery task and write the required workspace artifacts."
+        settings = getattr(context, "execution", {}) if context else {}
+        if settings.get("tools"):
+            command.extend(["--tools", settings["tools"]])
+        suffix = settings.get("suffix", "Run this DataElf discovery task and write the required workspace artifacts.")
         command.extend([f"@{prompt_path.resolve()}", suffix])
         return command
 
@@ -261,8 +246,6 @@ class PiCliInsightsExplorer:
             if value is not None:
                 env[key] = value
         env.update({key: str(value) for key, value in context.env.items()})
-        from dataelf.ontology.capabilities import network_environment
-        for key,value in network_environment(context.spec).items():env.setdefault(key,value)
         repo_root = Path(__file__).resolve().parents[2]
         existing_pythonpath = env.get("PYTHONPATH", "")
         env["PYTHONPATH"] = str(repo_root) if not existing_pythonpath else f"{repo_root}{os.pathsep}{existing_pythonpath}"
@@ -272,30 +255,6 @@ class PiCliInsightsExplorer:
         env["DATAELF_PYTHON"] = sys.executable
         env["DATAELF_WORKFLOW_PROFILE"] = job.spec.workflow_profile
         env["DATAELF_DOMAIN"] = context.spec.domain
-        if any(artifact.kind == "ontology_rdf" for artifact in context.artifacts):
-            env["DATAELF_PI_ONTOLOGY"] = "1"
-        else:
-            env.pop("DATAELF_PI_ONTOLOGY", None)
-        if ai_index_research(context.spec) and context.env.get('DATAELF_ANALYSIS_ROLE')!='reviewer' and context.graph_ref and context.graph_root:
-            from dataelf.ontology.graph.tools import analysis_context
-            from dataelf.ontology.capabilities import skill_review
-            workflow_context={'workflow_policy':context.spec.workflow_policy,'original_spec':job.spec.model_dump(mode='json'),
-                'analysis_context_path':env.get('DATAELF_ANALYSIS_CONTEXT')} if skill_review(context.spec) else None
-            env["DATAELF_GRAPH_CONTEXT"]=str(analysis_context(workspace_path,context.graph_ref,context.graph_root,job.job_id,workflow_context))
-        else:
-            env.pop("DATAELF_GRAPH_CONTEXT", None)
-            env.pop("DATAELF_ONTOLOGY_CONTEXT", None)
-            if not ai_index_research(context.spec):env.pop("DATAELF_PI_STREAM_USAGE", None)
-        if ai_index_research(context.spec):
-            env.setdefault('DATAELF_ANALYSIS_CONTEXT',str(workspace_path/'prompts/analysis_context.json'))
-        from dataelf.ontology.capabilities import skill_review
-        if skill_review(context.spec):
-            env['DATAELF_WORKFLOW_POLICY']=context.spec.workflow_policy
-            env['DATAELF_AI_INDEX_QUERY_CONTEXT']=env['DATAELF_ANALYSIS_CONTEXT']
-            env.pop('DATAELF_ONTOLOGY_CONTEXT',None)
-        else:
-            env.pop('DATAELF_WORKFLOW_POLICY',None)
-            env.pop('DATAELF_AI_INDEX_QUERY_CONTEXT',None)
         if self.model:
             env["DATAELF_PI_MODEL"] = self.model
         if "NPM_CONFIG_CACHE" not in env and "npm_config_cache" not in env:

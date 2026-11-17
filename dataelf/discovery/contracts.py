@@ -8,7 +8,7 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel, Field, model_validator
 
 from dataelf.schemas import now_utc
-from dataelf.ontology.capabilities import WorkflowPolicy, validate_scope
+from dataelf.discovery.policies import WorkflowPolicy, validate_scope
 
 
 class JobSpec(BaseModel):
@@ -53,7 +53,6 @@ class StageResult(BaseModel):
     artifacts: list[ArtifactRef] = Field(default_factory=list)
     context: dict[str, Any] = Field(default_factory=dict)
     env: dict[str, str] = Field(default_factory=dict)
-    graph_ref: dict[str, Any] | None = None
     authorized_outside: list[str] = Field(default_factory=list)
     metrics: dict[str, str | int | float | bool] = Field(default_factory=dict)
     error_code: str | None = None
@@ -131,12 +130,16 @@ class DomainManifest(BaseModel):
     display_name: str
     plugin: str
     legacy_entry: str | None = None
+    workflows: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    agent_services: str | None = None
+    config_adapters: dict[str, str] = Field(default_factory=dict)
+    audit_dirs: list[str] = Field(default_factory=list)
     capabilities: list[str] = Field(default_factory=list)
     workspace_dirs: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def validate_workspace_dirs(self) -> "DomainManifest":
-        for relative in self.workspace_dirs:
+        for relative in [*self.workspace_dirs, *self.audit_dirs]:
             path = PurePosixPath(relative)
             if path.is_absolute() or ".." in path.parts:
                 raise ValueError(f"domain workspace directory must be relative and contained: {relative}")
@@ -156,7 +159,7 @@ class DiscoveryJob(BaseModel):
     status: Literal["created", "running", "completed", "failed"] = "created"
     workspace_path: str
     artifacts: list[ArtifactRef] = Field(default_factory=list)
-    graph_refs: list[dict[str, Any]] = Field(default_factory=list)
+    context: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
     error_code: str | None = None
@@ -172,9 +175,8 @@ class DiscoveryContext(BaseModel):
     domain_context: dict[str, Any] = Field(default_factory=dict)
     artifacts: list[ArtifactRef] = Field(default_factory=list)
     agent_resources: AgentResources = Field(default_factory=AgentResources)
-    graph_ref: dict[str, Any] | None = None
-    graph_root: str | None = None
     prompt_path: str | None = None
+    execution: dict[str, Any] = Field(default_factory=dict)
 
 
 class DomainModeler(Protocol):

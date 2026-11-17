@@ -20,7 +20,7 @@ from dataelf.discovery.contracts import (
 )
 from dataelf.discovery.domain_registry import DomainRegistry
 from dataelf.discovery.explorer_factory import create_explorer
-from dataelf.discovery.execution_policy import ai_index_research
+from dataelf.discovery.execution_policy import reviewed_analysis
 from dataelf.discovery.prompt_builder import write_discovery_prompt
 from dataelf.discovery.workspace import prepare_workspace
 from dataelf.discovery.redaction import redact_text, redact_data, secret_values
@@ -90,7 +90,10 @@ def run_selected_job(
             if normalized.workflow_policy != spec.workflow_policy:
                 raise ValueError("Plugin cannot change the saved workflow selection")
             spec = JobSpec.model_validate(normalized.model_dump())
+            from .domain_services import bind
+            bind(workspace, spec.domain)
             job.spec = spec
+            job.context["audit_dirs"] = list(plugin.manifest.audit_dirs)
             prepare_workspace(workspace, spec)
             try:
                 # Injected profiles own their resource declarations. Do not
@@ -159,17 +162,10 @@ def _run_stages(job, config, store, workspace, plugin, context, explorer):
         job.artifacts.extend(modeling.artifacts)
         context = context.model_copy(update={
             "domain_context": {**context.domain_context, **modeling.context},
-            "graph_ref":modeling.graph_ref or modeling.context.get("graph_ref"),
-            "graph_root":modeling.context.get("graph_root"),
             "env": {**context.env, **modeling.env},
             "artifacts": list(job.artifacts),
         })
 
-    if context.graph_ref:
-        from .execution_policy import ai_index_research
-        ref=({k:v for k,v in context.graph_ref.items() if v is not None}
-             if ai_index_research(spec) else context.graph_ref)
-        job.graph_refs.append(ref)
     _stage("prompt_composition")
     contract = plugin.output_contract(spec)
     prompt_path = write_discovery_prompt(job, context, plugin.build_prompt(job, context), contract)
@@ -264,7 +260,7 @@ def _finalize(
         if not path.is_file() or path.is_symlink():
             continue
         relative = path.relative_to(workspace).as_posix()
-        if ai_index_research(job.spec) and relative.startswith(('submissions/','reviews/analysis/')):
+        if any(relative.startswith(directory.rstrip('/') + '/') for directory in job.context.get('audit_dirs', [])):
             # Old submissions and reviewer scratch are audit logs, never output
             # or analysis evidence selected merely because a file exists.
             if relative in known:continue
@@ -290,7 +286,7 @@ def _finalize(
         "spec": job.spec.model_dump(mode="json"),
         "error": {"code": error_code, "message": error_message} if error_code else None,
         "result_ids": result_ids,
-        "graph_refs":job.graph_refs,
+        "context": job.context,
         "review": review.model_dump(mode="json"),
         "artifact_manifest": "artifact_manifest.json",
     }
@@ -312,3 +308,8 @@ def run_job(*args, **kwargs):
 
 
 __all__ = ["NullStore", "run_job", "run_selected_job"]
+
+# Public lifecycle hooks for domain-selected execution flows.
+fail_job = _fail
+finalize_job = _finalize
+write_review = _write_review

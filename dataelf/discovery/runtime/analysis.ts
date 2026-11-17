@@ -7,11 +7,11 @@ import {trustedHandoff} from '../../ontology/runtime/tool_results.ts';
 import {withoutThinkingPayload} from '../../ontology/runtime/thinking.ts';
 
 export default function(pi:any) {
- if(process.env.DATAELF_WORKFLOW_PROFILE!=='research' || process.env.DATAELF_DOMAIN!=='ai_index')return;
+ if(process.env.DATAELF_REVIEWED_WORKFLOW!=='1')return;
  const path=process.env.DATAELF_ANALYSIS_CONTEXT;
  if(!path || !existsSync(path))return;
  const task=JSON.parse(readFileSync(path,'utf8'));
- const modern=task.workflow_policy==='ai_index_cli_skill_review_v1';
+ const modern=process.env.DATAELF_REVIEWED_WORKFLOW==='1';
  let handedOff=false;
  const registry=JSON.parse(readFileSync(join(dirname(path),'tools.json'),'utf8'));
  installNativeCallGuard(pi,(detail:any,ctx:any)=>{

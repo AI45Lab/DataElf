@@ -557,7 +557,7 @@ def test_cli_rejects_explicit_ontology_config_when_modeling_is_disabled(
     monkeypatch.chdir(tmp_path)
     result = CliRunner().invoke(
         app,
-        ["run", "--domain", "ai_index", "test", "--ontology-config", "ontology.yaml"],
+        ["run", "--domain", "ai_index", "test", "--workflow-policy", "cli_skill_review_v1", "--ontology-config", "ontology.yaml"],
     )
     assert result.exit_code == 2
     assert "requires --modeling" in result.output
@@ -568,7 +568,8 @@ def test_ai_index_defaults_and_pi_event_summary() -> None:
     assert DEFAULT_AI_INDEX_BASE_URL == "https://index.shlab.org.cn/api/v2"
     assert DEFAULT_AI_INDEX_API_KEY == ""
     domain = AIIndexDomainConfig.from_mapping({})
-    assert domain.modeling.ontology_config.is_file()
+    from dataelf.ontology.config import load_config
+    assert load_config(domain.modeling.ontology_config).mode == "dynamic"
     summary = _summarize_pi_event(json.dumps({
         "role": "assistant", "content": [{"type": "toolCall", "name": "bash", "arguments": {"command": "x" * 500}}],
         "usage": {"input": 12, "output": 3, "totalTokens": 15},

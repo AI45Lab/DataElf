@@ -99,8 +99,6 @@ def run_job(
                 )
             except (FileNotFoundError, ValueError) as exc:
                 return _fail(job, store, workspace, "agent_resources", "AGENT_RESOURCES_INVALID", redact_text(exc, control.secrets))
-            if spec.domain == "ai_index":
-                agent_resources = agent_resources.model_copy(update={"skills": [p for p in agent_resources.skills if "ai-index-search" not in p.parts]})
             context = DiscoveryContext(
                 workspace_path=str(workspace), spec=spec, manifest=plugin.manifest,
                 model=config.explorer.pi.model, env=dict(config.env), agent_resources=agent_resources,

@@ -208,7 +208,7 @@ class OntologyRequest(StrictModel):
     domain: DomainName
     workspace: Path
     sources: list[SourceInput] = Field(default_factory=list)
-    workflow_policy: Literal['legacy', 'ai_index_cli_skill_review_v1'] = 'legacy'
+    workflow_policy: str = 'legacy'
     task_context: dict[str, Any] = Field(default_factory=dict)
     documents: list[Path] = Field(default_factory=list)
     objective: str = "Model the supplied data with replayable evidence."
@@ -234,17 +234,12 @@ class OntologyRequest(StrictModel):
 
 class OntologyRunResult(BaseModel):
     status: Literal["completed", "incomplete", "failed"]
-    stage: Literal["modeling", "review", "stage1", "stage2", "rdf"]
+    stage: Literal["modeling", "review", "rdf"]
     graph_id: str | None = None
     revision_id: str | None = None
     bundle_path: str | None = None
     contract_path: str | None = None
     graph_ref: dict | None = None
-    # Legacy bundle aliases refer to the SAME revision, not two model stages.
-    stage1_run_id: str | None = None
-    stage2_run_id: str | None = None
-    stage1_bundle: str | None = None
-    stage2_bundle: str | None = None
     nquads_path: str | None = None
     rdfxml_path: str | None = None
     ntriples_path: str | None = None

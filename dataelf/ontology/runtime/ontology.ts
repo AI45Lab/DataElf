@@ -16,7 +16,7 @@ export default function(pi:any) {
  const submitSchema=JSON.parse(readFileSync(join(directory,'tool_schema.json'),'utf8'));
  const schemas=JSON.parse(readFileSync(join(directory,'tool_schemas.json'),'utf8'));
  const instructions=readFileSync(join(directory,'authoring.md'),'utf8');
- const skillFlow=task.request?.workflow_policy==='ai_index_cli_skill_review_v1';
+ const skillFlow=process.env.DATAELF_REVIEWED_WORKFLOW==='1';
  const descriptions=skillFlow ? JSON.parse(readFileSync(join(directory,'tool_descriptions.json'),'utf8')):{};
  const limits=task.control_limits;
  const managedControl=!!task.delivery?.enabled || task.execution_policy==='unbounded';
@@ -30,7 +30,7 @@ export default function(pi:any) {
  const repeats=new Map<string,number>(),inputs=new Map<string,string>();
  installNativeCallGuard(pi,(detail,ctx)=>fail(new Error(JSON.stringify(detail)),ctx));
  const originalInputs=new Map<string,any>();
- const names=['ontology_inspect','ontology_evidence','ontology_query','ontology_execute','ontology_submit','ontology_draft','ontology_author','ontology_work','ontology_configure','ontology_upsert_class','ontology_upsert_property','ontology_upsert_mapping',...Object.keys(schemas).filter(n=>n.startsWith('ai_index_') || n.startsWith('review_'))];
+ const names=['ontology_inspect','ontology_evidence','ontology_query','ontology_execute','ontology_submit','ontology_draft','ontology_author','ontology_work','ontology_configure','ontology_upsert_class','ontology_upsert_property','ontology_upsert_mapping',...[...(task.source_tool_names || []),...Object.keys(schemas).filter(n=>n.startsWith('review_'))]];
  async function backend(name:string,args:any,signal?:AbortSignal):Promise<any> {
   return await new Promise((resolve,reject)=>{
    const child=spawn(process.env.DATAELF_PYTHON || 'python',['-m','dataelf.ontology.tools',context,name],{stdio:['pipe','pipe','pipe']});
