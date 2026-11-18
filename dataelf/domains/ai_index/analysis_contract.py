@@ -24,6 +24,7 @@ def source_references(workspace):
                         "source_url",
                         "homepage",
                         "landing_page_url",
+                        "pdf_url",
                         "link",
                         "html_url",
                     }
@@ -113,7 +114,7 @@ def validate_submission(workspace, contract, spec):
                 raise ArtifactContractError(
                     f"insight_candidates[{index}].analysis_artifacts missing file: {relative}"
                 )
-        for support in item["external_support"]:
+        for support_index, support in enumerate(item["external_support"]):
             locators = (
                 [support]
                 if isinstance(support, str)
@@ -131,7 +132,10 @@ def validate_submission(workspace, contract, spec):
                 locator_exists(workspace, loc, refs) for loc in locators
             ):
                 raise ArtifactContractError(
-                    f"insight_candidates[{index}].external_support needs a resolvable original ID, saved URL or source file pointer"
+                    f"insight_candidates[{index}].external_support[{support_index}] needs an exact "
+                    "original ID, registered URL or workspace file pointer. Use a bare string "
+                    'or {"path":"raw/.../response.json#/data/list/0","title":"description"}; '
+                    "keep descriptions separate from the locator."
                 )
     if len(set(insight_ids)) != len(insight_ids):
         raise ArtifactContractError("insight_id values must be unique")

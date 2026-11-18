@@ -50,6 +50,8 @@
 | `analysis_artifacts` | 已保存且有实质支持作用的分析文件，当前契约每条至少一项；不得填尚未生成的路径。 |
 | `related_entities` | 实际相关实体与可用身份信息。 |
 | `external_support` | 可定位的来源记录、原始标识或实际来源链接，不捏造引用。 |
+
+`external_support` 的定位值必须精确：可以是裸 ID、已登记的完整 URL，或 `{"path":"raw/ai_index/queries/<query_id>/response.json#/data/list/0","title":"说明"}`。不要将说明文字或括号拼进 URL/文件指针；解释放在独立字段。
 | `counterarguments` | 相关反例、替代解释或局限。 |
 | `confidence` | 0–1 数字，表达证据支持程度；不是已校准概率。 |
 | `next_questions` | 后续建议，不自动成为本次必做事项。 |
