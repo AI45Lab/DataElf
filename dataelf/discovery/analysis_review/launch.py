@@ -53,6 +53,7 @@ def prepare_actor(job, context):
             "env": env,
             "agent_resources": resources,
             "execution": {
+                "cwd": str(workspace.resolve()),
                 "stop_files": [
                     str(path.parent / name)
                     for name in (

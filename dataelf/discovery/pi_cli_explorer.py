@@ -100,6 +100,13 @@ class PiCliInsightsExplorer:
                 status="failed", error_code="PI_PROMPT_INVALID",
                 error_message=f"Discovery prompt is missing or outside workspace: {prompt_path}",
             )
+        try:
+            cwd = self._execution_cwd(context)
+        except (ValueError, OSError) as exc:
+            return ExplorerRunResult(
+                status="failed", error_code="PI_WORKING_DIRECTORY_INVALID",
+                error_message=str(exc),
+            )
         pi_binary = self._resolve_binary()
         if pi_binary is None:
             message = (
@@ -120,8 +127,7 @@ class PiCliInsightsExplorer:
             stderr_path.write_text(message + "\n", encoding="utf-8")
             return ExplorerRunResult(status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix), warnings=[message], error_code="EXPLORER_RUNTIME_NOT_READY", error_message=message)
         timeout = self._execution_timeout(job)
-        cwd = self.cwd.resolve()
-        _write_json(logs_dir / f"{self.log_prefix}_command.json", {"command": _redact_command(command), "cwd": str(cwd), "workspace_path": str(workspace_path)})
+        _write_json(logs_dir / f"{self.log_prefix}_command.json", {"command": _redact_command(command), "cwd": str(cwd), "runtime_cwd": str(self.cwd.resolve()), "workspace_path": str(workspace_path)})
         _write_json(logs_dir / f"{self.log_prefix}_env_redacted.json", _redact_env(env))
 
         logger.info("Starting Pi CLI: binary=%s mode=%s model=%s cwd=%s timeout=%ss log_mode=%s", pi_binary, self.mode, self.model or "<pi default>", cwd, timeout, self.log_mode)
@@ -188,6 +194,25 @@ class PiCliInsightsExplorer:
                 error_code=PI_EVENT_PARSE_ERROR, error_message="Pi emitted malformed JSON events.",
             )
         return ExplorerRunResult(status="completed", artifacts=_log_artifacts(workspace_path, self.log_prefix))
+
+    def _execution_cwd(self, context: DiscoveryContext) -> Path:
+        """Separate task-relative tool paths from the configured Pi runtime root.
+
+        Callers opt in explicitly. Existing callers retain their configured cwd;
+        runtime discovery, provider registration and caches always use self.cwd.
+        This validates the launch directory, not a sandbox for arbitrary Bash.
+        """
+        selected = context.execution.get("cwd")
+        if selected is None:
+            return self.cwd.resolve()
+        if not isinstance(selected, str) or not selected.strip():
+            raise ValueError("Execution cwd must be a nonempty workspace path")
+        workspace = Path(context.workspace_path).resolve()
+        path = Path(selected)
+        path = (path if path.is_absolute() else workspace / path).resolve()
+        if not path.is_relative_to(workspace) or not path.is_dir():
+            raise ValueError("Execution cwd must be an existing directory inside the workspace")
+        return path
 
     def _resolve_binary(self) -> str | None:
         if self.pi_binary:

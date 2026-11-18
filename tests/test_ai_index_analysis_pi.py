@@ -51,9 +51,13 @@ def test_actual_pi_repairs_format_then_semantics_and_reviews_exact_snapshot(tmp_
             if with_graph and role=='analyst' and not task.get('previous_review') and step>1:step-=1
             if initial_inspection:tool='analysis_inspect';args={'resource':'contract'}
             elif role=='analyst' and not task.get('previous_review'):
-                if step==1:tool='write';args={'path':str(workspace/'insights/candidate_signals.json'),'content':'{"signals":[]}'}
-                elif step==2:tool='analysis_submit';args={'idempotency_key':'wrong-root'}
-                elif step==3:tool='write';args={'path':str(workspace/'insights/candidate_signals.json'),'content':json.dumps(original)}
+                if step==1:tool='write';args={'path':'analysis/cwd_probe.md','content':'first'}
+                elif step==2:tool='read';args={'path':'analysis/cwd_probe.md'}
+                elif step==3:tool='edit';args={'path':'analysis/cwd_probe.md','oldText':'first','newText':'second'}
+                elif step==4:tool='bash';args={'command':"python -c \"from pathlib import Path; assert str(Path.cwd()) == " + repr(str(workspace)) + "; assert Path('analysis/cwd_probe.md').read_text() == 'second'; print('cwd-probe-ok')\""}
+                elif step==5:tool='write';args={'path':'insights/candidate_signals.json','content':'{"signals":[]}'}
+                elif step==6:tool='analysis_submit';args={'idempotency_key':'wrong-root'}
+                elif step==7:tool='write';args={'path':'insights/candidate_signals.json','content':json.dumps(original)}
                 else:tool='analysis_submit';args={'idempotency_key':'first'}
             elif role=='analyst':
                 if step==1:tool='dataelf_submit_output';args={'artifact_id':'insight_candidates','data':{'insight_candidates':[item]}}
@@ -97,7 +101,8 @@ def test_actual_pi_repairs_format_then_semantics_and_reviews_exact_snapshot(tmp_
     (agent/'settings.json').write_text(json.dumps({'retry':{'enabled':False},'compaction':{'enabled':False}}))
     (agent/'models.json').write_text(json.dumps({'providers':{'controlled':{'baseUrl':f'http://127.0.0.1:{server.server_port}/v1','apiKey':'test-key','api':'openai-completions',
         'models':[{'id':'fixture','name':'Fixture','reasoning':False,'input':['text'],'cost':{'input':0,'output':0,'cacheRead':0,'cacheWrite':0},'contextWindow':128000,'maxTokens':16384}]}}}))
-    cfg=DataElfConfig(explorer={'pi':{'binary':str(ROOT/'node_modules/.bin/pi'),'cwd':str(ROOT),'model':'controlled/fixture','extra_args':'--offline --thinking off','log_mode':'quiet'}})
+    runtime=tmp_path/'runtime';runtime.mkdir()
+    cfg=DataElfConfig(explorer={'pi':{'binary':str(ROOT/'node_modules/.bin/pi'),'cwd':str(runtime),'model':'controlled/fixture','extra_args':'--offline --thinking off','log_mode':'quiet'}})
     ctx=DiscoveryContext(workspace_path=str(workspace),spec=spec,manifest=DomainManifest(domain='ai_index',version='1',display_name='AI',plugin='test'),
         domain_context=graph_context,prompt_path=str(workspace/'prompts/start.md'),env={'PI_CODING_AGENT_DIR':str(agent)})
     # Single-file submission tool uses the exact declared contract too.
@@ -109,9 +114,16 @@ def test_actual_pi_repairs_format_then_semantics_and_reviews_exact_snapshot(tmp_
         result,review=run_analysis(DiscoveryJob(job_id='native',spec=spec,workspace_path=str(workspace)),ctx,contract,cfg)
         assert result.status=='completed',result
         assert review.status=='pass'
+        assert (workspace/'analysis/cwd_probe.md').read_text()=='second'
+        assert not (runtime/'analysis').exists()
+        commands=list((workspace/'logs').glob('*_command.json'))
+        assert commands
+        assert all(json.loads(p.read_text())['cwd']==str(workspace) for p in commands)
+        assert all(json.loads(p.read_text())['runtime_cwd']==str(runtime) for p in commands)
+        assert any('cwd-probe-ok' in p.read_text() for p in (workspace/'logs').glob('*_events.jsonl'))
         assert len(json.loads((workspace/'reviews/analysis/history.json').read_text()))==2
         assert json.loads((workspace/'insights/insight_candidates.json').read_text())['insight_candidates'][0]==item
-        assert actors==['analyst']*(5 if with_graph else 4)+['reviewer']*2+['analyst']*2+['reviewer']*2
+        assert actors==['analyst']*(9 if with_graph else 8)+['reviewer']*2+['analyst']*2+['reviewer']*2
         assert any(t['function']['name']=='graph_query' for r in requests for t in r['tools'])==with_graph
         assert not list((workspace/'reviews/analysis/sessions').glob('*/analysis_transport.json'))
         scratch=workspace/'reviews/analysis/collaboration/scratch' if workflow_policy!='legacy' else workspace/'reviews/analysis/sessions'
