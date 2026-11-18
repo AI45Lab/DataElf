@@ -1,6 +1,6 @@
 # PR #16 评论修复与验收记录
 
-基线：`7be0d50757db9abf261f898434ef71948a479763`。分支：`codex/pr16-review-boundaries`。运行代码提交：`43f080b`。
+基线：`7be0d50757db9abf261f898434ef71948a479763`。分支：`codex/pr16-review-boundaries`。最终运行代码提交：`9697749`（包含领域边界重整与六项实测修复）。
 
 本轮只重整该 PR 的领域边界和相应兼容接口；不引入后续独立 benchmark 评测、主动上下文管理、Finance 新运行时等分支。
 Finance、Trajectory 的 legacy 三元组入口按用户决定保留；serve 保留自有固定模板和执行流程。未修改用户真实配置，未推送，也未向远程评论区发消息。
@@ -20,11 +20,11 @@ Finance、Trajectory 的 legacy 三元组入口按用户决定保留；serve 保
 | 9 | 六个 TS extension 放 core 却写死 AI | 保留公共工具桥接实现，删除 AI domain/policy 字符串门禁；由宿主显式加载并传 reviewed-workflow 标记。来源工具名称来自当前角色真实 schema 清单，不按 ai_index_ 前缀筛选。 |
 | 10 | legacy_ai_index.py、pipeline 的 EvidenceCatalog、resume 的 AI 限制、tools 前缀 | 配置迁移归 AI domain。公开 source/prompt 服务按 manifest 注入，无通用模块反向 import domain。resume 检查发布完整性，调用方 AI modeler 检查自身 domain。 |
 | 11 | 整份复制 legacy/pi_explorer.py | 保留稳定进程协议，补充复制来源、适用入口、禁止隐式同步及删除条件。未把新审核能力回灌旧执行器。 |
-| 12 | stage1/stage2 run/bundle 别名及 legacyBundleMeaning | 新 OntologyRunResult 只暴露一次发布的图谱版本与 bundle/contract 路径，清理所有对应消费者；新 validator 验证 graph manifest v2。serve 自有旧协议不删。 |
+| 12 | stage1/stage2 run/bundle 别名及 legacyBundleMeaning | 新 OntologyRunResult 只暴露一次发布的图谱版本与 bundle/contract 路径，清理对应 stage1/stage2 run/bundle 消费者；新 validator 验证 graph manifest v2。serve 自有旧协议不删。旧配置的单向迁移与既有 stage1Mode 监测标签仍保留，不代表执行旧两阶段。 |
 | 13 | pipeline 风格、重复延迟 import | 统一格式，抽出请求/配置准备步骤，将重复纯 helper 导入移到模块级。Pi 导入仍延迟，避免配置层循环依赖；引擎和恢复行为由回归验证。 |
 | 14 | development_contract.md 全量核对 | 已逐节阅读。修复本轮涉及的领域依赖、资源、prompt ownership 和结果边界；其余矛盾列于文末，不通过改规范掩盖现状。 |
 
-重复的 graph_ref 和 registry 评论合并在对应行中。以上说明尚不代表真实模型验收完成。
+重复的 graph_ref 和 registry 评论合并在对应行中。各项代码边界与离线回归已验证；真实任务已完成，运行闭环和内容质量分别见下文。
 
 ## 本轮额外发现
 
@@ -48,11 +48,45 @@ Finance、Trajectory 的 legacy 三元组入口按用户决定保留；serve 保
 - `dist-final/`、`installed-final/`、`wheel-final.log`：最终 wheel 构建安装；仓库外核对四份中文 prompt、来源 skill、TS 扩展、两种策略名称及删除旧模块。
 - 最终 wheel 及真实三个 AI Index 任务另记，不累计重复测试数量。
 
-## 真实任务计划
+## 真实任务结果
 
-使用 dataelf-regression 的 AI-ON-1、AI-ON-2、AI-OFF-1 原始任务输入，日期为启动日前七个完整自然日。通过 swproxy 独立 PTY 并行启动，三个独立工作区，不修改用户配置、不增加总预算。每 30 分钟或任务结束时刷新状态和四角色报告。发现代码缺陷后保留失败证据，修复并定向重测；模型或来源不足不通过放宽审核伪装成功。
+使用 `dataelf-regression` 的 AI-ON-1、AI-ON-2、AI-OFF-1 原始输入，窗口固定为 2026-11-11 至 2026-11-17；通过 `swproxy-model-env` 独立 PTY，GLM-5.3-a3，三组最初并行启动。每半小时监控，发现确定性代码故障后保留现场、修复并定向复测。没有增加总任务时间/token 预算、改题、放宽审核或人工代写模型产物。
 
-Serve、Trajectory、Finance 本轮仅离线隔离验证，不扩展真实测试范围。
+| 场景 | 最终正式任务 | 实际运行版本 | 运行与审核结果 | 独立内容复核 |
+|---|---|---|---|---|
+| OFF 研究关联 | job_f59646052da0 | e84e289 | 3h22m03s；3次作者提交/3次审核，2轮有效返工；正式安装通过 | 127快照文件、58来源、7附件核对；3项窗口/推断问题仍存在 |
+| ON2 项目生态 | job_bab0cea2fbd5 | 9ea7b02 | 原图谱2795 quads；正式续接后分析3h11m02s，2轮有效返工；安装通过 | 92快照文件、35来源、6附件核对；3项查询口径/范围外推问题仍存在 |
+| ON1 研究关联 | job_d490bcaaf55f | 图谱06f6921，续接分析06736f9 | 图谱3939 quads；续接分析3h57m32s，4次提交/4次审核，3轮有效返工；安装通过 | 142快照文件、55来源、12个附件/正式文件核对；4类证据外推/图谱覆盖问题仍存在 |
+
+ON 续接均使用正式 graph manifest 入口，复制并验证原已批准图谱及来源，建模新增调用为零；不是从空草稿重复建图。ON1 的字段映射、单日/全窗口分母、附件残留措辞和推文 ID 在真实返工中得到修正。最终三组都具有正式交付，但**不能记为内容质量全部通过，也不能宣称三组在同一个最终 HEAD 上完整重跑通过**。最终 PDF 引用补丁9697749只做原失败输入重放、本地实际Pi与安装测试；其余真实产物在最终代码下重新校验。
+
+所有尝试（含停止的失败任务）共 **2041次请求、212,325,840已知token，194次请求用量未知**。累计输入包括重复上下文和缓存，不等于生成字数或费用；单独的环境纠正/连通探针另有原始记录。已落盘终态中未观察到 `length`；中断未落盘的回复不能据此认定没有截断。继承的 Pi 注册未启用服务端专用 thinking 兼容参数，`--thinking off` 并未保证服务端 reasoning 为零。ON1一次建图修订产生约42万输出token，其中约38万为reasoning，是耗时的重要观测因素；本轮没有中途改变模型参数来制造性能对比。
+
+完整尝试成本、四角色/逐会话明细与原始报告索引：
+[real-attempts.md](/mnt/shared-storage-user/adpc-share/zhangjiayi1/.dataelf/development/pr16-review-boundaries/real-attempts.md)。
+
+独立内容复核（不改原报告/批准）：
+
+- [OFF复核](/mnt/shared-storage-user/adpc-share/zhangjiayi1/dataelf-acceptance/pr16-ai-index-20261118-032247/independent-audit/review.md)
+- [ON2复核](/mnt/shared-storage-user/adpc-share/zhangjiayi1/dataelf-acceptance/pr16-ai-index-20261118-060811/independent-audit/review.md)
+- [ON1复核](/mnt/shared-storage-user/adpc-share/zhangjiayi1/dataelf-acceptance/pr16-ai-index-20261118-171154/independent-audit/review.md)
+
+Serve、Trajectory、Finance 本轮仅离线隔离验证，没有启动它们的真实任务；三个业务目录相对7be0d50没有源码改动。未验证持续图谱维护、跨域新架构接入或生产成功率。
+
+## 真实任务暴露的六项修复
+
+| 提交 | 故障 | 修复与证据 |
+|---|---|---|
+| e84e289 | 已知非阻塞问题的更新被当成非法 issue 集合，反复拒绝审核提交 | 必需阻塞项仍须覆盖，允许已知非阻塞项更新；拒绝未知、重复和未解决阻塞。OFF真实返工通过。见 pr16_runtime_feedback_20261118.md。 |
+| 9ea7b02 | reasoning清理改变content下标，完整原生工具调用被误判残缺，ON2进入92个恢复会话 | 按稳定tool-call ID绑定原始分片，仍拒绝不完整JSON与length/error/aborted。ON2图谱续接通过。见 pr16_native_calls_20261118.md。 |
+| 06f6921 | 递归oneOf校验遍历不可能的表达式分支，草稿工具长时间CPU阻塞 | 宿主先做等价判别，保留公开Schema，限制错误收集；同一真实patch重放0.252秒。ON1从空草稿发布成功。见 pr16_expression_validation_20261118.md。 |
+| 9410fc5 | inline与saved issue重复，12项仅6个ID，问题记录可能被覆盖 | 严格审核拒绝重复ID，提示每项只用一种提交形式；真实最终批准重验通过。见 pr16_review_identity_20261118.md。 |
+| 06736f9 | 原生相对路径写到runtime，Bash进入workspace后找不到文件并全盘查找阻塞 | 角色显式传workspace执行目录，runtime继续供配置/依赖使用；旧入口默认行为不变。ON1续接8个角色会话目录一致。见 pr16_execution_cwd_20261118.md。 |
+| 9697749 | 原始paper pdf_url未进入登记引用集，真实PDF链接误拒绝 | AI领域补齐pdf_url，定位错误带元素下标，中文prompt给出精确引用示例。原失败输入旧拒绝/新接受，来源未变。见 pr16_source_locator_20261118.md。 |
+
+最终目录专项12项（含Pi ON/OFF）、隔离123项通过；PDF定位22项、Pi ON/OFF两组通过；仓库外最终包20项与10文件hash/策略别名通过。这些批次与先前567项兼容矩阵有重叠，不累加为新的去重总数。安装与目录验证包括真实Pi进程，但provider为可控本地服务，不冒充真实模型质量测试。
+
+全仓库测试并非“全绿”：历史 `tests/test_ontology_config.py` 仍导入已经删除的AI stage1/stage2模块，在原基线7be0d50复现相同收集错误。本轮没有恢复废弃运行时，也没有通过跳过后宣称全库通过；验收明确列出已运行的当前功能矩阵。另一次SPARQL专项在共享环境触发原有10秒工具超时，不改代码独立复跑通过，原日志保留。
 
 ## development_contract.md 待维护内容
 
