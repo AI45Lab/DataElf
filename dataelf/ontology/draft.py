@@ -1,5 +1,6 @@
 """Role-local contract drafts. Atomic JSON Pointer edits never modify evidence."""
 from copy import deepcopy
+from itertools import islice
 from contextlib import contextmanager
 import fcntl
 import re
@@ -8,6 +9,7 @@ from jsonschema import Draft202012Validator
 
 from .contracts import OntologyContract
 from .errors import OntologyError
+from .expressions import validation_schema
 from .sources import digest, write_json
 from .submission_validation import pointer_error
 
@@ -57,7 +59,7 @@ def edit_document(document, operations):
     # Partial root is allowed; present components must have their actual shape.
     schema = OntologyContract.model_json_schema()
     schema['required'] = []
-    errors = list(Draft202012Validator(schema).iter_errors(result))
+    errors = list(islice(Draft202012Validator(validation_schema(schema)).iter_errors(result), 20))
     if errors:
         raise OntologyError('ONTOLOGY_ARGUMENT_INVALID','arguments',[
             {'path':'/'+'/'.join(map(str,e.absolute_path)),

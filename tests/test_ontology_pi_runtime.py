@@ -18,10 +18,14 @@ def require_pi():
     return root,binary
 
 
-@pytest.mark.parametrize('fault',['full','draft','prose','repeated','length','unsupported','graph_commit','serialized_contract','review_length','empty_length','empty_prose','advanced_author','component_trial','malformed_trial_patch','split_author'])
+@pytest.mark.parametrize('fault',['full','draft','deep_draft','prose','repeated','length','unsupported','graph_commit','serialized_contract','review_length','empty_length','empty_prose','advanced_author','component_trial','malformed_trial_patch','split_author'])
 def test_autonomous_pi_workflow(tmp_path,fault):
     root,binary=require_pi();requests=[];positions={};injected=False
     contract=retail_contract().model_dump(mode='json')
+    if fault=='deep_draft':
+        node=contract['mappings'][0]['nodes'][0]
+        for _ in range(12):node['iri']={'op':'if','args':[True,node['iri'],'urn:unreachable']}
+        fault='draft'
     def text(message):
         value=message.get('content','');return value if isinstance(value,str) else ''.join(b.get('text','') for b in value if b.get('type')=='text')
     class Handler(BaseHTTPRequestHandler):

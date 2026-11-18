@@ -1,4 +1,5 @@
 """The executable expression vocabulary and its recursive authoring schema."""
+from copy import deepcopy
 import re
 
 ARITY = {"hash": 1, "quote": 1, "lower": 1, "strip": 1, "normalize": 1,
@@ -95,3 +96,33 @@ def contract_schema(schema, context_keys=None):
         definitions['Triple']['properties']['kind'].pop('default', None)
         definitions['Triple']['properties']['kind']['description'] = 'Omit to infer from the declared property. Explicit values must agree with that property.'
     return schema
+
+
+def validation_schema(schema):
+    """Equivalent host-only schema with cheap guards before recursive branches.
+
+    jsonschema collects all errors in a failing oneOf branch. An op mismatch
+    alone therefore does not prevent recursively validating that branch's args.
+    Each guard is a necessary condition already required by the original form;
+    it skips impossible branches without changing the accepted language. The
+    provider-facing schema stays unchanged.
+    """
+    result = deepcopy(schema)
+    definition = result.get("$defs", {}).get("ExpressionObject")
+    if not definition or "oneOf" not in definition:
+        return result
+    guarded = []
+    for form in definition["oneOf"]:
+        properties = form.get("properties", {})
+        guard = {
+            "type": form["type"],
+            "required": form["required"],
+            "additionalProperties": form["additionalProperties"],
+            "properties": {
+                key: {"const": value["const"]} if "const" in value else {}
+                for key, value in properties.items()
+            },
+        }
+        guarded.append({"if": guard, "then": form, "else": False})
+    definition["oneOf"] = guarded
+    return result
