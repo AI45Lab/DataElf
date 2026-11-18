@@ -1,6 +1,7 @@
 """Actual Pi and packaged source client, entirely controlled offline providers."""
 import json
 import os
+import pytest
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from threading import Thread
@@ -18,7 +19,8 @@ from tests.test_ontology_pi_runtime import require_pi
 from tests.test_ai_index_skill_evidence import fake_curl
 
 
-def test_native_pi_queries_skill_saves_components_and_independently_reviews(tmp_path,fake_curl,monkeypatch):
+@pytest.mark.parametrize('duplicate_issues', [False, True])
+def test_native_pi_queries_skill_saves_components_and_independently_reviews(tmp_path,fake_curl,monkeypatch,duplicate_issues):
     for key in list(os.environ):
         if key.lower().endswith('_proxy'):monkeypatch.delenv(key,raising=False)
     repo,binary=require_pi();workspace=tmp_path/'workspace';workspace.mkdir()
@@ -59,7 +61,17 @@ def test_native_pi_queries_skill_saves_components_and_independently_reviews(tmp_
                     row=EvidenceCatalog(workspace).records()[0]
                     name,args='ai_index_read',{'query_id':row['query_id']}
                 elif i==2:name,args='graph_query',{'graph_ref':context['graph_ref'],'sparql':'ASK {?s <urn:example:value> 0}'}
-                else:name,args='ontology_submit',{'verdict':'approve','summary':'Independently checked the exact source and integer zero','issues':[]}
+                elif i==3 and duplicate_issues:
+                    suggestion={'issue_id':'optional-label','nature':'suggestion','blocking':False,'severity':'low',
+                        'target':'contract','location':'Entry','impact':'Readability only','message':'Consider a longer label',
+                        'evidence':['contract.json#/classes/Entry'],'required_change':'Optional longer label',
+                        'acceptance_criteria':'No blocking change required'}
+                    name,args='ontology_submit',{'verdict':'approve','summary':'Checked source','issues':[suggestion,suggestion]}
+                else:
+                    if duplicate_issues:
+                        assert not path.with_name('submission.json').exists()
+                        assert 'Issue IDs must be unique' in json.dumps(body['messages'][-1])
+                    name,args='ontology_submit',{'verdict':'approve','summary':'Independently checked the exact source and integer zero','issues':[]}
             assert name in visible
             tools_run.append((role,name))
             call={'index':0,'id':'c'+str(len(requests)),'type':'function','function':{'name':name,'arguments':json.dumps(args)}}
@@ -87,7 +99,7 @@ def test_native_pi_queries_skill_saves_components_and_independently_reviews(tmp_
         assert records[0]['response_file'] in manifest['sourceFiles']
         assert any(p.endswith('record.json') for p in manifest['sourceFiles'])
         captures=list(workspace.glob('ontology/runs/*/sessions/*/effective_requests/*.json'))
-        assert len(captures)==len(requests)==12
+        assert len(captures)==len(requests)==12+int(duplicate_issues)
         assert all('ai-index-search' in json.loads(p.read_text())['payload']['messages'][0]['content'] for p in captures)
         # Re-entering a completed task reuses exactly its published revision.
         resumed=run_ontology(OntologyRequest(domain='ai_index',workspace=workspace,workflow_policy=CLI_SKILL_REVIEW,
