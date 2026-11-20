@@ -1,9 +1,14 @@
-"""Execution capabilities registered by domain manifests, independent of ontology."""
+"""Host execution protocols, independent of domain business orchestration.
 
+Manifests expose named business hooks, not runtime profiles, recovery policies,
+budgets or Pi implementation paths. The host binds a protocol to a hook.
+"""
+
+import os
 from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
-import os
+
 import yaml
 
 WorkflowPolicy = str
@@ -33,23 +38,56 @@ class Capabilities:
 
 _POLICIES = {"legacy": (None, {"research", "server"}, Capabilities())}
 _ENTRIES = {}
-_ALIASES = {}
+# Historical serialized spelling only, not domain dispatch. Never generate a
+# new policy per domain. Both spellings have identical capability/scope checks.
+_ALIASES = {"ai_index_cli_skill_review_v1": CLI_SKILL_REVIEW}
+_WORKFLOW_KEYS = {}
+_DOMAIN_WORKFLOWS = {}
 _LOADED = set()
 
 
-def register_policy(name, *, domains, profiles, capabilities, entry=None, aliases=()):
+def register_policy(
+    name, *, domains, profiles, capabilities, entry=None, aliases=(), workflow=None
+):
+    """Register a host protocol; domain plugins need not call this function."""
     if not name or name in _POLICIES or name in _ALIASES:
         raise ValueError(f"Workflow policy already registered or empty: {name}")
     if any(alias in _POLICIES or alias in _ALIASES for alias in aliases):
         raise ValueError("Workflow alias already registered")
-    _POLICIES[name] = (set(domains), set(profiles), capabilities)
+    if entry is not None and workflow is not None:
+        raise ValueError("Choose a host entry or a domain business hook, not both")
+    _POLICIES[name] = (
+        None if domains is None else set(domains),
+        set(profiles),
+        capabilities,
+    )
+    if workflow is not None:
+        _WORKFLOW_KEYS[name] = workflow
     if entry is not None:
         _ENTRIES[name] = entry
     for alias in aliases:
         _ALIASES[alias] = name
 
 
-def load_domain_policies(domain, root=None):
+# A single domain-neutral host preset. Any domain may supply this business
+# hook; domain names and executable module paths are not hardcoded here.
+register_policy(
+    CLI_SKILL_REVIEW,
+    domains=None,
+    profiles={"research"},
+    capabilities=Capabilities(
+        graph_query=True,
+        graph_maintenance=True,
+        structured_outputs=True,
+        analysis_review=True,
+        recovery=True,
+        unbounded=True,
+    ),
+    workflow="reviewed_analysis",
+)
+
+
+def load_domain_workflows(domain, root=None):
     root = Path(root) if root else Path(__file__).resolve().parents[1] / "domains"
     path = (root / domain / "domain.yaml").resolve()
     if not path.is_relative_to(root.resolve()):
@@ -59,26 +97,21 @@ def load_domain_policies(domain, root=None):
     manifest = yaml.safe_load(path.read_text()) or {}
     if manifest.get("domain") != domain:
         raise ValueError("Domain manifest identity mismatch")
-    for name, declaration in manifest.get("workflows", {}).items():
-        register_policy(
-            name,
-            domains={domain},
-            profiles=declaration["profiles"],
-            capabilities=Capabilities(**declaration.get("capabilities", {})),
-            entry=declaration["entry"],
-            aliases=declaration.get("aliases", ()),
-        )
+    # Delayed to avoid the contracts -> policy scope validator dependency.
+    from .contracts import DomainWorkflow
+
+    entries = {
+        name: DomainWorkflow.model_validate(declaration).entry
+        for name, declaration in manifest.get("workflows", {}).items()
+    }
+    previous = _DOMAIN_WORKFLOWS.get(domain)
+    if previous is not None and previous != entries:
+        raise ValueError(f"Conflicting workflow declarations for domain: {domain}")
+    _DOMAIN_WORKFLOWS[domain] = entries
     _LOADED.add(path)
 
 
 def _canonical(policy, domain=None):
-    if policy not in _POLICIES and policy not in _ALIASES:
-        if domain:
-            load_domain_policies(domain)
-        else:
-            root = Path(__file__).resolve().parents[1] / "domains"
-            for manifest in sorted(root.glob("*/domain.yaml")):
-                load_domain_policies(manifest.parent.name, root)
     return _ALIASES.get(policy, policy)
 
 
@@ -91,6 +124,14 @@ def validate_scope(policy, domain, profile="research"):
         raise ValueError(
             f"Workflow policy {policy} is not supported for {domain}/{profile}"
         )
+    workflow = _WORKFLOW_KEYS.get(policy)
+    if workflow is not None:
+        load_domain_workflows(domain)
+        if workflow not in _DOMAIN_WORKFLOWS.get(domain, {}):
+            raise ValueError(
+                f"Workflow policy {policy} is not supported for {domain}/{profile}: "
+                f"missing business hook {workflow}"
+            )
 
 
 def capabilities(spec):
@@ -124,7 +165,13 @@ def network_environment(value):
 
 def workflow_executor(spec):
     validate_scope(spec.workflow_policy, spec.domain, spec.workflow_profile)
-    entry = _ENTRIES[_canonical(spec.workflow_policy, spec.domain)]
+    policy = _canonical(spec.workflow_policy, spec.domain)
+    workflow = _WORKFLOW_KEYS.get(policy)
+    entry = (
+        _DOMAIN_WORKFLOWS[spec.domain][workflow]
+        if workflow is not None
+        else _ENTRIES[policy]
+    )
     if callable(entry):
         return entry
     module, separator, name = entry.partition(":")

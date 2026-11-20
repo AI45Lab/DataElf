@@ -54,27 +54,23 @@ def test_historical_selection_stays_legacy(domain):
     assert not capabilities(result).analysis_review
 
 
-def test_manifest_can_register_another_domain_without_core_edit(tmp_path):
+def test_manifest_can_supply_business_hook_without_core_edit(tmp_path):
     domain = "pr16_fixture"
     folder = tmp_path / domain
     folder.mkdir()
     (folder / "domain.yaml").write_text(
-        "domain: pr16_fixture\nversion: '1'\ndisplay_name: Fixture\nplugin: tests.test_pr16_boundaries:unused\nworkflows:\n  pr16_fixture_policy:\n    profiles: [research]\n    entry: tests.test_pr16_boundaries:unused\n    capabilities: {analysis_review: true, unbounded: true}\n"
+        "domain: pr16_fixture\nversion: '1'\ndisplay_name: Fixture\nplugin: builtins:object\nworkflows:\n  reviewed_analysis:\n    entry: builtins:tuple\n"
     )
     DomainRegistry(tmp_path).load_manifest(domain)
     spec = JobSpec(
-        domain=domain, objective="fixture", workflow_policy="pr16_fixture_policy"
+        domain=domain, objective="fixture", workflow_policy="cli_skill_review_v1"
     )
-    assert execution_flow(spec)("marker") == ("marker",)
+    assert execution_flow(spec)(["marker"]) == ("marker",)
     assert capabilities(spec).analysis_review
     request = OntologyRequest(
         domain=domain, workspace=tmp_path, workflow_policy=spec.workflow_policy
     )
     assert request.workflow_policy == spec.workflow_policy
-
-
-def unused(*args):
-    return args
 
 
 def test_generic_contracts_have_no_graph_fields():
@@ -129,14 +125,13 @@ def test_shared_extensions_do_not_select_domains():
         assert "DATAELF_DOMAIN" not in body, name
 
 
-def test_domain_legacy_entry_and_resource_isolation():
+def test_ordinary_manifest_and_resource_isolation():
     registry = DomainRegistry()
     config = DataElfConfig()
     for domain in ["finance", "trajectory_analysis"]:
-        assert (
-            registry.legacy_entry(domain).__module__
-            == f"dataelf.domains.{domain}.entry"
-        )
+        manifest = registry.load_manifest(domain)
+        assert not manifest.workflows
+        assert "legacy_entry" not in type(manifest).model_fields
     plugin = registry.load_plugin("ai_index", config)
     legacy = JobSpec(domain="ai_index", objective="test")
     assert not plugin.agent_resources(legacy, config).skills

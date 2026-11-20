@@ -1,6 +1,15 @@
-"""Server-owned legacy execution, derived from DataElf 78f2ef4.
+"""Serve-owned Pi process behavior derived from DataElf 78f2ef4.
 
-No CLI research runner dependency. Repository license applies.
+ServerExplorer owns resource selection; this adapter defaults to no CLI npm
+packages and does not depend on the reviewed CLI runner. Keep its timeout,
+process and event behavior isolated from research changes. Repository license
+applies. Sharing low-level helpers does not authorize shared execution policy.
+
+This adapter need not converge with CLI. Deprecate it only when a deliberate
+server replacement preserves fixed-template modeling, resource isolation,
+HTTP submission/results, cancellation, timeout and recovery behavior, backed
+by offline same-input checks and real deployed service acceptance. Remove it
+only after all server callers and saved-job compatibility are handled.
 """
 from __future__ import annotations
 

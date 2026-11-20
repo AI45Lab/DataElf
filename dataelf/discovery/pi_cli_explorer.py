@@ -1,3 +1,16 @@
+"""Pi process adapter for the host's reviewed research runtime.
+
+Role coordinators supply resources, stop receipts and an optional task cwd.
+This adapter supports reviewed handoff, truncated-response reporting and the
+host policy's time behavior; it does not select a domain or a modeling strategy.
+Legacy CLI and Serve intentionally use their own adapters. Do not synchronize
+behavior between these implementations merely because their code is similar.
+
+This is an active implementation, not a deprecated compatibility copy. Replace
+it only after an alternative preserves role handoff, cancellation, cwd/resource
+separation, recovery and artifact delivery, with installed-package and real
+reviewed ON/OFF task validation and migration of every remaining caller.
+"""
 from __future__ import annotations
 
 import json

@@ -63,6 +63,14 @@ JobSpec(
 
 当前 CLI 入口是 `dataelf run --domain <domain> "<objective>"`，由调用方显式选择 domain 并构造对应的 `JobSpec`。新 domain 的测试和程序化入口也应直接使用 `run_job()`；CLI 不应从自然语言猜测 domain，也不应把某个 domain 的参数写成全局必需参数。
 
+### 2.1 宿主执行选择与历史任务
+
+`workflow_profile` 表示研究/服务的宿主边界；`workflow_policy` 表示宿主选择并保存的执行协议；`modeling_strategy` 只表达领域建模策略。Domain 不需要声明 legacy、新旧 Pi 内核或 core 模块路径，也不应重写宿主的运行选择。
+
+普通 domain 沿用默认 plugin 流程，不声明 `legacy_entry`。确需独立业务编排时，manifest 可以提供 `workflows.reviewed_analysis.entry` 这样的业务入口；不得在其中配置 profiles、恢复、预算或运行时别名。这些由宿主策略负责。历史任务缺少 policy 时恢复为 legacy，不采用今天的配置默认值。
+
+合法组合、选择优先级、业务入口声明和三个执行器的退出条件见 [执行选择说明](runtime/workflow_selection.md)。本版 `research/legacy` 是兼容流程，`research/cli_skill_review_v1` 要求 reviewed_analysis 业务入口，`server` 仅支持 legacy 并要求服务宿主提供组件。
+
 ## 3. Domain manifest 和加载
 
 每个 domain 必须提供：

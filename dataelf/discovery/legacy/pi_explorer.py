@@ -1,13 +1,15 @@
-"""Stable legacy behavior migrated from DataElf 78f2ef4.
+"""Stable CLI process behavior copied from DataElf 78f2ef4.
 
-This temporary copy intentionally preserves the process protocol used by
-Finance, Trajectory and legacy callers while reviewed execution evolves.
-Do not route new capabilities here or synchronize behavior implicitly. Removal
-requires those domains' separate migration and real-task compatibility review.
+Used by the host legacy workflow, including Finance, Trajectory and historical
+research jobs. Domains do not select this module. Its original timeout/event
+behavior and default Fusion/web resources are isolated from reviewed research.
+Repository license applies. Do not backport new review or recovery behavior
+implicitly; compatibility fixes need tests against existing callers.
 
-
-Owned by legacy entries; new AI research must not add behavior here.
-Repository license applies. Only package-root paths and boundary types adapt.
+Deprecation requires explicit migration of every legacy caller, a strategy for
+resuming saved jobs, and real-task compatibility validation for those domains.
+Remove this copy only after its factory/import callers are migrated as well.
+AI Index reviewed-task success alone does not meet these conditions.
 """
 from __future__ import annotations
 

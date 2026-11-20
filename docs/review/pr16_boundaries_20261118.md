@@ -1,5 +1,7 @@
 # PR #16 评论修复与验收记录
 
+> 2026-11-20 后续 review 已调整入口方案：删除 Finance/Trajectory 包装入口；domain 仅声明业务 hook，宿主负责 policy。下文保留 11-18 当时的修改与测试记录，当前规则见 [执行选择说明](../runtime/workflow_selection.md)。
+
 基线：`7be0d50757db9abf261f898434ef71948a479763`。分支：`codex/pr16-review-boundaries`。最终运行代码提交：`9697749`（包含领域边界重整与六项实测修复）。
 
 本轮只重整该 PR 的领域边界和相应兼容接口；不引入后续独立 benchmark 评测、主动上下文管理、Finance 新运行时等分支。

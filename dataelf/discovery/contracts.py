@@ -20,8 +20,15 @@ class JobSpec(BaseModel):
     requested_outputs: list[str] = Field(default_factory=list)
     modeling_strategy: str | None = None
     explorer: Literal["pi"] = "pi"
+    # Host boundary: research uses CLI components; server supplies its own
+    # plugin/explorer/resources. This is not a modeling strategy or policy.
     workflow_profile: Literal["research", "server"] = "research"
-    workflow_policy: WorkflowPolicy = 'legacy'
+    # Host execution protocol (review/recovery/runtime), not a domain setting.
+    # research+legacy is the fallback; server currently accepts only legacy;
+    # research+cli_skill_review_v1 requires a reviewed_analysis business hook.
+    # Saved jobs without this field must remain legacy even if config changes.
+    # See docs/runtime/workflow_selection.md for selection and migration rules.
+    workflow_policy: WorkflowPolicy = "legacy"
 
     @model_validator(mode='after')
     def validate_workflow_scope(self):
@@ -124,13 +131,19 @@ class ReviewResult(BaseModel):
     created_at: datetime = Field(default_factory=now_utc)
 
 
+class DomainWorkflow(BaseModel):
+    """Domain-owned business orchestration; host runtime settings live elsewhere."""
+
+    model_config = {"extra": "forbid"}
+    entry: str = Field(pattern=r"^[A-Za-z_][\w.]*:[A-Za-z_]\w*$")
+
+
 class DomainManifest(BaseModel):
     domain: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     version: str
     display_name: str
     plugin: str
-    legacy_entry: str | None = None
-    workflows: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    workflows: dict[str, DomainWorkflow] = Field(default_factory=dict)
     agent_services: str | None = None
     config_adapters: dict[str, str] = Field(default_factory=dict)
     audit_dirs: list[str] = Field(default_factory=list)

@@ -2,18 +2,10 @@ domain: ai_index
 version: "1"
 display_name: AI 科技情报
 plugin: dataelf.domains.ai_index.plugin:create_plugin
+# Business orchestration only; the host selects Pi, recovery and budgets.
 workflows:
-  cli_skill_review_v1:
+  reviewed_analysis:
     entry: dataelf.domains.ai_index.workflow:execute
-    aliases: [ai_index_cli_skill_review_v1]
-    profiles: [research]
-    capabilities:
-      graph_query: true
-      graph_maintenance: true
-      structured_outputs: true
-      analysis_review: true
-      recovery: true
-      unbounded: true
 config_adapters:
   ontology: dataelf.domains.ai_index.legacy_modeling:resolve_ontology_settings
 agent_services: dataelf.domains.ai_index.agent_services:services
