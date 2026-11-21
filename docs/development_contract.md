@@ -346,7 +346,7 @@ SQLite registry 是可选索引，不是 artifact source of truth。`runtime.ena
 
 ## 8. Explorer boundary
 
-新 case 默认复用 `PiCliInsightsExplorer`，不要在 explorer 中加入 domain 分支。
+新 case 复用宿主选定的 Pi 执行器，不在 explorer 中加入 domain 分支。普通 plugin 流程当前使用 `LegacyPiExplorer`；明确选择审核研究协议时使用 `PiCliInsightsExplorer`；Serve 使用自己的 `ServerPiProcess`。这些是宿主实现细节，不由 domain manifest 选择。
 
 Pi 接收 core 合成的 prompt、当前 `JobSpec`、prepared/modeling artifact inventory、domain/context env 和 output contract。Pi 必须把正式结果写入 workspace，不能修改 DataElf 源码。DataElf 不从 stdout 提取最终业务结果；stdout/stderr/event stream 只作为日志和运行状态。
 
