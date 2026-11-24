@@ -31,8 +31,8 @@ def test_zero_source_only_allowed_by_explicit_host_policy(tmp_path):
     request=OntologyRequest(domain='ai_index',workspace=tmp_path,workflow_policy=CLI_SKILL_REVIEW)
     _,catalog=task_catalog(request)
     assert not catalog.records
-    with pytest.raises(ValueError,match='not supported'):
-        OntologyRequest(domain='retail',workspace=tmp_path,workflow_policy=CLI_SKILL_REVIEW)
+    with pytest.raises(ValueError,match='Unregistered workflow policy'):
+        OntologyRequest(domain='retail',workspace=tmp_path,workflow_policy='unknown')
 
 
 def test_append_catalog_exact_dependencies_and_pipeline_publication(tmp_path):

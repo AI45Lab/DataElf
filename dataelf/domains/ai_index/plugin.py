@@ -81,7 +81,7 @@ class AIIndexDomainPlugin:
     def create_modeler(self, spec: JobSpec, config: DataElfConfig) -> AIIndexModeler | None:
         from dataelf.discovery.policies import skill_review
         if not skill_review(spec) and (spec.modeling_strategy is not None or self.config.modeling.enabled):
-            raise ValueError("Legacy CLI modeling configuration requires explicit migration: select --workflow-policy ai_index_cli_skill_review_v1 for shared ontology v2")
+            raise ValueError("Legacy CLI modeling configuration requires explicit migration: select --workflow-policy cli_skill_review_v1 for shared ontology v2")
         if spec.modeling_strategy is None:
             return None
         if spec.modeling_strategy != "ontology_rdf":

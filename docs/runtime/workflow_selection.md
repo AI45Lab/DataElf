@@ -30,6 +30,8 @@ Server 不作为一个 policy，是因为服务宿主及其组件装配与执行
 
 ## 新 domain 怎么接入
 
+旧 manifest 若包含 `legacy_entry`，加载时会提示迁移。普通 domain 可直接删除该字段；如有自定义执行行为，应先迁移该行为。
+
 普通接入只需 plugin、数据源、能力、资源、产物和领域校验，沿用现有 DomainPlugin 协议。无需 register_policy，也无需声明 core 路径。
 
 确有独立业务编排时，可以提供命名业务入口。例如：
@@ -40,7 +42,7 @@ workflows:
     entry: dataelf.domains.example.workflow:execute
 ```
 
-该入口实现业务编排，调用可复用组件；它没有 profiles、aliases、unbounded 或 recovery 参数。宿主的 cli_skill_review_v1 将执行协议绑定到 reviewed_analysis，并检查当前 domain 是否提供此入口。声明能力不自动开启新协议；宿主仍需显式选择。当前只有 AI Index 提供该业务入口，Finance/Trajectory 保持旧业务流程。
+该入口实现业务编排，调用可复用组件；它没有 profiles、aliases、unbounded 或 recovery 参数。宿主的 cli_skill_review_v1 将执行协议绑定到 reviewed_analysis。构造 JobSpec 时只校验宿主的策略范围，无需预加载 manifest。任务初始化时，通过本次 registry 加载的 plugin（或显式注入的 plugin）的 manifest 解析业务入口；缺少入口会在数据准备和建模之前报错。声明能力不自动开启新协议；宿主仍需显式选择。当前只有 AI Index 提供该业务入口，Finance/Trajectory 保持旧业务流程。
 
 `DomainWorkflow` 拒绝把运行策略字段混入 manifest。运行协议有实质差异时，宿主开发者才使用 register_policy/register_workflow 注册新的协议；数据源、提示词、模型、建模策略不同不构成新增 policy 的理由。
 

@@ -74,7 +74,7 @@ intent URL/key values read `OPENAI_BASE_URL` and `OPENAI_API_KEY`; its model ID 
 be filled explicitly. Ontology role models inherit `explorer.pi.model` when empty.
 The examples parse as YAML/JSON but require these deployment values before use.
 
-Select `--workflow-policy ai_index_cli_skill_review_v1` explicitly for the reviewed
+Select `--workflow-policy cli_skill_review_v1` explicitly for the reviewed
 AI Index research workflow. Other domains retain `legacy`; HTTP serve uses its
 own fixed Scope V2 templates and service budgets regardless of root ontology.
 
@@ -194,7 +194,7 @@ The connector supports paper, institution, and scholar search plus institution f
 Enable ontology/RDF modeling for one CLI run:
 
 ```bash
-dataelf run --domain ai_index --workflow-policy ai_index_cli_skill_review_v1 --modeling \
+dataelf run --domain ai_index --workflow-policy cli_skill_review_v1 --modeling \
   "围绕 Agentic LLMs，发现最近值得关注的 3 个 insight"
 ```
 
@@ -210,7 +210,7 @@ contracts; its former template-selection/export entry is retired. To continue
 analysis from an approved revision without another modeling call:
 
 ```bash
-dataelf run --domain ai_index --workflow-policy ai_index_cli_skill_review_v1 --resume-graph-manifest /absolute/revisions/r-.../manifest.json \
+dataelf run --domain ai_index --workflow-policy cli_skill_review_v1 --resume-graph-manifest /absolute/revisions/r-.../manifest.json \
   "继续核查这个已发布版本的事实与来源"
 ```
 

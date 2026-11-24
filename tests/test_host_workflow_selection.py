@@ -54,6 +54,14 @@ def test_saved_task_cannot_switch_runtime(field):
         resolve_spec(spec, DataElfConfig(), saved)
 
 
+def test_canonical_selection_resumes_saved_alias():
+    saved = JobSpec.from_saved({
+        'domain': 'ai_index', 'objective': 'original', 'workflow_policy': 'ai_index_cli_skill_review_v1',
+    })
+    current = JobSpec.model_validate({**saved.model_dump(), 'workflow_policy': 'cli_skill_review_v1'})
+    assert resolve_spec(current, DataElfConfig(), saved).workflow_policy == saved.workflow_policy
+
+
 def test_config_default_does_not_switch_server_or_saved_job():
     cfg = DataElfConfig(workflow_policy='cli_skill_review_v1')
     server = JobSpec(domain='ai_index', objective='serve', workflow_profile='server')

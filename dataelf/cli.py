@@ -87,7 +87,7 @@ def run(
         "--ontology-config",
         help="Path to the shared ontology configuration.",
     ),
-    workflow_policy: str | None = typer.Option(None, "--workflow-policy", help="Execution policy: legacy (default) or ai_index_cli_skill_review_v1."),
+    workflow_policy: str | None = typer.Option(None, "--workflow-policy", help="Execution policy: legacy (default) or cli_skill_review_v1."),
     resume_graph_manifest: Path | None = typer.Option(None, "--resume-graph-manifest",
         help="AI Index only: continue analysis from an approved immutable graph, without modeling."),
     parameter: list[str] = typer.Option(

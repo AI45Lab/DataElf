@@ -58,7 +58,7 @@ def run_selected_job(
     """Execute an explicitly selected new workflow. Legacy owns its own runtime."""
     if spec.workflow_policy == 'legacy' or spec.workflow_profile == 'server':
         raise ValueError('New discovery workflow cannot execute legacy or server jobs')
-    from .flows import resolve_spec
+    from .flows import execution_flow, resolve_spec
     saved_spec = None
     if control and control.workspace_path:
         saved_path = Path(control.workspace_path)/'job_spec.json'
@@ -90,6 +90,7 @@ def run_selected_job(
             if normalized.workflow_policy != spec.workflow_policy:
                 raise ValueError("Plugin cannot change the saved workflow selection")
             spec = JobSpec.model_validate(normalized.model_dump())
+            execute = execution_flow(spec, plugin.manifest)
             from .domain_services import bind
             bind(workspace, spec.domain)
             job.spec = spec
@@ -108,7 +109,7 @@ def run_selected_job(
                 workspace_path=str(workspace), spec=spec, manifest=plugin.manifest,
                 model=config.explorer.pi.model, env=dict(config.env), agent_resources=agent_resources,
             )
-            return _run_stages(job, config, store, workspace, plugin, context, explorer)
+            return _run_stages(job, config, store, workspace, plugin, context, explorer, execute)
         except Exception as exc:
             code = "RUN_CANCELLED" if isinstance(exc, RunCancelled) else getattr(exc, "code", f"{control.stage.upper()}_FAILED")
             message = redact_text(exc, secret_values(config.model_dump()))
@@ -126,7 +127,7 @@ def _stage(name: str) -> None:
         control.emit(name)
 
 
-def _run_stages(job, config, store, workspace, plugin, context, explorer):
+def _run_stages(job, config, store, workspace, plugin, context, explorer, execute):
     spec = job.spec
     _stage("domain_prepare")
     preparation = plugin.prepare(spec, str(workspace), config)
@@ -176,8 +177,7 @@ def _run_stages(job, config, store, workspace, plugin, context, explorer):
     context = context.model_copy(update={"prompt_path": str(prompt_path)})
     _stage("explorer")
     explorer = explorer or create_explorer(config)
-    from .flows import execution_flow
-    return execution_flow(spec)(job, config, store, workspace, plugin, context, explorer, contract)
+    return execute(job, config, store, workspace, plugin, context, explorer, contract)
 
 
 def _create_store(config: DataElfConfig) -> StoreLike:

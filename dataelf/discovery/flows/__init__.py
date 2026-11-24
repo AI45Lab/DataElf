@@ -1,5 +1,5 @@
 """Thin execution dispatch; plugins and registered policies own their behavior."""
-from dataelf.discovery.policies import validate_scope, register_policy, workflow_executor
+from dataelf.discovery.policies import canonical_policy, validate_scope, register_policy, workflow_executor
 
 
 def resolve_spec(spec, config, saved_spec=None):
@@ -8,7 +8,7 @@ def resolve_spec(spec, config, saved_spec=None):
     if saved_spec is not None:
         if (saved_spec.domain, saved_spec.workflow_profile) != (spec.domain, spec.workflow_profile):
             raise ValueError('Cannot recover a task using another domain or profile')
-        if 'workflow_policy' in spec.model_fields_set and policy != saved_spec.workflow_policy:
+        if 'workflow_policy' in spec.model_fields_set and canonical_policy(policy) != canonical_policy(saved_spec.workflow_policy):
             raise ValueError('Cannot change the saved workflow selection during recovery')
         policy = saved_spec.workflow_policy
     elif 'workflow_policy' not in spec.model_fields_set and spec.workflow_profile != 'server':
@@ -29,9 +29,9 @@ def register_workflow(name, execute, *, domains, profiles, capabilities):
     register_policy(name, domains=domains, profiles=profiles, capabilities=capabilities, entry=execute)
 
 
-def execution_flow(spec):
+def execution_flow(spec, manifest=None):
     validate_scope(spec.workflow_policy, spec.domain, spec.workflow_profile)
     if spec.workflow_profile == 'server':
         from dataelf_server.workflows.entry import execute
         return execute
-    return legacy if spec.workflow_policy == "legacy" else workflow_executor(spec)
+    return legacy if spec.workflow_policy == "legacy" else workflow_executor(spec, manifest)

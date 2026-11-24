@@ -25,7 +25,7 @@ class JobSpec(BaseModel):
     workflow_profile: Literal["research", "server"] = "research"
     # Host execution protocol (review/recovery/runtime), not a domain setting.
     # research+legacy is the fallback; server currently accepts only legacy;
-    # research+cli_skill_review_v1 requires a reviewed_analysis business hook.
+    # The selected plugin supplies reviewed_analysis at execution time.
     # Saved jobs without this field must remain legacy even if config changes.
     # See docs/runtime/workflow_selection.md for selection and migration rules.
     workflow_policy: WorkflowPolicy = "legacy"
@@ -149,6 +149,16 @@ class DomainManifest(BaseModel):
     audit_dirs: list[str] = Field(default_factory=list)
     capabilities: list[str] = Field(default_factory=list)
     workspace_dirs: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_removed_legacy_entry(cls, value):
+        if isinstance(value, dict) and "legacy_entry" in value:
+            raise ValueError(
+                "legacy_entry has been removed. For the standard legacy workflow, "
+                "omit this field. Migrate any custom entry behavior before removing it."
+            )
+        return value
 
     @model_validator(mode="after")
     def validate_workspace_dirs(self) -> "DomainManifest":

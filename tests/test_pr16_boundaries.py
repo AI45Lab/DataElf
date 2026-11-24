@@ -29,18 +29,12 @@ def test_declared_alias_has_same_executor_and_scope(policy):
     assert execution_flow(spec).__module__ == "dataelf.domains.ai_index.workflow"
     assert capabilities(spec).analysis_review
     assert capabilities(spec).unbounded
-    for domain, profile in [
-        ("finance", "research"),
-        ("trajectory_analysis", "research"),
-        ("ai_index", "server"),
-    ]:
-        with pytest.raises(ValueError):
-            JobSpec(
-                domain=domain,
-                objective="test",
-                workflow_policy=policy,
-                workflow_profile=profile,
-            )
+    with pytest.raises(ValueError, match="not supported"):
+        JobSpec(domain="ai_index", objective="test", workflow_policy=policy, workflow_profile="server")
+    for domain in ("finance", "trajectory_analysis"):
+        spec = JobSpec(domain=domain, objective="test", workflow_policy=policy)
+        with pytest.raises(ValueError, match="missing business hook reviewed_analysis"):
+            execution_flow(spec)
 
 
 @pytest.mark.parametrize("domain", ["ai_index", "finance", "trajectory_analysis"])
@@ -54,18 +48,21 @@ def test_historical_selection_stays_legacy(domain):
     assert not capabilities(result).analysis_review
 
 
-def test_manifest_can_supply_business_hook_without_core_edit(tmp_path):
-    domain = "pr16_fixture"
+@pytest.mark.parametrize("domain", ["pr16_fixture", "ai_index"])
+def test_manifest_can_supply_business_hook_without_core_edit(tmp_path, domain):
     folder = tmp_path / domain
     folder.mkdir()
     (folder / "domain.yaml").write_text(
-        "domain: pr16_fixture\nversion: '1'\ndisplay_name: Fixture\nplugin: builtins:object\nworkflows:\n  reviewed_analysis:\n    entry: builtins:tuple\n"
+        f"domain: {domain}\nversion: '1'\ndisplay_name: Fixture\nplugin: builtins:object\nworkflows:\n  reviewed_analysis:\n    entry: builtins:tuple\n"
     )
-    DomainRegistry(tmp_path).load_manifest(domain)
     spec = JobSpec(
         domain=domain, objective="fixture", workflow_policy="cli_skill_review_v1"
     )
-    assert execution_flow(spec)(["marker"]) == ("marker",)
+    manifest = DomainRegistry(tmp_path).load_manifest(domain)
+    assert execution_flow(spec, manifest)(["marker"]) == ("marker",)
+    if domain == "ai_index":
+        assert execution_flow(spec).__module__ == "dataelf.domains.ai_index.workflow"
+        assert execution_flow(spec, manifest)(["marker"]) == ("marker",)
     assert capabilities(spec).analysis_review
     request = OntologyRequest(
         domain=domain, workspace=tmp_path, workflow_policy=spec.workflow_policy

@@ -302,4 +302,4 @@ silently. Conflicts leave the candidate unchanged. Successful rebuilds archive
 the previous candidate under its workspace/rebuilds directory, including explicit resets. Bindings remain portable source selections, separate
 from snapshot maintenance changes.
 
-Select `--workflow-policy ai_index_cli_skill_review_v1` explicitly for reviewed AI Index research. Legacy domains and the HTTP service retain their own entrypoints and policies.
+Select `--workflow-policy cli_skill_review_v1` explicitly for reviewed AI Index research. Legacy domains and the HTTP service retain their own entrypoints and policies.
