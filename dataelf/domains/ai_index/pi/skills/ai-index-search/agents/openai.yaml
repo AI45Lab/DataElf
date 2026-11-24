@@ -1,0 +1,6 @@
+interface:
+  display_name: "AI Index Search"
+  short_description: "检索AI学者、论文、机构、融资、新闻与多平台生态数据"
+  default_prompt: "使用 $ai-index-search 查询 AI Index；若尚未配置 API Key，先安全地引导我配置，再基于接口结果回答并标明筛选口径和来源。"
+policy:
+  allow_implicit_invocation: true

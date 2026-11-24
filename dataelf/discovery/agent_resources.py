@@ -41,8 +41,8 @@ def resolve_domain_resources(
     *, discover: bool = True,
 ) -> AgentResources:
     """Merge conventional resources with an optional plugin declaration."""
-    discovered = discover_domain_resources(domain_root) if discover else AgentResources()
     provider = getattr(plugin, "agent_resources", None)
+    discovered = discover_domain_resources(domain_root) if discover and not getattr(plugin, "owns_agent_resources", False) else AgentResources()
     declared = provider(spec, config) if callable(provider) else AgentResources()
     if not isinstance(declared, AgentResources):
         declared = AgentResources.model_validate(declared)

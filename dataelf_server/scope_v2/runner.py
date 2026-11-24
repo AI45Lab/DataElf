@@ -13,6 +13,7 @@ from typing import Any
 
 from dataelf_server.scope_v2.client import ScopeV2AIIndexClient, ScopeV2AIIndexError
 from dataelf_server.scope_v2.contracts import ScopeCall, ScopePlan, TIMEZONE
+from .diagnostics import new_scan, finish_scan
 
 
 SOURCE_TIME_PATHS: dict[str, tuple[str, ...]] = {
@@ -61,6 +62,13 @@ class ScopeV2Executor:
                 )
                 result["sources"][call.source] = source_result
         except ScopeV2AIIndexError as exc:
+            failed_source = getattr(exc, 'source_diagnostics', None)
+            if failed_source:
+                result['sources'][failed_source['source']] = failed_source
+            for pending in plan.calls:
+                if pending.source not in result['sources']:
+                    result['sources'][pending.source] = {'source':pending.source,
+                        'diagnostics':{**new_scan(), 'stop_reason':'earlier_source_failed', 'reason':'not_requested'}}
             failure = {
                 "version": plan.version,
                 "status": "failed",
@@ -68,6 +76,7 @@ class ScopeV2Executor:
                 "artifact_dir": str(run_dir.resolve()),
                 "error": exc.to_dict(),
                 "warnings": result["warnings"],
+                'sources':result['sources'],
             }
             _write_json(run_dir / "error.json", failure)
             raise
@@ -120,11 +129,20 @@ class ScopeV2Executor:
         total_reported: int | None = None
         exact_range = plan.time_mode == "date_range"
         scan_complete = call.source == "news" and not exact_range
+        scan = new_scan()
+        stop_reason = 'page_limit'
 
         for page in range(1, call.max_pages + 1):
             check_cancelled()
             payload = {**call.payload, "page": page, "size": call.page_size}
-            response = self.client.post(call.endpoint, payload)
+            scan['requests_attempted'] += 1
+            try:
+                response = self.client.post(call.endpoint, payload)
+            except ScopeV2AIIndexError as exc:
+                exc.source_diagnostics = {'source':call.source, 'pages_requested':pages_requested,
+                    'raw_files':raw_files, 'trace_ids':trace_ids, 'kept_count':0,
+                    'diagnostics':finish_scan(scan, complete=False, stop_reason='source_request_failed')}
+                raise
             pages_requested += 1
             raw_path = raw_dir / f"{call.source}_range_page_{page}.json"
             _write_json(raw_path, response)
@@ -138,6 +156,7 @@ class ScopeV2Executor:
             if isinstance(total, int) and total_reported is None:
                 total_reported = total
             rows = response["data"]["list"]
+            scan['records_returned'] += len(rows)
             reached_before_window = False
             for row_index, row in enumerate(rows):
                 if not isinstance(row, dict):
@@ -151,15 +170,19 @@ class ScopeV2Executor:
                         f"{call.source} page {page} row {row_index + 1}: missing or invalid publication time"
                     )
                     continue
+                scan['records_with_valid_date'] += 1
                 if published.date() < window_start:
                     reached_before_window = True
                     continue
                 if published > requested_end:
                     continue
-                if _matches_retrieval(row, getattr(plan, "retrieval", {})):
+                scan['records_in_date_range'] += 1
+                if _matches_retrieval(row, getattr(plan, "retrieval", {}), source=call.source):
+                    scan['records_after_retrieval'] += 1
                     candidates.append((row, published, raw_ref))
 
             if call.source == "news" and not exact_range:
+                stop_reason = 'archived_latest_news_page'
                 break
             exhausted = not rows or (
                 total_reported is not None
@@ -167,6 +190,7 @@ class ScopeV2Executor:
             )
             if (reached_before_window and call.stop_when_older) or exhausted:
                 scan_complete = True
+                stop_reason = 'source_exhausted' if exhausted else 'before_date_window'
                 break
 
         if not scan_complete and pages_requested == call.max_pages:
@@ -176,7 +200,7 @@ class ScopeV2Executor:
 
         if not candidates:
             warnings.append(
-                f"{call.source}: no records found from {window_start.isoformat()} through {requested_date.isoformat()}"
+                f"{call.source}: no retained records; {finish_scan(scan, complete=scan_complete, stop_reason=stop_reason)['reason']}"
             )
             return _empty_date_bounded_source(
                 call,
@@ -187,6 +211,7 @@ class ScopeV2Executor:
                 raw_files=raw_files,
                 total_reported=total_reported,
                 scan_complete=scan_complete,
+                diagnostics=finish_scan(scan, complete=scan_complete, stop_reason=stop_reason),
             )
 
         effective_date = max(published for _, published, _ in candidates).date()
@@ -225,10 +250,11 @@ class ScopeV2Executor:
             "trace_ids": trace_ids,
             "raw_files": raw_files,
             "items": items,
+            'diagnostics':finish_scan(scan, complete=scan_complete, stop_reason=stop_reason, retained=len(items)),
         }
 
 
-def _matches_retrieval(row: dict, retrieval: dict) -> bool:
+def _matches_retrieval(row: dict, retrieval: dict, *, source: str | None = None) -> bool:
     """Literal case-insensitive matching over returned records, before modeling.
 
     Each positive group is OR-matched; keyword and entity groups combine with AND.
@@ -239,6 +265,10 @@ def _matches_retrieval(row: dict, retrieval: dict) -> bool:
         terms = retrieval.get(group) or []
         if terms and not any(term.casefold() in text for term in terms):
             return False
+    titles = retrieval.get('title_keywords') or []
+    title = _title_and_url(source, row)[0] if source else row.get('title')
+    if titles and not any(term.casefold() in str(title or '').casefold() for term in titles):
+        return False
     return not any(term.casefold() in text for term in retrieval.get("exclude_keywords", []))
 
 
@@ -252,6 +282,7 @@ def _empty_date_bounded_source(
     raw_files: list[str],
     total_reported: int | None,
     scan_complete: bool,
+    diagnostics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "source": call.source,
@@ -271,6 +302,7 @@ def _empty_date_bounded_source(
         "trace_ids": trace_ids,
         "raw_files": raw_files,
         "items": [],
+        'diagnostics':diagnostics,
     }
 
 
@@ -325,6 +357,7 @@ def result_summary(result: dict[str, Any]) -> dict[str, Any]:
                 "trace_ids": details["trace_ids"],
                 "effective_date": details.get("effective_date"),
                 "fallback_applied": details.get("fallback_applied", False),
+                'diagnostics':details.get('diagnostics'),
             }
             for source, details in result["sources"].items()
         },

@@ -20,10 +20,11 @@ intent = IntentRecognizer().extract('查询2026年8月7日的GitHub与Hugging Fa
 print(intent.model_dump_json(indent=2))
 ```
 
-每次独立调用一次模型，没有历史对话、自动修复或规则解析回退。
+每次独立提取没有历史对话、语义修复或规则解析回退。仅对 429/502/503/504
+作有限传输重试，总计最多 3 次，并共用原有阶段时限；无效模型输出不重试。
 
 输入采用两段式：默认段提供检索要求，写作类标题下的正文提供 output。
-**没有写作类标题时只提取 retrieval/time_range/domains，整个 output 保持空对象。**
+**没有写作类标题时只提取 retrieval/research_topics/time_range/domains，整个 output 保持空对象。**
 
 ```text
 查询2026年8月7日的GitHub与Hugging Face数据。
@@ -42,7 +43,7 @@ print(intent.model_dump_json(indent=2))
 
 字段不能跨段借用：默认段的“英文总结3条”不会填写 output；写作段的日期、来源、比较对象也不会改变检索条件。
 例如默认段“查询GitHub”，写作段“比较OpenAI和Anthropic”只填写比较对象，不把它们自动设为检索实体。
-分区和字段抽取都由同一次 LLM 调用完成；未增加对话、模型调用或自然语言规则解析器。
+分区和字段抽取由同一个提取请求完成；瞬时故障重试仍发送同一目标，不增加语义对话或自然语言规则解析器。
 写作区中的越界指令仍然忽略，标题不会改变系统约束的优先级。
 
 代码只扫描 Markdown 标题结构，排除行内 # 和代码块，不判断标题含义。
@@ -59,11 +60,13 @@ print(intent.model_dump_json(indent=2))
 ```yaml
 server:
   intent:
-    model_name: glm-5.2-1m
-    base_url: null
-    api_key: null
+    model_name: ""
+    base_url: ""
+    api_key: ""
     timeout_seconds: 90
-    max_tokens: 2048
+    # max_tokens: 2048  # optional explicit cap; omitted by default
+    max_attempts: 3
+    retry_backoff_seconds: 0.5
 ```
 
 `model_name` 必须指定。`base_url/api_key` 显式配置时使用配置值，未配置时读取
@@ -76,7 +79,8 @@ server:
 
 ```json
 {
-  "retrieval": {"keywords": [], "entities": [], "exclude_keywords": []},
+  "retrieval": {"keywords": [], "entities": [], "exclude_keywords": [], "title_keywords": []},
+  "research_topics": [],
   "time_range": {"start_date": null, "end_date": null},
   "domains": [{"id": "ai_index", "sources": []}],
   "output": {
@@ -102,7 +106,13 @@ JSON Schema 要求所有字段存在，限定来源标识；本地校验有效�
 ### Output v2 字段契约
 
 本版删除 `output.requirements`，不接受旧自由指令列表，也不提供 `other_requirements` 或 `custom_prompt`。
-`OUTPUT_SCHEMA_VERSION = "2"` 是 Python 导出常量，模型响应 schema 名称为 `dataelf_intent_v2`；不增加顶层响应字段。
+`OUTPUT_SCHEMA_VERSION = "2"` 继续标识写作字段；`INTENT_SCHEMA_VERSION = "3"`
+标识新增主题/严格条件分类的模型 schema `dataelf_intent_v3`，不增加顶层版本字段。
+
+研究方向进入 `research_topics` 并传给分析，不作完整短语硬筛选。`retrieval`
+只保留明确的包含、对象和排除限制，`title_keywords` 仅匹配标题。
+旧意图记录缺少新字段时仍可读取，历史严格条件不自动放宽。
+详细的计数、重试、取消和日志约定见 [检索可靠性](../deployment/retrieval_reliability.md)。
 
 | 字段 | 含义与允许值 |
 | --- | --- |

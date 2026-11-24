@@ -397,7 +397,7 @@ def test_empty_date_bounded_search_stops_with_no_items(tmp_path: Path) -> None:
     assert source["effective_date"] is None
     assert source["pages_requested"] == 1
     assert result["warnings"] == [
-        "news: no records found from 2026-07-18 through 2026-08-18"
+        "news: no retained records; source_empty"
     ]
 
 

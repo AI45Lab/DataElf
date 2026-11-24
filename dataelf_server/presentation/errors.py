@@ -65,6 +65,18 @@ def classify_job_error(code: str, message: str, stage: str) -> ErrorDescriptor:
     raw_code = _normalize(code)
     text = f"{code} {message}".lower()
 
+    acquisition = {
+        'ai_index_source_empty':('source_empty','来源本次返回为空。',False,'revise_request'),
+        'ai_index_invalid_or_missing_dates':('invalid_or_missing_dates','来源记录的日期缺失或无效，无法确认日期覆盖。',False,'contact_administrator'),
+        'ai_index_no_date_match_in_scanned_records':('no_date_match_in_scanned_records','已扫描记录中没有符合指定日期的资料。',False,'revise_request'),
+        'ai_index_strict_conditions_no_match':('strict_conditions_no_match','日期范围内有资料，但均不符合明确的严格检索条件。',False,'revise_retrieval_conditions'),
+        'ai_index_scan_incomplete':('scan_incomplete','达到分页上限，扫描覆盖不完整，尚无保留记录。',False,'increase_scan_limit'),
+        'ai_index_no_matching_records':('no_matching_records','没有保留记录，请查看各来源的筛选与覆盖诊断。',False,'inspect_source_diagnostics'),
+    }
+    if raw_code in acquisition:
+        reason, public, retryable, action = acquisition[raw_code]
+        return ErrorDescriptor('source_error',reason,public,retryable,action,stage)
+
     if raw_code == "intent_model_failed":
         return ErrorDescriptor("model_error", "intent_recognition_failed",
             "意图识别模型调用失败或返回了无效字段，请重试。", True, "retry", stage)
@@ -137,6 +149,11 @@ def classify_job_error(code: str, message: str, stage: str) -> ErrorDescriptor:
             stage,
         )
 
+    if raw_code == "server_tool_protocol_repair_exhausted":
+        return ErrorDescriptor("model_error", "tool_protocol_repair_exhausted",
+            "模型工具响应格式连续不合法，有限纠错已耗尽；未执行非法调用，已有产物已保留。",
+            False, "inspect_protocol_diagnostics", stage)
+
     if _is_model_error(raw_code, text):
         reason = _model_reason(raw_code, text)
         return ErrorDescriptor(
@@ -151,6 +168,10 @@ def classify_job_error(code: str, message: str, stage: str) -> ErrorDescriptor:
             ),
             stage,
         )
+
+    if raw_code == 'pi_native_tool_channel_incompatible':
+        return ErrorDescriptor('model_error','native_tool_call_missing',
+            '模型未返回原生工具调用，正文工具标签未执行。',False,'contact_administrator',stage)
 
     if raw_code.startswith("ai_index_") or raw_code in {
         "no_source_data",
@@ -272,7 +293,7 @@ def _has_transport_failure(text: str) -> bool:
 
 
 def _is_model_error(code: str, text: str) -> bool:
-    if code == "pi_model_error":
+    if code in {"pi_model_error", "pi_output_truncated"}:
         return True
     markers = (
         "pi_model_error",
@@ -288,6 +309,10 @@ def _is_model_error(code: str, text: str) -> bool:
 
 
 def _model_reason(code: str, text: str) -> str:
+    if code == "pi_output_truncated":
+        return "output_truncated"
+    if any(marker in text for marker in ("textual tool", "native tool argument", "forced tool mismatch", "not offered in the current server phase", "arguments violate its current schema")):
+        return "invalid_tool_output"
     if any(value in text for value in ("401", "403", "unauthorized", "api key", "authentication")):
         return "authentication_failed"
     if "429" in text or "rate limit" in text:
@@ -402,6 +427,8 @@ def _source_message(reason: str) -> str:
 
 def _model_message(reason: str) -> str:
     messages = {
+        "output_truncated": "模型输出被截断，未执行不完整的工具调用，请重试。",
+        "invalid_tool_output": "模型工具响应不完整或不符合当前阶段协议，请重试或检查模型适配配置。",
         "authentication_failed": "模型认证失败，请联系服务管理员检查模型配置。",
         "request_timeout": "模型调用超时，请重试或切换模型。",
         "rate_limited": "模型调用达到限流，请稍后重试或切换模型。",

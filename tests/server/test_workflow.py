@@ -76,8 +76,8 @@ def components(tmp_path, *, count=1, first_error=None, repair=False, no_analysis
 def test_scope_v2_uses_current_workflow_with_zero_model_calls_within_default_cap(tmp_path, count, monkeypatch):
     cfg, profile, explorer, calls = components(tmp_path, count=count)
     cfg.server.source.max_pages = 500
-    monkeypatch.setattr("dataelf.domains.ai_index.modeling.acquisition.AIIndexRawCollector.collect", lambda *a: pytest.fail("duplicate legacy collection"))
-    monkeypatch.setattr("dataelf.domains.ai_index.modeling.pipeline.run_ontology_subprocess", lambda *a: pytest.fail("Scope V2 modeling must call no model"))
+    monkeypatch.setattr("dataelf.domains.ai_index.acquisition.AIIndexRawCollector.collect", lambda *a: pytest.fail("duplicate legacy collection"))
+    monkeypatch.setattr("dataelf.ontology.pipeline.run_ontology", lambda *a: pytest.fail("Scope V2 modeling must call no model"))
     workspace = tmp_path / "attempts/0001"
     events = []
     spec = JobSpec(domain="ai_index", objective="2026-08-27 综合总结", workflow_profile="server")

@@ -1,4 +1,6 @@
 import { stripThinkingPrefix } from "./thinking.ts";
+import { ToolEnvelopeError, parseTextualToolCalls, decodeTextualTools, validateNativeArguments, type OfferedTools } from "./textual_tools.ts";
+export { parseTextualToolCalls } from "./textual_tools.ts";
 import { spawn } from "node:child_process";
 import { appendFile } from "node:fs/promises";
 import {
@@ -60,36 +62,6 @@ interface TextualToolCallParseResult {
  * only a tool-only response with the gateway's exact tag structure; ordinary
  * prose containing a tag remains plain text and can never become executable.
  */
-export function parseTextualToolCalls(content: string | null | undefined): TextualToolCallParseResult {
-	let body = content?.trim() ?? "";
-	if (!body.startsWith("<tool_call>")) return { matched: false, toolCalls: [] };
-	while (body.startsWith("<tool_call>")) body = body.slice("<tool_call>".length).trimStart();
-	while (body.endsWith("</tool_call>")) body = body.slice(0, -"</tool_call>".length).trimEnd();
-	const nameMatch = /^([A-Za-z_][A-Za-z0-9_.:-]*)\s*/.exec(body);
-	if (!nameMatch) return { matched: false, toolCalls: [] };
-	const name = nameMatch[1];
-	const argumentsObject: JsonRecord = {};
-	const pairPattern = /<arg_key>([\s\S]*?)<\/arg_key>\s*<arg_value>([\s\S]*?)<\/arg_value>/g;
-	let cursor = nameMatch[0].length;
-	let pairCount = 0;
-	for (let match = pairPattern.exec(body); match; match = pairPattern.exec(body)) {
-		if (body.slice(cursor, match.index).trim()) return { matched: false, toolCalls: [] };
-		const key = match[1].trim();
-		if (!key || Object.hasOwn(argumentsObject, key)) return { matched: false, toolCalls: [] };
-		argumentsObject[key] = match[2];
-		cursor = pairPattern.lastIndex;
-		pairCount += 1;
-	}
-	if (!pairCount || body.slice(cursor).trim()) return { matched: false, toolCalls: [] };
-	return {
-		matched: true,
-		toolCalls: [{
-			id: `call_text_${Date.now()}`,
-			type: "function",
-			function: { name, arguments: JSON.stringify(argumentsObject) },
-		}],
-	};
-}
 
 function contentText(content: unknown): string {
 	if (typeof content === "string") return content;
@@ -154,8 +126,8 @@ function openAITools(context: Context): JsonRecord[] | undefined {
 }
 
 function stopReason(finishReason: string | null | undefined, hasTools: boolean): StopReason {
-	if (hasTools) return "toolUse";
 	if (finishReason === "length") return "length";
+	if (hasTools) return "toolUse";
 	return "stop";
 }
 
@@ -465,7 +437,7 @@ async function requestCompletion(
 	context: Context,
 	options: SimpleStreamOptions | undefined,
 	logPaths?: ModelEventLogPath,
-): Promise<{ envelope: ChatCompletionEnvelope; status: number; headers: Record<string, string> }> {
+): Promise<{ envelope: ChatCompletionEnvelope; status: number; headers: Record<string, string>; offered: OfferedTools; required?: string }> {
 	const apiKey = options?.apiKey?.trim();
 	if (!apiKey) throw new Error(`No API key for provider: ${model.provider}`);
 	let payload: unknown = {
@@ -473,7 +445,7 @@ async function requestCompletion(
 		messages: openAIMessages(context),
 		stream: false,
 		parallel_tool_calls: false,
-		max_tokens: options?.maxTokens ?? model.maxTokens,
+		...(options?.maxTokens !== undefined ? {max_tokens:options.maxTokens} : {}),
 		...configuredReasoningPayload(model, options),
 		...(openAITools(context) ? { tools: openAITools(context) } : {}),
 		...((options as SimpleStreamOptions & { toolChoice?: unknown } | undefined)?.toolChoice !== undefined
@@ -504,6 +476,7 @@ async function requestCompletion(
 	})();
 	let lastError: unknown;
 	for (let attempt = 1; attempt <= attempts; attempt++) {
+        if (options?.signal?.aborted) throw new Error("Request was aborted before transport start");
 		const startedAt = Date.now();
 		await appendJsonLine(logPaths?.events, {
 			at: new Date(startedAt).toISOString(), type: "request_start", attempt, attempts,
@@ -528,15 +501,20 @@ async function requestCompletion(
 			}
 			const envelope = JSON.parse(response.body) as ChatCompletionEnvelope;
 			const firstMessage = envelope.choices?.[0]?.message;
-			const returnedToolNames = (firstMessage?.tool_calls ?? [])
+			const compatibilityNames = process.env.DATAELF_SERVER_TOOL_PROTOCOL === "glm_text" && envelope.choices?.[0]?.finish_reason === "stop"
+                ? parseTextualToolCalls(stripThinkingPrefix(firstMessage?.content ?? "")).toolCalls.map((c:any)=>c.function.name) : [];
+            const returnedToolNames = (firstMessage?.tool_calls ?? [])
 				.map((call) => call.function?.name?.trim())
 				.filter((value): value is string => Boolean(value));
+            if (!returnedToolNames.length) returnedToolNames.push(...compatibilityNames);
 			await appendJsonLine(logPaths?.events, {
 				at: new Date().toISOString(), type: "request_complete", attempt, status: response.status,
 				elapsedSeconds: (Date.now() - startedAt) / 1000,
 				usage: envelope.usage ?? null, finishReason: envelope.choices?.[0]?.finish_reason ?? null,
 				// Keep diagnostics useful without recording prompts, tool arguments, or model text.
 				toolCallNames: returnedToolNames,
+                nativeToolCallNames:(firstMessage?.tool_calls ?? []).map(call=>call.function?.name),
+                compatibleToolCallNames:compatibilityNames,
 				toolCallArgumentKeys: (firstMessage?.tool_calls ?? []).map((call) => {
 					try {
 						const value = JSON.parse(call.function?.arguments ?? "{}") as unknown;
@@ -549,7 +527,13 @@ async function requestCompletion(
 				}),
 				contentLength: typeof firstMessage?.content === "string" ? firstMessage.content.length : 0,
 			});
+            if (process.env.DATAELF_SERVER_TOOL_PROTOCOL!=='glm_text' && envelope.choices?.[0]?.finish_reason==='stop'
+                && !(firstMessage?.tool_calls?.length) && /<tool_call>/.test(firstMessage?.content ?? '')) {
+                throw new Error('PI_NATIVE_TOOL_CHANNEL_INCOMPATIBLE: Provider returned text tool markup without native tool calls (finish_reason=stop); no call was executed.');
+            }
 			if (
+                !(process.env.DATAELF_SERVER_TOOL_PROTOCOL==='glm_text' && firstMessage?.content?.includes('<tool_call>')) &&
+                envelope.choices?.[0]?.finish_reason !== 'length' &&
 				requestedToolChoice
 				&& availableToolNames.length === 1
 				&& (
@@ -561,7 +545,9 @@ async function requestCompletion(
 					`forced tool mismatch: requested ${requestedToolChoice}, received ${returnedToolNames.join(", ") || "none"}`,
 				);
 			}
-			return { envelope, status: response.status, headers: response.headers };
+			return { envelope, status: response.status, headers: response.headers,
+                offered: new Map((Array.isArray(payloadRecord.tools) ? payloadRecord.tools : []).map((tool:any)=>[tool.function.name,tool.function.parameters])),
+                required: typeof payloadRecord.tool_choice === "object" ? (payloadRecord.tool_choice as any)?.function?.name : undefined };
 		} catch (error) {
 			lastError = error;
 			await appendJsonLine(logPaths?.events, {
@@ -612,16 +598,30 @@ export function nonStreamingOpenAI(
 			timestamp: Date.now(),
 		};
 		try {
-			const { envelope } = await requestCompletion(model, context, options, logPaths);
-			const choice = envelope.choices?.[0];
+            if (options?.signal?.aborted) throw new Error("Request was aborted before transport start");
+			const { envelope, offered, required } = await requestCompletion(model, context, options, logPaths);
+			output.usage = usage(envelope);
+            const choice = envelope.choices?.[0];
 			const message = choice?.message;
 			if (!message) throw new Error("OpenAI-compatible response has no first assistant message");
 			// Strip thought markup before the legacy textual-tool parser can see it.
 			if (message.content) message.content = stripThinkingPrefix(message.content);
-			const textualToolCalls = message.tool_calls?.length
-				? { matched: false, toolCalls: [] }
-				: parseTextualToolCalls(message.content);
-			const toolCalls = message.tool_calls?.length ? message.tool_calls : textualToolCalls.toolCalls;
+            const finish=choice?.finish_reason;
+            if (!finish || options?.signal?.aborted) throw new Error('Response has no confirmed terminal finish reason or was cancelled');
+            if (!['stop','tool_calls','function_call','length'].includes(finish)) throw new Error(`Provider terminated with ${finish}`);
+            const native=finish==='length' ? [] : message.tool_calls ?? [];
+            const compatible=!native.length && finish==='stop' && process.env.DATAELF_SERVER_TOOL_PROTOCOL==='glm_text'
+                ? decodeTextualTools(message.content ?? '',offered,finish,false,required) : [];
+            // Validate every member before emitting an executable tool event.
+            const toolCalls=native.map(call=>{
+                const name=call.function?.name?.trim();
+                if (!name) throw new Error('Native call has no function name');
+                const args=JSON.parse(call.function?.arguments ?? '');
+                validateNativeArguments(name,args,offered,required);
+                return call;
+            });
+            toolCalls.push(...compatible.map(call=>({type:'function',function:{name:call.name,arguments:JSON.stringify(call.arguments)}})));
+            const textualToolCalls={matched:compatible.length>0};
 			output.responseId = envelope.id;
 			if (envelope.model && envelope.model !== model.id) output.responseModel = envelope.model;
 			output.usage = usage(envelope);
@@ -668,6 +668,7 @@ export function nonStreamingOpenAI(
 		} catch (error) {
 			output.stopReason = options?.signal?.aborted ? "aborted" : "error";
 			output.errorMessage = errorMessage(error);
+            if(error instanceof ToolEnvelopeError) (output as any).protocolFailure=error.diagnostic();
 			stream.push({ type: "error", reason: output.stopReason, error: output });
 			stream.end(output);
 		}

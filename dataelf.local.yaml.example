@@ -1,0 +1,53 @@
+# Copy to dataelf.local.yaml; fill empty model/source fields before running.
+# See README.md. Credentials should come from your shell.
+runtime:
+  workspace_dir: .dataelf
+  workspaces_dir: .dataelf/workspaces
+  sqlite_path: .dataelf/dataelf.sqlite
+  enable_sqlite: false
+explorer:
+  type: pi
+  pi:
+    binary: null
+    cwd: .
+    model: ""
+    mode: json
+    timeout_seconds: null
+    extra_args: ""
+    log_mode: summary
+workflow_policy: legacy
+ontology:
+  enabled: false
+  ontology_config: dataelf/ontology/config.yaml
+  maintenance_review_policy: required
+domains:
+  ai_index:
+    source:
+      mode: api
+      base_url: ""
+      api_key: ""
+      page_size: 50
+    analysis:
+      analyst_model: ""
+      reviewer_model: ""
+  trajectory_analysis:
+    mode: tool
+    profile: test
+    modeling:
+      enabled: false
+  finance:
+    source:
+      files:
+        data_path: ""
+    modeling:
+      enabled: false
+    tools:
+      python: true
+      sql: false
+      web: false
+      edgar: false
+      prices: false
+    analysis:
+      retrieve_information_model: ""
+env:
+  PI_CODING_AGENT_DIR: .pi/agent

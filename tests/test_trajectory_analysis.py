@@ -256,8 +256,8 @@ def test_prepare_escape_fails(setup, tmp_path):
 
 def test_runtime_readiness_gate_preserved(setup, monkeypatch):
     cfg, spec, _ = setup
-    monkeypatch.setattr('dataelf.discovery.pi_cli_explorer.runtime_ready_for_process', lambda *args: False)
-    monkeypatch.setattr('dataelf.discovery.pi_cli_explorer._run_pi_process', lambda *args, **kw: pytest.fail('runtime gate bypassed'))
+    monkeypatch.setattr('dataelf.discovery.legacy.pi_explorer.runtime_ready_for_process', lambda *args, **kwargs: False)
+    monkeypatch.setattr('dataelf.discovery.legacy.pi_explorer._run_pi_process', lambda *args, **kw: pytest.fail('runtime gate bypassed'))
     job = run_job(spec, cfg)
     assert job.error_code == 'EXPLORER_RUNTIME_NOT_READY'
 

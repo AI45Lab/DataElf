@@ -13,6 +13,7 @@ ShortText = Annotated[str, StringConstraints(min_length=1, max_length=240)]
 PositiveInt = Annotated[int, Field(gt=0)]
 LanguageTag = Literal["zh-CN", "en"]
 OUTPUT_SCHEMA_VERSION = "2"
+INTENT_SCHEMA_VERSION = "3"
 
 
 class Fields(BaseModel):
@@ -32,9 +33,10 @@ class Fields(BaseModel):
 
 
 class Retrieval(Fields):
-    keywords: list[Text]
-    entities: list[Text]
+    keywords: list[Text] = Field(description="仅明确要求记录包含的字面字符串；不是研究主题。组内OR，正向组之间AND。")
+    entities: list[Text] = Field(description="仅明确限定只看/检索的对象专名，不把研究中举例的对象自动设为限制。")
     exclude_keywords: list[Text]
+    title_keywords: list[Text] = Field(default_factory=list, description="用户明确要求标题包含的字面字符串；只匹配来源标题，组内OR。")
 
 
 class TimeRange(Fields):
@@ -126,6 +128,7 @@ class Output(Fields):
 
 class Intent(Fields):
     retrieval: Retrieval = Field(description="只从默认段提取检索条件，不能使用写作类标题管辖正文中的内容。")
+    research_topics: list[ShortText] = Field(default_factory=list, description="默认段中关注/研究/分析的方向，传给分析阶段，不作字面关键词硬过滤。")
     time_range: TimeRange = Field(description="只从默认段提取检索日期；默认段未指定则起止日期均为null。")
     domains: list[DomainSelection] = Field(description="只从默认段提取检索领域/来源；写作段提到新闻、GitHub等不改变来源。")
     output: Output = Field(description="只从写作/总结等语义标题管辖的正文提取；没有此类标题时整个output保持空对象。")

@@ -163,6 +163,48 @@ def _fake_registry(tmp_path: Path) -> DomainRegistry:
     return DomainRegistry(root)
 
 
+def first_reviewed_hook(job, config, store, workspace, plugin, context, explorer, contract):
+    return "first"
+
+
+def second_reviewed_hook(job, config, store, workspace, plugin, context, explorer, contract):
+    return "second"
+
+
+def test_reviewed_dispatch_uses_each_registry_without_preloading(tmp_path):
+    spec = JobSpec(domain="fake", objective="test", workflow_policy="cli_skill_review_v1")
+    config = _config(tmp_path, tmp_path / "unused")
+    first = _fake_registry(tmp_path / "one")
+    second = _fake_registry(tmp_path / "two")
+    for registry, hook in [(first, first_reviewed_hook), (second, second_reviewed_hook)]:
+        manifest = registry.domain_path("fake") / "domain.yaml"
+        with manifest.open("a") as f:
+            f.write(f"workflows:\n  reviewed_analysis:\n    entry: {__name__}:{hook.__name__}\n")
+    for registry, expected in [(first, "first"), (second, "second"), (first, "first")]:
+        assert run_job(spec, config, registry=registry) == expected
+
+    # A caller-injected plugin owns its hook even if the registry declares another.
+    plugin = second.load_plugin("fake", config)
+    assert run_job(spec, config, registry=first, plugin=plugin) == "second"
+
+
+def test_missing_reviewed_hook_stops_before_prepare(tmp_path):
+    spec = JobSpec(domain="fake", objective="test", workflow_policy="cli_skill_review_v1")
+    result = run_job(spec, _config(tmp_path, tmp_path / "unused"), registry=_fake_registry(tmp_path))
+    assert result.status == "failed"
+    assert "missing business hook reviewed_analysis" in result.error_message
+    assert not (Path(result.workspace_path) / "fake").exists()
+
+
+def test_removed_legacy_entry_reports_migration(tmp_path):
+    registry = _fake_registry(tmp_path)
+    manifest = registry.domain_path("fake") / "domain.yaml"
+    with manifest.open("a") as f:
+        f.write("legacy_entry: example:custom_entry\n")
+    with pytest.raises(ValueError, match="legacy_entry has been removed"):
+        registry.load_manifest("fake")
+
+
 def test_core_workspace_is_domain_neutral(tmp_path: Path) -> None:
     workspace = prepare_workspace(tmp_path / "workspace", JobSpec(domain="fake", objective="test"))
     assert (workspace / "raw").is_dir()
@@ -557,7 +599,7 @@ def test_cli_rejects_explicit_ontology_config_when_modeling_is_disabled(
     monkeypatch.chdir(tmp_path)
     result = CliRunner().invoke(
         app,
-        ["run", "--domain", "ai_index", "test", "--ontology-config", "ontology.yaml"],
+        ["run", "--domain", "ai_index", "test", "--workflow-policy", "cli_skill_review_v1", "--ontology-config", "ontology.yaml"],
     )
     assert result.exit_code == 2
     assert "requires --modeling" in result.output
@@ -568,7 +610,8 @@ def test_ai_index_defaults_and_pi_event_summary() -> None:
     assert DEFAULT_AI_INDEX_BASE_URL == "https://index.shlab.org.cn/api/v2"
     assert DEFAULT_AI_INDEX_API_KEY == ""
     domain = AIIndexDomainConfig.from_mapping({})
-    assert domain.modeling.ontology_config.is_file()
+    from dataelf.ontology.config import load_config
+    assert load_config(domain.modeling.ontology_config).mode == "dynamic"
     summary = _summarize_pi_event(json.dumps({
         "role": "assistant", "content": [{"type": "toolCall", "name": "bash", "arguments": {"command": "x" * 500}}],
         "usage": {"input": 12, "output": 3, "totalTokens": 15},

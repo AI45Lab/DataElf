@@ -8,6 +8,7 @@ from typing import Any, Literal, Protocol
 from pydantic import BaseModel, Field, model_validator
 
 from dataelf.schemas import now_utc
+from dataelf.discovery.policies import WorkflowPolicy, validate_scope
 
 
 class JobSpec(BaseModel):
@@ -19,7 +20,25 @@ class JobSpec(BaseModel):
     requested_outputs: list[str] = Field(default_factory=list)
     modeling_strategy: str | None = None
     explorer: Literal["pi"] = "pi"
+    # Host boundary: research uses CLI components; server supplies its own
+    # plugin/explorer/resources. This is not a modeling strategy or policy.
     workflow_profile: Literal["research", "server"] = "research"
+    # Host execution protocol (review/recovery/runtime), not a domain setting.
+    # research+legacy is the fallback; server currently accepts only legacy;
+    # The selected plugin supplies reviewed_analysis at execution time.
+    # Saved jobs without this field must remain legacy even if config changes.
+    # See docs/runtime/workflow_selection.md for selection and migration rules.
+    workflow_policy: WorkflowPolicy = "legacy"
+
+    @model_validator(mode='after')
+    def validate_workflow_scope(self):
+        validate_scope(self.workflow_policy, self.domain, self.workflow_profile)
+        return self
+
+    @classmethod
+    def from_saved(cls, value):
+        """Absent historical selection means legacy, never today's config default."""
+        return cls.model_validate({'workflow_policy': 'legacy', **value})
 
 
 class ArtifactRef(BaseModel):
@@ -62,6 +81,8 @@ class OutputArtifactSpec(BaseModel):
     media_type: str | None = None
     required: bool = True
     json_root: str | None = None
+    json_schema: dict[str, Any] | None = None
+    agent_writable: bool = True
 
 
 class OutputContract(BaseModel):
@@ -110,17 +131,38 @@ class ReviewResult(BaseModel):
     created_at: datetime = Field(default_factory=now_utc)
 
 
+class DomainWorkflow(BaseModel):
+    """Domain-owned business orchestration; host runtime settings live elsewhere."""
+
+    model_config = {"extra": "forbid"}
+    entry: str = Field(pattern=r"^[A-Za-z_][\w.]*:[A-Za-z_]\w*$")
+
+
 class DomainManifest(BaseModel):
     domain: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     version: str
     display_name: str
     plugin: str
+    workflows: dict[str, DomainWorkflow] = Field(default_factory=dict)
+    agent_services: str | None = None
+    config_adapters: dict[str, str] = Field(default_factory=dict)
+    audit_dirs: list[str] = Field(default_factory=list)
     capabilities: list[str] = Field(default_factory=list)
     workspace_dirs: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="before")
+    @classmethod
+    def reject_removed_legacy_entry(cls, value):
+        if isinstance(value, dict) and "legacy_entry" in value:
+            raise ValueError(
+                "legacy_entry has been removed. For the standard legacy workflow, "
+                "omit this field. Migrate any custom entry behavior before removing it."
+            )
+        return value
+
     @model_validator(mode="after")
     def validate_workspace_dirs(self) -> "DomainManifest":
-        for relative in self.workspace_dirs:
+        for relative in [*self.workspace_dirs, *self.audit_dirs]:
             path = PurePosixPath(relative)
             if path.is_absolute() or ".." in path.parts:
                 raise ValueError(f"domain workspace directory must be relative and contained: {relative}")
@@ -128,11 +170,19 @@ class DomainManifest(BaseModel):
 
 
 class DiscoveryJob(BaseModel):
+    @model_validator(mode='before')
+    @classmethod
+    def preserve_saved_selection(cls, value):
+        if isinstance(value, dict) and isinstance(value.get('spec'), dict):
+            value = {**value, 'spec': {'workflow_policy': 'legacy', **value['spec']}}
+        return value
+
     job_id: str
     spec: JobSpec
     status: Literal["created", "running", "completed", "failed"] = "created"
     workspace_path: str
     artifacts: list[ArtifactRef] = Field(default_factory=list)
+    context: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=now_utc)
     updated_at: datetime = Field(default_factory=now_utc)
     error_code: str | None = None
@@ -149,6 +199,7 @@ class DiscoveryContext(BaseModel):
     artifacts: list[ArtifactRef] = Field(default_factory=list)
     agent_resources: AgentResources = Field(default_factory=AgentResources)
     prompt_path: str | None = None
+    execution: dict[str, Any] = Field(default_factory=dict)
 
 
 class DomainModeler(Protocol):

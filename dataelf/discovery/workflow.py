@@ -20,6 +20,7 @@ from dataelf.discovery.contracts import (
 )
 from dataelf.discovery.domain_registry import DomainRegistry
 from dataelf.discovery.explorer_factory import create_explorer
+from dataelf.discovery.execution_policy import reviewed_analysis
 from dataelf.discovery.prompt_builder import write_discovery_prompt
 from dataelf.discovery.workspace import prepare_workspace
 from dataelf.discovery.redaction import redact_text, redact_data, secret_values
@@ -49,12 +50,22 @@ class NullStore:
         return None
 
 
-def run_job(
+def run_selected_job(
     spec: JobSpec, config: DataElfConfig, registry: DomainRegistry | None = None,
     *, plugin: DomainPlugin | None = None, explorer: InsightsExplorer | None = None,
     control: RunControl | None = None,
 ) -> DiscoveryJob:
-    """Execute one job; optional injected components preserve the default research path."""
+    """Execute an explicitly selected new workflow. Legacy owns its own runtime."""
+    if spec.workflow_policy == 'legacy' or spec.workflow_profile == 'server':
+        raise ValueError('New discovery workflow cannot execute legacy or server jobs')
+    from .flows import execution_flow, resolve_spec
+    saved_spec = None
+    if control and control.workspace_path:
+        saved_path = Path(control.workspace_path)/'job_spec.json'
+        if saved_path.exists():
+            saved_spec = JobSpec.from_saved(json.loads(saved_path.read_text()))
+    spec = resolve_spec(spec, config, saved_spec)
+    config = config.model_copy(update={"workflow_policy": spec.workflow_policy})
     control = control or RunControl()
     control.secrets.update(secret_values(config.model_dump()) | secret_values(os.environ))
     config.ensure_dirs()
@@ -75,8 +86,15 @@ def run_job(
             if spec.workflow_profile == "server" and (plugin is None or explorer is None):
                 raise ValueError("server profile requires explicit plugin and explorer components")
             plugin = plugin if injected_plugin else domain_registry.load_plugin(spec.domain, config)
-            spec = plugin.normalize_spec(spec)
+            normalized = plugin.normalize_spec(spec)
+            if normalized.workflow_policy != spec.workflow_policy:
+                raise ValueError("Plugin cannot change the saved workflow selection")
+            spec = JobSpec.model_validate(normalized.model_dump())
+            execute = execution_flow(spec, plugin.manifest)
+            from .domain_services import bind
+            bind(workspace, spec.domain)
             job.spec = spec
+            job.context["audit_dirs"] = list(plugin.manifest.audit_dirs)
             prepare_workspace(workspace, spec)
             try:
                 # Injected profiles own their resource declarations. Do not
@@ -91,7 +109,7 @@ def run_job(
                 workspace_path=str(workspace), spec=spec, manifest=plugin.manifest,
                 model=config.explorer.pi.model, env=dict(config.env), agent_resources=agent_resources,
             )
-            return _run_stages(job, config, store, workspace, plugin, context, explorer)
+            return _run_stages(job, config, store, workspace, plugin, context, explorer, execute)
         except Exception as exc:
             code = "RUN_CANCELLED" if isinstance(exc, RunCancelled) else getattr(exc, "code", f"{control.stage.upper()}_FAILED")
             message = redact_text(exc, secret_values(config.model_dump()))
@@ -109,7 +127,7 @@ def _stage(name: str) -> None:
         control.emit(name)
 
 
-def _run_stages(job, config, store, workspace, plugin, context, explorer):
+def _run_stages(job, config, store, workspace, plugin, context, explorer, execute):
     spec = job.spec
     _stage("domain_prepare")
     preparation = plugin.prepare(spec, str(workspace), config)
@@ -159,44 +177,7 @@ def _run_stages(job, config, store, workspace, plugin, context, explorer):
     context = context.model_copy(update={"prompt_path": str(prompt_path)})
     _stage("explorer")
     explorer = explorer or create_explorer(config)
-    explorer_result = explorer.run(job, context)
-    job.artifacts.extend(explorer_result.artifacts)
-    try:
-        validate_stage_artifacts(workspace, explorer_result.artifacts)
-    except ArtifactContractError as exc:
-        return _fail(job, store, workspace, "explorer", "STAGE_ARTIFACT_INVALID", str(exc))
-    _trace_stage(store, job, "explorer", explorer_result)
-    if explorer_result.status != "completed":
-        return _fail(
-            job, store, workspace, "explorer", explorer_result.error_code,
-            explorer_result.error_message or "Pi explorer failed.",
-        )
-
-    _stage("output_validation")
-    try:
-        outputs, contract_warnings = validate_outputs(workspace, contract)
-    except ArtifactContractError as exc:
-        return _fail(job, store, workspace, "output_validation", "OUTPUT_CONTRACT_FAILED", str(exc))
-    job.artifacts.extend(outputs)
-    store.add_trace_event(job.job_id, "outputs_validated", {
-        "contract_id": contract.contract_id,
-        "artifact_ids": [item.artifact_id for item in outputs],
-        "warnings": contract_warnings,
-    })
-
-    _stage("domain_review")
-    review = plugin.review(job, str(workspace))
-    if contract_warnings:
-        review.warnings.extend(contract_warnings)
-        if review.status == "pass":
-            review.status = "pass_with_warnings"
-        review.recommended_revision = True
-    _write_review(workspace, review)
-    store.save_quality_review(review)
-    store.add_trace_event(job.job_id, "domain_review_completed", review.model_dump(mode="json"))
-    if review.status == "failed":
-        return _finalize(job, store, workspace, plugin, review, "DOMAIN_REVIEW_FAILED", "Domain review failed.")
-    return _finalize(job, store, workspace, plugin, review)
+    return execute(job, config, store, workspace, plugin, context, explorer, contract)
 
 
 def _create_store(config: DataElfConfig) -> StoreLike:
@@ -279,6 +260,14 @@ def _finalize(
         if not path.is_file() or path.is_symlink():
             continue
         relative = path.relative_to(workspace).as_posix()
+        if any(relative.startswith(directory.rstrip('/') + '/') for directory in job.context.get('audit_dirs', [])):
+            # Old submissions and reviewer scratch are audit logs, never output
+            # or analysis evidence selected merely because a file exists.
+            if relative in known:continue
+            job.artifacts.append(ArtifactRef(artifact_id=f'analysis_audit_{len(job.artifacts)}',kind='analysis_audit',
+                path=relative,role='log',producer_stage='analysis_review'))
+            known.add(relative)
+            continue
         if relative in known or relative in {"artifact_manifest.json", "workspace_index.json"}:
             continue
         if not path.resolve().is_relative_to(workspace.resolve()):
@@ -297,6 +286,7 @@ def _finalize(
         "spec": job.spec.model_dump(mode="json"),
         "error": {"code": error_code, "message": error_message} if error_code else None,
         "result_ids": result_ids,
+        "context": job.context,
         "review": review.model_dump(mode="json"),
         "artifact_manifest": "artifact_manifest.json",
     }
@@ -311,4 +301,15 @@ def _write_review(workspace: Path, review: ReviewResult) -> None:
     path.write_text(review.model_dump_json(indent=2) + "\n", encoding="utf-8")
 
 
-__all__ = ["NullStore", "run_job"]
+def run_job(*args, **kwargs):
+    """Compatibility import; all entry selection is outside this behavior kernel."""
+    from .entry import run_job as dispatch
+    return dispatch(*args, **kwargs)
+
+
+__all__ = ["NullStore", "run_job", "run_selected_job"]
+
+# Public lifecycle hooks for domain-selected execution flows.
+fail_job = _fail
+finalize_job = _finalize
+write_review = _write_review

@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
 from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from dataelf.ontology.config import OntologySettings
 
 
 DEFAULT_CONFIG_FILE = Path("dataelf.local.yaml")
@@ -48,11 +50,29 @@ class DataElfConfig(BaseModel):
     domains: dict[str, dict[str, Any]] = Field(default_factory=dict)
     env: dict[str, str] = Field(default_factory=dict)
     server: dict[str, Any] = Field(default_factory=dict)
+    ontology: OntologySettings = Field(default_factory=OntologySettings)
+    workflow_policy: str = "legacy"
+
+    def ontology_for_domain(self, domain: str) -> OntologySettings:
+        """Resolve optional domain migration through its manifest declaration."""
+        from dataelf.discovery.domain_registry import DomainRegistry
+        from importlib import import_module
+        try:
+            manifest = DomainRegistry().load_manifest(domain)
+        except FileNotFoundError:
+            return self.ontology
+        entry = manifest.config_adapters.get('ontology')
+        if not entry:
+            return self.ontology
+        module, separator, name = entry.partition(":")
+        if not separator:
+            raise ValueError("ontology_settings must use module:function syntax")
+        return getattr(import_module(module), name)(self)
 
     @classmethod
     def from_env(cls) -> "DataElfConfig":
         values = load_config_file()
-        _reject_unknown(values, {"runtime", "explorer", "domains", "env", "server"}, "root")
+        _reject_unknown(values, {"runtime", "explorer", "domains", "env", "server", "ontology", "workflow_policy"}, "root")
         runtime_values = _section(values, "runtime")
         explorer_values = _section(values, "explorer")
         pi_values = _section(explorer_values, "pi")
@@ -91,6 +111,8 @@ class DataElfConfig(BaseModel):
             if os.getenv(key) is not None:
                 runtime_env[key] = str(os.environ[key])
         return cls(
+            **({"ontology": values["ontology"]} if "ontology" in values else {}),
+            workflow_policy=str(_env("DATAELF_WORKFLOW_POLICY", values.get("workflow_policy", "legacy"))),
             runtime=runtime,
             explorer=ExplorerConfig(type=str(explorer_values.get("type", "pi")), pi=pi),
             domains=domains,

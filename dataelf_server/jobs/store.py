@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
@@ -237,7 +238,7 @@ class JobStore:
             )
             self._connection.commit()
 
-    def fail_job(self, job_id: str, *, code: str, message: str) -> None:
+    def fail_job(self, job_id: str, *, code: str, message: str, details: dict | None = None) -> None:
         with self._lock:
             current = self._connection.execute(
                 "SELECT stage, progress FROM jobs WHERE job_id=?", (job_id,)
@@ -247,6 +248,7 @@ class JobStore:
                 str(current["stage"]) if current else None,
             )
             error = classify_job_error(code, message, stage)
+            if details is not None:error = replace(error, details=details)
             self._connection.execute(
                 """
                 UPDATE jobs SET status='failed', stage='failed',

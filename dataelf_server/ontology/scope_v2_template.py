@@ -10,7 +10,7 @@ from urllib.parse import quote
 from rdflib import BNode, Dataset, Graph, Literal, Namespace, RDF, RDFS, URIRef
 from rdflib.namespace import OWL, XSD
 
-from dataelf.domains.ai_index.modeling.contracts import (
+from dataelf_server.ontology.contracts import (
     OntologyRunResult,
     AI_INDEX_MODELING_STAGE1_FAILED,
 )

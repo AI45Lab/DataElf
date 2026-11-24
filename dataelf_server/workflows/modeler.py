@@ -29,6 +29,7 @@ class ServerModeler:
         rdf = Path(result.nquads_path).relative_to(workspace).as_posix()
         scope_result = Path(context.domain_context["scope_v2_result_path"]).resolve().relative_to(workspace.resolve()).as_posix()
         inputs = workspace / "artifacts" / "server_inputs.json"
-        inputs.write_text(json.dumps({"rdf_path": rdf, "scope_result_path": scope_result, "scope": "scope_v2"}, indent=2) + "\n", encoding="utf-8")
+        metadata={"modeling_mode":"fixed_template", "template_ids":result.details.get("templateIds", []), "model_calls":0}
+        inputs.write_text(json.dumps({"rdf_path": rdf, "scope_result_path": scope_result, "scope": "scope_v2", **metadata}, indent=2) + "\n", encoding="utf-8")
         artifacts.append(ArtifactRef(artifact_id="server_inputs", kind="modeling_input_index", path="artifacts/server_inputs.json", role="evidence", producer_stage="domain_modeling", media_type="application/json"))
-        return ModelingStageResult(status="completed", artifacts=artifacts, context={"rdf_path": rdf}, metrics={"model_calls": 0}, env={"DATAELF_SERVER_RDF": str(workspace / rdf)})
+        return ModelingStageResult(status="completed", artifacts=artifacts, context={"rdf_path": rdf, **metadata}, metrics={"model_calls": 0}, env={"DATAELF_SERVER_RDF": str(workspace / rdf)})

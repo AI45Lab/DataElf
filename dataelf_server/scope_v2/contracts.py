@@ -51,9 +51,13 @@ class ScopePlan:
     time_mode: str = "date_range"
 
     retrieval: dict[str, list[str]] = field(default_factory=dict)
+    research_topics: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        value = asdict(self)
+        if not self.research_topics:
+            value.pop('research_topics')
+        return value
 
 
 SOURCE_CONFIG: dict[str, dict[str, Any]] = {

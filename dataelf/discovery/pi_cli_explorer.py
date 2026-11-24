@@ -1,3 +1,16 @@
+"""Pi process adapter for the host's reviewed research runtime.
+
+Role coordinators supply resources, stop receipts and an optional task cwd.
+This adapter supports reviewed handoff, truncated-response reporting and the
+host policy's time behavior; it does not select a domain or a modeling strategy.
+Legacy CLI and Serve intentionally use their own adapters. Do not synchronize
+behavior between these implementations merely because their code is similar.
+
+This is an active implementation, not a deprecated compatibility copy. Replace
+it only after an alternative preserves role handoff, cancellation, cwd/resource
+separation, recovery and artifact delivery, with installed-package and real
+reviewed ON/OFF task validation and migration of every remaining caller.
+"""
 from __future__ import annotations
 
 import json
@@ -10,12 +23,13 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from threading import Thread
+from threading import Thread, Event
 
 from dataelf.discovery.contracts import ArtifactRef, DiscoveryContext, DiscoveryJob, ExplorerRunResult
 from dataelf.discovery.pi_runtime import PI_REQUIRED_PACKAGES, is_managed_binary, managed_pi_resources, runtime_ready_for_process
 from dataelf.discovery.redaction import redact_text, secret_values
 from dataelf.discovery.run_control import check_cancelled, current_run, terminate_process, RunCancelled
+from dataelf.discovery.execution_policy import reviewed_analysis, unbounded_analysis
 
 
 DEFAULT_PI_MODE = "json"
@@ -99,6 +113,13 @@ class PiCliInsightsExplorer:
                 status="failed", error_code="PI_PROMPT_INVALID",
                 error_message=f"Discovery prompt is missing or outside workspace: {prompt_path}",
             )
+        try:
+            cwd = self._execution_cwd(context)
+        except (ValueError, OSError) as exc:
+            return ExplorerRunResult(
+                status="failed", error_code="PI_WORKING_DIRECTORY_INVALID",
+                error_message=str(exc),
+            )
         pi_binary = self._resolve_binary()
         if pi_binary is None:
             message = (
@@ -118,9 +139,8 @@ class PiCliInsightsExplorer:
             stdout_path.write_text("", encoding="utf-8")
             stderr_path.write_text(message + "\n", encoding="utf-8")
             return ExplorerRunResult(status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix), warnings=[message], error_code="EXPLORER_RUNTIME_NOT_READY", error_message=message)
-        timeout = self.timeout_seconds or _timeout_seconds(job)
-        cwd = self.cwd.resolve()
-        _write_json(logs_dir / f"{self.log_prefix}_command.json", {"command": _redact_command(command), "cwd": str(cwd), "workspace_path": str(workspace_path)})
+        timeout = self._execution_timeout(job)
+        _write_json(logs_dir / f"{self.log_prefix}_command.json", {"command": _redact_command(command), "cwd": str(cwd), "runtime_cwd": str(self.cwd.resolve()), "workspace_path": str(workspace_path)})
         _write_json(logs_dir / f"{self.log_prefix}_env_redacted.json", _redact_env(env))
 
         logger.info("Starting Pi CLI: binary=%s mode=%s model=%s cwd=%s timeout=%ss log_mode=%s", pi_binary, self.mode, self.model or "<pi default>", cwd, timeout, self.log_mode)
@@ -129,7 +149,11 @@ class PiCliInsightsExplorer:
         elif self.log_mode == "summary":
             logger.info("Pi event summaries will be streamed; raw JSON events will also be captured in %s.", events_path)
         try:
-            completed = _run_pi_process(command, cwd=cwd, env=env, timeout=timeout, log_mode=self.log_mode, compact_json_events=self.compact_stream_events)
+            completed = _run_pi_process(
+                command, cwd=cwd, env=env, timeout=timeout, log_mode=self.log_mode,
+                compact_json_events=self.compact_stream_events or context.execution.get("compact_json_events", False),
+                stop_files=tuple(context.execution.get("stop_files", ())),
+            )
         except RunCancelled as exc:
             stdout = getattr(exc, "stdout", "")
             stderr = getattr(exc, "stderr", "")
@@ -155,6 +179,18 @@ class PiCliInsightsExplorer:
         event_warnings = _write_json_events(completed.stdout or "", events_path)
 
         if self.detect_model_errors:
+            last_stop = None
+            for line in (completed.stdout or "").splitlines():
+                try:
+                    event = json.loads(line)
+                except ValueError:
+                    continue
+                message = event.get("message", {})
+                if event.get("type") == "message_end" and message.get("role") == "assistant":
+                    last_stop = message.get("stopReason")
+            if last_stop == "length" and reviewed_analysis(job.spec):
+                return ExplorerRunResult(status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix),
+                    error_code="PI_OUTPUT_TRUNCATED", error_message="Provider output ended at the token limit; saved artifacts and event logs are retained.")
             model_errors = _model_event_errors(completed.stdout or "")
             if model_errors:
                 return ExplorerRunResult(status="failed", artifacts=_log_artifacts(workspace_path, self.log_prefix),
@@ -172,6 +208,25 @@ class PiCliInsightsExplorer:
             )
         return ExplorerRunResult(status="completed", artifacts=_log_artifacts(workspace_path, self.log_prefix))
 
+    def _execution_cwd(self, context: DiscoveryContext) -> Path:
+        """Separate task-relative tool paths from the configured Pi runtime root.
+
+        Callers opt in explicitly. Existing callers retain their configured cwd;
+        runtime discovery, provider registration and caches always use self.cwd.
+        This validates the launch directory, not a sandbox for arbitrary Bash.
+        """
+        selected = context.execution.get("cwd")
+        if selected is None:
+            return self.cwd.resolve()
+        if not isinstance(selected, str) or not selected.strip():
+            raise ValueError("Execution cwd must be a nonempty workspace path")
+        workspace = Path(context.workspace_path).resolve()
+        path = Path(selected)
+        path = (path if path.is_absolute() else workspace / path).resolve()
+        if not path.is_relative_to(workspace) or not path.is_dir():
+            raise ValueError("Execution cwd must be an existing directory inside the workspace")
+        return path
+
     def _resolve_binary(self) -> str | None:
         if self.pi_binary:
             path = Path(self.pi_binary)
@@ -186,6 +241,9 @@ class PiCliInsightsExplorer:
         # The default runtime is deliberately project-local.  A global Pi is
         # only used when the user explicitly configures ``binary: pi``.
         return None
+
+    def _execution_timeout(self, job):
+        return None if unbounded_analysis(job.spec) else self.timeout_seconds or _timeout_seconds(job)
 
     def _build_command(
         self,
@@ -211,12 +269,17 @@ class PiCliInsightsExplorer:
             command.extend(["--skill", str(skill)])
         if self.extra_args:
             command.extend(shlex.split(self.extra_args))
-        command.extend([f"@{prompt_path.resolve()}", "Run this DataElf discovery task and write the required workspace artifacts."])
+        settings = getattr(context, "execution", {}) if context else {}
+        if settings.get("tools"):
+            command.extend(["--tools", settings["tools"]])
+        suffix = settings.get("suffix", "Run this DataElf discovery task and write the required workspace artifacts.")
+        command.extend([f"@{prompt_path.resolve()}", suffix])
         return command
 
     def _build_env(self, workspace_path: Path, job: DiscoveryJob, context: DiscoveryContext) -> dict[str, str]:
         env: dict[str, str] = {}
-        for key in _ENV_ALLOWLIST:
+        inherited = _ENV_ALLOWLIST | _LEGACY_NETWORK_ENV
+        for key in inherited:
             value = os.environ.get(key)
             if value is not None:
                 env[key] = value
@@ -230,11 +293,6 @@ class PiCliInsightsExplorer:
         env["DATAELF_PYTHON"] = sys.executable
         env["DATAELF_WORKFLOW_PROFILE"] = job.spec.workflow_profile
         env["DATAELF_DOMAIN"] = context.spec.domain
-        env["DATAELF_PYTHON"] = sys.executable
-        if any(artifact.kind == "ontology_rdf" for artifact in context.artifacts):
-            env["DATAELF_PI_ONTOLOGY"] = "1"
-        else:
-            env.pop("DATAELF_PI_ONTOLOGY", None)
         if self.model:
             env["DATAELF_PI_MODEL"] = self.model
         if "NPM_CONFIG_CACHE" not in env and "npm_config_cache" not in env:
@@ -303,8 +361,12 @@ _ENV_ALLOWLIST = {
     "PI_OFFLINE",
     "PI_SKIP_VERSION_CHECK",
     "PI_TELEMETRY",
+    "DATAELF_PI_STREAM_USAGE",
     "NPM_CONFIG_CACHE",
     "npm_config_cache",
+}
+# The reference legacy executor forwards network and certificate settings for every domain.
+_LEGACY_NETWORK_ENV = {
     "NODE_USE_ENV_PROXY",
     "HTTP_PROXY",
     "HTTPS_PROXY",
@@ -322,7 +384,7 @@ _ENV_ALLOWLIST = {
 _SECRET_KEY_MARKERS = ("KEY", "TOKEN", "SECRET", "PASSWORD")
 
 
-def _run_pi_process(command, cwd, env, timeout, log_mode, compact_json_events=False) -> PiCompleted:
+def _run_pi_process(command, cwd, env, timeout, log_mode, compact_json_events=False, stop_files=()) -> PiCompleted:
     check_cancelled()
     process = subprocess.Popen(command, cwd=cwd, env=env, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, text=True, bufsize=1, start_new_session=True)
@@ -332,11 +394,23 @@ def _run_pi_process(command, cwd, env, timeout, log_mode, compact_json_events=Fa
         Thread(target=_drain_stream, args=(process.stdout, stdout_chunks, logging.INFO, "[pi] ", log_mode, True, compact_json_events, secret_values(env)), daemon=True),
         Thread(target=_drain_stream, args=(process.stderr, stderr_chunks, logging.WARNING, "[pi stderr] ", log_mode, False, False, secret_values(env)), daemon=True),
     ]
+    stop_watcher=Event()
+    watcher=None
+    if stop_files:
+        # Opt-in process boundary for ontology control signals. Other callers
+        # retain the original wait/timeout behavior with no watcher thread.
+        def watch():
+            while not stop_watcher.wait(0.05):
+                if any(Path(path).is_file() for path in stop_files):
+                    terminate_process(process)
+                    return
+        watcher=Thread(target=watch,daemon=True)
     try:
         if control:
             control.register(process)
         for thread in threads:
             thread.start()
+        if watcher:watcher.start()
         try:
             returncode = process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
@@ -348,7 +422,8 @@ def _run_pi_process(command, cwd, env, timeout, log_mode, compact_json_events=Fa
             thread.join(timeout=5)
         check_cancelled()
         return PiCompleted(returncode=returncode, stdout="".join(stdout_chunks), stderr="".join(stderr_chunks))
-    except RunCancelled as exc:
+    except (RunCancelled, KeyboardInterrupt) as exc:
+        terminate_process(process)
         for thread in threads:
             if thread.is_alive():
                 thread.join(timeout=2)
@@ -356,6 +431,8 @@ def _run_pi_process(command, cwd, env, timeout, log_mode, compact_json_events=Fa
         exc.stderr = "".join(stderr_chunks)
         raise
     finally:
+        stop_watcher.set()
+        if watcher:watcher.join(timeout=3)
         if control:
             control.unregister(process)
         terminate_process(process)

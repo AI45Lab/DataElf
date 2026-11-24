@@ -1,0 +1,31 @@
+# Local overrides belong in config.yaml; template paths are relative to this file.
+mode: dynamic
+templates: []
+max_repairs: 5
+max_format_repairs: 1
+max_control_restarts: 3
+max_llm_requests: 160
+max_llm_tokens: null
+timeout_seconds: 9120
+output_subdir: ontology
+save_as_template: false
+modeler: {model: "", timeout_seconds: 1800, tool_choice: auto}
+reviewer: {model: "", timeout_seconds: 1800, tool_choice: auto}
+delivery:
+  enabled: true
+  closing_reserve_seconds: 120
+  closing_reserve_requests: 4
+  closing_reserve_tokens: null
+  reviewer_reserve_seconds: 300
+  reviewer_reserve_requests: 4
+  validation_reserve_seconds: 30
+  minimum_session_seconds: 10
+  stream_grace_seconds: 10
+  max_closing_interrupts: 1
+  stagnation_repeats: 3
+  feedback_cooldown_requests: 3
+# For gateways verified to support stream_options.include_usage, set
+# modeler.stream_usage / reviewer.stream_usage: true. Otherwise leave unset.
+
+# Output cap is omitted by default; set role.max_output_tokens to a positive
+# integer only when explicitly required. Provider server defaults still apply.
