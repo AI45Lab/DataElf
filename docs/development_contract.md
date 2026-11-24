@@ -2,6 +2,23 @@
 
 本文是接入新 case/domain 时必须遵守的开发契约。它描述当前代码的稳定边界，而不是未来设想。示例实现是 `ai_index`，但新 case 不应复制其中的领域细节。
 
+## 0. 修改 core 的前置检查
+
+**如果你正在做以下任何一件事，先停下来跟维护者确认，不要直接改**：
+
+1. 在 `dataelf/discovery/` 或 `dataelf/` 下新建子模块（如 `dataelf/ontology/`）
+2. 修改 `dataelf/discovery/contracts.py` 的任何字段
+3. 在 core 任何文件里出现 `ai_index` / `finance` / `trajectory_analysis` 字符串或 import
+4. 把某个 domain 的模块"提炼"到 core
+5. 新增 Pi explorer / workflow / runtime 实现（包括复制现有实现）
+6. 在 core 新增非 Python 文件（如 Pi extension TS/JS）
+
+**为什么这些动作危险**：core 的稳定性依赖于"domain 数量增长时 core 不被修改"。以上任何一项都意味着你正在把 domain 概念或新业务耦合进 core，会让未来所有 domain 的接入成本上升。
+
+**正确做法**：先用 `DomainPlugin` 协议表达你的需求。如果协议不够用，先跟维护者讨论协议扩展（一次性的 core 改动，所有未来 domain 受益），而不是绕过协议加一次性分支。
+
+**关于 core 中的 Pi extension TS/JS 文件**：core 的 Python 模块不得直接维护写死 domain 名的 Pi extension。所有 domain-specific extension 必须放在 `dataelf/domains/<domain>/pi/extensions/`。如果确实需要跨 domain 共享的 extension 辅助模块，内容必须不包含任何 domain 名（按 1.1 节 grep 验证），并集中放在 core 专门的公共目录，在本文档登记位置和所有权。
+
 ## 1. 核心原则
 
 DataElf 将“分析什么”和“由什么 agent runtime 执行”拆成两个独立维度：
@@ -30,6 +47,40 @@ CLI / API
 - domain 之间不得直接依赖对方的 connector、schema 或内部模型。
 - domain-specific 类型、字段和默认值不得进入 core `DataElfConfig`。
 - 通用抽象只能从至少两个真实 domain 的相同需求中提炼，不能提前把 AI Index 设计泛化为平台 contract。
+
+  **Why**：基于单一 domain 提炼的"通用"模块几乎必然把该 domain 的隐含假设编码进接口，第二个 domain 接入时会发现接口不匹配，需要再改 core——这比一开始就不提炼的成本更高。
+
+  **How to apply**：如果你在做"通用化"重构，先列出至少两个已经通过 `DomainPlugin` 协议表达过这个能力的真实 domain；如果列不出来，说明时机未到，把模块留在原 domain 内。如果你认为某个能力"未来一定会有多个 domain 用"，先用一个 domain 把它在协议下跑通，等第二个 domain 出现时再提炼。
+
+### 1.1 Core 的物理边界
+
+以下目录属于 core，**禁止出现任何 domain 名（`ai_index` / `finance` / `trajectory_analysis` 等）和 domain-specific import**：
+
+- `dataelf/cli.py`、`dataelf/config.py`、`dataelf/schemas.py`
+- `dataelf/discovery/`
+- `dataelf/stores/`
+- `dataelf/tools/`
+- 任何未来在 `dataelf/` 下新建的、不属于 `domains/` 的子模块（例如 `dataelf/ontology/`）
+
+验证命令（CI 可执行）：
+
+```bash
+grep -rn "ai_index\|finance\|trajectory_analysis" \
+  dataelf/discovery/ dataelf/ontology/ \
+  dataelf/cli.py dataelf/config.py dataelf/schemas.py \
+  dataelf/stores/ dataelf/tools/ 2>/dev/null
+# 必须返回空
+```
+
+**允许的例外**：
+
+- `dataelf/domains/` 内部（domain 自己的代码）
+- core 中**通过 manifest / registry 显式发现** domain 的通用机制代码（例如 `domain_registry.py` 读取 domain.yaml 的代码，不包含具体 domain 名）
+- 测试 fixture 中的 domain 名（仅测试目录）
+
+**Why**：物理边界比口头约定可靠。把"core 不知道 domain 细节"这条规则转成可机器验证的形式（grep 为空），让 AI 和 CI 都能独立检查，不依赖 reviewer 的记忆力。
+
+**How to apply**：改完代码后、提交前，先跑上面的 grep。如果有命中，说明你正在把 domain 概念泄漏进 core，需要停下来重新设计——通常的解法是把这段逻辑移到对应 domain 内，或者通过 `DomainPlugin` 协议注入。
 
 ## 2. Job contract
 
